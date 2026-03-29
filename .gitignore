@@ -1,0 +1,13 @@
+# Variáveis de ambiente (nunca subir!)
+.env
+
+# Sessão do WhatsApp (gerada automaticamente)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Dependências
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
