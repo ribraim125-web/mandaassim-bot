@@ -2,10 +2,10 @@ const express = require('express');
 const crypto = require('crypto');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 
-const mpClient = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN,
-});
-const payment = new Payment(mpClient);
+function getPayment() {
+  const mpClient = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
+  return new Payment(mpClient);
+}
 
 const CONFIRMACAO_PREMIUM =
   `✅ *Pagamento confirmado!*\n\n` +
@@ -63,6 +63,7 @@ function createWebhookApp(waClient, supabase) {
       console.log(`[Webhook] Notificação recebida — payment_id: ${paymentId}`);
 
       // Busca os detalhes do pagamento no MP
+      const payment = getPayment();
       const result = await payment.get({ id: paymentId });
 
       if (result.status !== 'approved') {
