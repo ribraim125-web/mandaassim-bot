@@ -13,21 +13,12 @@ const FREE_DAILY_LIMIT = parseInt(process.env.FREE_DAILY_LIMIT || '5', 10);
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 const WELCOME_MESSAGE =
-  `👋 Bem-vindo ao *MandaAssim!*\n\n` +
-  `Sou uma IA treinada em sedução e comunicação para homens brasileiros. ` +
-  `Analiso suas conversas e gero respostas prontas para copiar e colar — ` +
-  `calibradas com técnicas reais de atração.\n\n` +
-  `*Como usar:*\n` +
-  `📸 Manda um *print* da conversa com ela\n` +
-  `✍️ Ou *descreva a situação* (ex: "ela me deixou no visto")\n\n` +
-  `*Para tirar o melhor proveito:*\n` +
-  `→ Quanto mais contexto você der, melhor a resposta\n` +
-  `→ Manda o print completo, não só a última mensagem\n` +
-  `→ Copie a opção que mais combina com seu estilo\n\n` +
-  `*Por que o MandaAssim é diferente?*\n` +
-  `Não damos respostas genéricas. Cada sugestão é gerada com base no tom dela, ` +
-  `no contexto da conversa e em técnicas como push-pull, escassez e curiosidade.\n\n` +
-  `Você tem *5 análises grátis* por dia. Bora! 🔥`;
+  `E aí! 👊\n\n` +
+  `Aqui é o MandaAssim — manda o print da conversa com ela ou descreve o que tá rolando, ` +
+  `que eu te dou 3 respostas prontas pra copiar e colar.\n\n` +
+  `Nada de papo genérico de ChatGPT. As respostas são calibradas pro contexto dela — ` +
+  `tom, ritmo, o que ela disse, como disse.\n\n` +
+  `Você tem *5 análises grátis* hoje. Pode mandar! 🔥`;
 
 const LIMITE_MESSAGE =
   `Ei, você usou seus ${FREE_DAILY_LIMIT} créditos de hoje! 🔥\n\n` +
