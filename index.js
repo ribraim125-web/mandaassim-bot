@@ -97,16 +97,14 @@ async function analisarTextoComClaude(situacao) {
 // Supabase
 // ---------------------------------------------------------------------------
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
+console.log('[Debug] SUPABASE_URL:', process.env.SUPABASE_URL);
 
-/**
- * Verifica se o usuário é novo e salva no banco.
- * Retorna true se for a primeira mensagem do usuário.
- */
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+}
+
 async function upsertUser(phone, name) {
+  const supabase = getSupabase();
   const { data: existing } = await supabase
     .from('users')
     .select('id')
@@ -123,10 +121,8 @@ async function upsertUser(phone, name) {
   return true;
 }
 
-/**
- * Retorna true se o usuário tem plano premium ativo.
- */
 async function isUserPremium(phone) {
+  const supabase = getSupabase();
   const { data } = await supabase
     .from('users')
     .select('plan, plan_expires_at')
@@ -138,10 +134,8 @@ async function isUserPremium(phone) {
   return true;
 }
 
-/**
- * Incrementa o contador diário de mensagens. Retorna o total de hoje.
- */
 async function incrementDailyCount(phone) {
+  const supabase = getSupabase();
   const today = new Date().toISOString().slice(0, 10);
 
   const { data: existing } = await supabase
@@ -311,7 +305,7 @@ client.on('message', async (message) => {
 // Inicialização
 // ---------------------------------------------------------------------------
 
-const webhookApp = createWebhookApp(client, supabase);
+const webhookApp = createWebhookApp(client, getSupabase());
 webhookApp.listen(PORT, () => {
   console.log(`[Webhook] Servidor rodando na porta ${PORT}`);
 });
