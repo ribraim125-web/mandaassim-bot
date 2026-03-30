@@ -65,6 +65,33 @@ FORMATO OBRIGATÓRIO (sempre assim, sem variações):
 ⚡ Opção 3 (direta): [resposta]
 💡 Contexto: [1 linha explicando a estratégia usada]`;
 
+async function enviarRespostasSeparadas(message, sugestoes) {
+  const linhas = sugestoes.split('\n');
+
+  const extrair = (emoji) => {
+    const idx = linhas.findIndex(l => l.trimStart().startsWith(emoji));
+    if (idx === -1) return null;
+    // Pega a linha e as linhas seguintes até o próximo emoji ou fim
+    const proxEmojis = ['🔥', '😏', '⚡', '💡'];
+    let bloco = [linhas[idx]];
+    for (let i = idx + 1; i < linhas.length; i++) {
+      if (proxEmojis.some(e => linhas[i].trimStart().startsWith(e))) break;
+      bloco.push(linhas[i]);
+    }
+    return bloco.join('\n').trim();
+  };
+
+  const opcao1 = extrair('🔥');
+  const opcao2 = extrair('😏');
+  const opcao3 = extrair('⚡');
+  const contexto = extrair('💡');
+
+  if (opcao1) await message.reply(opcao1);
+  if (opcao2) await message.reply(opcao2);
+  if (opcao3) await message.reply(opcao3);
+  if (contexto) await message.reply(contexto);
+}
+
 async function analisarPrintComClaude(base64Data, mimeType) {
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
@@ -251,15 +278,35 @@ client.on('message', async (message) => {
     return;
   }
 
-  // Palavra-chave "premium" — gera Pix diretamente
-  if (message.type === 'chat' && message.body.trim().toLowerCase() === 'premium') {
-    const isPremium = await isUserPremium(phone);
-    if (isPremium) {
-      await message.reply('🌟 Você já é *Premium*! Pode mandar à vontade.');
-    } else {
-      await enviarCobrancaPix(message, phone);
+  // Palavra-chave "premium" ou "status"
+  if (message.type === 'chat') {
+    const cmd = message.body.trim().toLowerCase();
+
+    if (cmd === 'status') {
+      const isPremium = await isUserPremium(phone);
+      const supabase = getSupabase();
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: countRow } = await supabase
+        .from('daily_message_counts')
+        .select('message_count')
+        .eq('phone', phone)
+        .eq('count_date', today)
+        .maybeSingle();
+      const used = countRow?.message_count ?? 0;
+      const plano = isPremium ? '🌟 *Premium* — mensagens ilimitadas' : `🆓 Gratuito — ${used}/${FREE_DAILY_LIMIT} análises usadas hoje`;
+      await message.reply(`📊 *Seu status:*\n\n${plano}`);
+      return;
     }
-    return;
+
+    if (cmd === 'premium') {
+      const isPremium = await isUserPremium(phone);
+      if (isPremium) {
+        await message.reply('🌟 Você já é *Premium*! Pode mandar à vontade.');
+      } else {
+        await enviarCobrancaPix(message, phone);
+      }
+      return;
+    }
   }
 
   // Incrementa contagem e verifica limite
@@ -284,7 +331,7 @@ client.on('message', async (message) => {
     await message.reply('_Analisando a situação... um segundinho_ ⏳');
     try {
       const sugestoes = await analisarTextoComClaude(text);
-      await message.reply(sugestoes);
+      await enviarRespostasSeparadas(message, sugestoes);
     } catch (err) {
       console.error('[Claude] Erro ao analisar texto:', err.message);
       await message.reply('Ocorreu um erro ao gerar as respostas. Tente novamente.');
@@ -300,7 +347,7 @@ client.on('message', async (message) => {
     await message.reply('_Analisando o print... um segundinho_ ⏳');
     try {
       const sugestoes = await analisarPrintComClaude(media.data, media.mimetype);
-      await message.reply(sugestoes);
+      await enviarRespostasSeparadas(message, sugestoes);
     } catch (err) {
       console.error('[Claude] Erro ao analisar imagem:', err.message);
       await message.reply('Ocorreu um erro ao analisar a imagem. Tente novamente em instantes.');
