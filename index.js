@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
@@ -314,7 +315,7 @@ client.on('message', async (message) => {
 // Inicialização
 // ---------------------------------------------------------------------------
 
-const webhookApp = createWebhookApp(client, getSupabase());
+const webhookApp = createWebhookApp(client, null);
 webhookApp.listen(PORT, () => {
   console.log(`[Webhook] Servidor rodando na porta ${PORT}`);
 });
