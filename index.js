@@ -13,12 +13,15 @@ const FREE_DAILY_LIMIT = parseInt(process.env.FREE_DAILY_LIMIT || '5', 10);
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 const WELCOME_MESSAGE =
-  `E aí! 👊\n\n` +
-  `Aqui é o MandaAssim — manda o print da conversa com ela ou descreve o que tá rolando, ` +
-  `que eu te dou 3 respostas prontas pra copiar e colar.\n\n` +
-  `Nada de papo genérico de ChatGPT. As respostas são calibradas pro contexto dela — ` +
-  `tom, ritmo, o que ela disse, como disse.\n\n` +
-  `Você tem *5 análises grátis* hoje. Pode mandar! 🔥`;
+  `Chegou no lugar certo. 👊\n\n` +
+  `Sabe aquela sensação de ficar olhando pro celular sem saber o que responder — ` +
+  `com medo de falar errado e perder o momento?\n\n` +
+  `O *MandaAssim* resolve isso em segundos.\n\n` +
+  `Manda o print da conversa com ela (ou descreve a situação em texto) ` +
+  `e eu te dou *3 respostas prontas pra copiar e colar* — romântica, ousada ou direta.\n\n` +
+  `Calibradas pro contexto dela: o que ela disse, como disse, o tom, o emoji. ` +
+  `Nada genérico.\n\n` +
+  `Você tem *5 análises grátis* agora. Manda o print! 🔥`;
 
 const LIMITE_MESSAGE =
   `Ei, você usou seus ${FREE_DAILY_LIMIT} créditos de hoje! 🔥\n\n` +
@@ -56,8 +59,8 @@ AO ANALISAR UM PRINT:
 3. Gere 3 respostas que criam tensão ou curiosidade
 
 FORMATO OBRIGATÓRIO (sempre assim, sem variações):
-🔥 Opção 1 (engraçada): [resposta]
-😏 Opção 2 (charmosa): [resposta]
+🔥 Opção 1 (romântica): [resposta]
+😏 Opção 2 (ousada): [resposta]
 ⚡ Opção 3 (direta): [resposta]
 💡 Contexto: [1 linha explicando a estratégia usada]`;
 
@@ -206,7 +209,7 @@ async function enviarCobrancaPix(message, phone) {
   try {
     const { qrCodeBase64, qrCodeText } = await criarCobrancaPix(phone);
 
-    await message.reply('Perfeito! Gerei seu Pix 👇');
+    await message.reply('Perfeito! Gerei seu Pix 👇\n\n⚠️ O Pix aparecerá no nome *Rafael Cabral Ibraim* — esse é o nome do responsável pelo MandaAssim. É seguro pagar normalmente! ✅');
 
     const media = new MessageMedia('image/png', qrCodeBase64, 'pix-qrcode.png');
     await client.sendMessage(message.from, media);
