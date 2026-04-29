@@ -916,8 +916,85 @@ const MENSAGENS_ESPERA = [
   'Tô vendo aqui, já volto... ⏳',
 ];
 
+const MENSAGENS_ESPERA_AUDIO = [
+  'Ouvindo o áudio... ⏳',
+  'Processando o que ela disse... ⏳',
+  'Deixa eu ouvir isso aqui... ⏳',
+  'Transcrevendo o áudio dela... ⏳',
+];
+
+const MENSAGENS_ESPERA_PERFIL = [
+  'Analisando o perfil dela... ⏳',
+  'Vendo o que tem aqui pra trabalhar... ⏳',
+  'Lendo o vibe dela pela foto... ⏳',
+  'Deixa eu ver o que ela tá revelando aqui... ⏳',
+];
+
 function getMensagemEspera() {
   return MENSAGENS_ESPERA[Math.floor(Math.random() * MENSAGENS_ESPERA.length)];
+}
+
+// ---------------------------------------------------------------------------
+// Detecção de foto de perfil (Tinder/Instagram) e prompt específico de abertura
+// ---------------------------------------------------------------------------
+
+const PROFILE_OPENER_KEYWORDS = /\b(perfil|tinder|bumble|hinge|instagram|insta|foto dela|abertura|abre|como abordo|como falo|como chego|match|como abro|como conquisto|quero falar com ela)\b/i;
+
+const PROFILE_OPENER_PROMPT = `Você é o MandaAssim. Essa é a foto do perfil dela — Tinder, Instagram ou similar.
+
+Analise visualmente:
+- Estilo dela: casual, descolada, fitness, artística, viajante, balada, etc.
+- Expressão e energia: séria, sorridente, indiferente, misteriosa, divertida, etc.
+- Cenário: viagem, natureza, cidade, praia, evento, academia, casa, etc.
+- Qualquer detalhe específico: atividade, roupa, objeto de fundo, animal, comida
+
+GERE 3 ABERTURAS completamente diferentes usando o que você viu na foto:
+- Cada opção deve mencionar algo ESPECÍFICO e visível — nunca genérico
+- Tom de cara de 25 anos no WhatsApp — casual, direto, sem forçar
+- Máximo 10 palavras por opção
+- PROIBIDO: elogio de aparência ("você é linda", "que foto bonita", "incrível")
+- PROIBIDO: perguntas óbvias ("onde foi isso?", "gostou do lugar?")
+
+FORMATO DE SAÍDA:
+📍 _[uma linha: o que a foto revela — vibe, estilo, o que mais se destaca]_
+
+Cola uma dessas pra abrir 👇
+
+🔥 "[abertura curiosa/romântica baseada em algo específico da foto]"
+
+😏 "[abertura ousada/provocadora com detalhe que você viu]"
+
+⚡ "[abertura seca e direta — referencia algo concreto da foto]"
+
+_[uma linha: por que essa abordagem funciona pra esse perfil específico]_`;
+
+// ---------------------------------------------------------------------------
+// Transcrição de áudio via Groq Whisper (gratuito, PT-BR nativo)
+// ---------------------------------------------------------------------------
+
+async function transcreverAudio(base64Data, mimetype) {
+  const buffer = Buffer.from(base64Data, 'base64');
+  // WhatsApp envia áudio como ogg/opus (ptt) ou mpeg/mp4 (encaminhado)
+  const ext = mimetype.includes('ogg') ? 'ogg' : mimetype.includes('mp4') ? 'm4a' : 'mp3';
+
+  const formData = new FormData();
+  formData.append('file', new Blob([buffer], { type: mimetype }), `audio.${ext}`);
+  formData.append('model', 'whisper-large-v3-turbo');
+  formData.append('language', 'pt');
+  formData.append('response_format', 'text');
+
+  const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.text().catch(() => String(res.status));
+    throw new Error(`Groq Whisper ${res.status}: ${err}`);
+  }
+
+  return (await res.text()).trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -1564,31 +1641,107 @@ client.on('message', async (message) => {
     }
 
   } else if (message.type === 'image') {
-    console.log(`[Imagem] ${phone} enviou um print.`);
     const media = await message.downloadMedia();
     if (!media) {
       await message.reply('Não consegui baixar a imagem, manda de novo');
       return;
     }
+
+    const caption = message.body?.trim() || '';
+    const isPerfilMode = PROFILE_OPENER_KEYWORDS.test(caption);
     const ctxImg = getUserContext(phone);
     const toneHintImg = ctxImg?.tonePreference ? `\nPreferência do usuário: ele tende a preferir tom "${ctxImg.tonePreference}".` : '';
     const girlProfileImg = await getGirlProfile(phone);
     const girlContextImg = buildGirlContext(girlProfileImg);
 
-    await message.reply(getMensagemEspera());
+    if (isPerfilMode) {
+      // Modo perfil: gera abertura de conversa baseada na foto dela
+      console.log(`[Perfil] ${phone} enviou foto de perfil (caption: "${caption}")`);
+      const esperaPerfil = MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)];
+      await message.reply(esperaPerfil);
+      try {
+        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, PROFILE_OPENER_PROMPT, '', girlContextImg);
+        saveUserContext(phone, media, 'image');
+        await enviarResposta(message, sugestoes);
+        await contadorRestante(message, trial, todayCount);
+        await upsellPicoPremium(message, trial, todayCount);
+      } catch (err) {
+        console.error('[Perfil] Erro:', err.message);
+        await message.reply('Não consegui analisar o perfil, tenta mandar de novo 😅');
+      }
+    } else {
+      // Modo conversa: analisa o print normalmente
+      console.log(`[Imagem] ${phone} enviou um print.`);
+      await message.reply(getMensagemEspera());
+      try {
+        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg);
+        saveUserContext(phone, media, 'image');
+        await enviarResposta(message, sugestoes);
+        await contadorRestante(message, trial, todayCount);
+        await upsellPicoPremium(message, trial, todayCount);
+      } catch (err) {
+        console.error('[Claude] Erro ao analisar imagem:', err.message);
+        await message.reply('Não consegui ler esse print, tenta mandar de novo');
+      }
+    }
+
+  } else if (message.type === 'audio' || message.type === 'ptt') {
+    // Áudio de voz — transcreve com Groq Whisper e analisa como texto
+    console.log(`[Áudio] ${phone} enviou ${message.type}.`);
+
+    if (!process.env.GROQ_API_KEY) {
+      await message.reply('Transcrição de áudio não disponível agora 😅 Descreve em texto.');
+      return;
+    }
+
+    const media = await message.downloadMedia();
+    if (!media) {
+      await message.reply('Não consegui baixar o áudio, manda de novo');
+      return;
+    }
+
+    const esperaAudio = MENSAGENS_ESPERA_AUDIO[Math.floor(Math.random() * MENSAGENS_ESPERA_AUDIO.length)];
+    await message.reply(esperaAudio);
+
     try {
-      const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg);
-      saveUserContext(phone, media, 'image');
-      await enviarResposta(message, sugestoes);
+      const transcricao = await transcreverAudio(media.data, media.mimetype);
+
+      if (!transcricao || transcricao.length < 3) {
+        await message.reply('Não consegui entender o áudio 😅 Tenta descrever em texto.');
+        return;
+      }
+
+      console.log(`[Áudio] Transcrição (${transcricao.length} chars): "${transcricao.slice(0, 100)}..."`);
+
+      // Mostra o que foi transcrito — o usuário sabe que foi entendido
+      await client.sendMessage(message.from, `📝 _"${transcricao}"_`);
+
+      // Analisa o texto transcrito normalmente
+      const girlProfileAudio = await getGirlProfile(phone);
+      const girlContextAudio = buildGirlContext(girlProfileAudio);
+      const reconquistaExtraAudio = RECONQUISTA_KEYWORDS.test(transcricao) ? RECONQUISTA_CONTEXT : '';
+      const monthlyCountAudio = await getMonthlyCount(phone);
+      const tierAudio = resolveTier(trial, todayCount, monthlyCountAudio);
+      const ctxAudio = getUserContext(phone);
+      const recentSuccessAudio = ctxAudio?.recentSuccess || false;
+
+      const result = await analisarTextoComClaude(transcricao, '', girlContextAudio + reconquistaExtraAudio, tierAudio, phone, recentSuccessAudio);
+      saveUserContext(phone, transcricao, 'text');
+      if (recentSuccessAudio) {
+        const updCtx = userContext.get(phone) || {};
+        userContext.set(phone, { ...updCtx, recentSuccess: false });
+      }
+      await enviarResposta(message, result.text);
+      await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
     } catch (err) {
-      console.error('[Claude] Erro ao analisar imagem:', err.message);
-      await message.reply('Não consegui ler esse print, tenta mandar de novo');
+      console.error('[Áudio] Erro:', err.message);
+      await message.reply('Não consegui processar o áudio 😅 Tenta descrever em texto.');
     }
 
   } else {
-    await message.reply(`Só processo texto e print por enquanto. Descreve a situação ou manda o print da conversa 📲`);
+    await message.reply(`Manda o *texto*, um *print* da conversa ou um *áudio* — eu analiso e gero as opções 🎯`);
   }
 });
 
