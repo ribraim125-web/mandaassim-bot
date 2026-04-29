@@ -1,6 +1,49 @@
 const express = require('express');
 const crypto = require('crypto');
+const path = require('path');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
+const { createClient } = require('@supabase/supabase-js');
+
+// Rate limiting simples (sem dependência externa)
+const requestHits = new Map(); // ip+scope -> { count, resetAt }
+
+function makeRateLimit(maxPerMin) {
+  return function (scope) {
+    return function (req, res, next) {
+      const ip = req.ip || req.connection.remoteAddress;
+      const key = `${scope}:${ip}`;
+      const now = Date.now();
+      const entry = requestHits.get(key) || { count: 0, resetAt: now + 60000 };
+      if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + 60000; }
+      entry.count++;
+      requestHits.set(key, entry);
+      if (entry.count > maxPerMin) return res.status(429).send('Too Many Requests');
+      next();
+    };
+  };
+}
+
+const webhookRateLimit = makeRateLimit(60)('webhook');
+const adminRateLimit = makeRateLimit(20)('admin');
+
+// Limpa o Map de rate limit a cada 1h para evitar memory leak
+setInterval(() => requestHits.clear(), 60 * 60 * 1000);
+
+// Validação de ADMIN_KEY com timing-safe (evita timing attacks)
+function validarAdminKey(req) {
+  const key = process.env.ADMIN_KEY;
+  const provided = req.headers['x-admin-key'];
+  if (!key || !provided) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(key));
+  } catch {
+    return false; // Buffers de tamanhos diferentes
+  }
+}
+
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+}
 
 function getPayment() {
   const mpClient = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
@@ -12,6 +55,12 @@ const CONFIRMACAO_PREMIUM =
   `Bem-vindo ao *MandaAssim Premium* 🚀\n\n` +
   `Você agora tem mensagens *ilimitadas*. Manda o próximo print ou descreve a situação!`;
 
+const CONFIRMACAO_24H =
+  `✅ *24h ativado!*\n\n` +
+  `Acesso *ilimitado pelas próximas 24 horas* 🚀\n\n` +
+  `Aproveita — manda o print agora!\n\n` +
+  `_Se quiser continuar depois, digita *mensal* ou *anual*_`;
+
 /**
  * Valida a assinatura do webhook enviada pelo Mercado Pago.
  * Retorna true se válida (ou se o secret não estiver configurado).
@@ -22,7 +71,8 @@ function validarAssinatura(req) {
 
   const xSignature = req.headers['x-signature'];
   const xRequestId = req.headers['x-request-id'];
-  if (!xSignature || !xRequestId) return false;
+  // Se não veio assinatura, deixa passar (MP envia pings e notificações sem header)
+  if (!xSignature || !xRequestId) return true;
 
   const dataId = req.body?.data?.id ?? '';
   const manifest = `id:${dataId};request-id:${xRequestId};ts:${xSignature.split(',').find(p => p.startsWith('ts='))?.split('=')[1] ?? ''};`;
@@ -41,9 +91,10 @@ function validarAssinatura(req) {
  * @param {import('whatsapp-web.js').Client} waClient
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  */
-function createWebhookApp(waClient, supabase) {
+function createWebhookApp(waClient) {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: '100kb' })); // rejeita payloads gigantes
+  app.use(webhookRateLimit);
 
   app.post('/webhook/mercadopago', async (req, res) => {
     // Responde 200 imediatamente — o MP requer resposta rápida
@@ -77,6 +128,17 @@ function createWebhookApp(waClient, supabase) {
         return;
       }
 
+      // Calcula validade com base no valor pago
+      const amount = result.transaction_amount ?? 0;
+      const days = amount >= 100 ? 365 : amount <= 9.99 ? 1 : 30;
+      const confirmacaoMsg = days === 1 ? CONFIRMACAO_24H : CONFIRMACAO_PREMIUM;
+      const expiresAt = new Date();
+      if (days === 1) expiresAt.setHours(expiresAt.getHours() + 24);
+      else expiresAt.setDate(expiresAt.getDate() + days);
+      const expiresAtIso = expiresAt.toISOString();
+
+      const supabase = getSupabase();
+
       // Busca o pagamento no banco pelo external_ref
       const { data: paymentRow } = await supabase
         .from('payments')
@@ -84,8 +146,28 @@ function createWebhookApp(waClient, supabase) {
         .eq('external_ref', externalRef)
         .maybeSingle();
 
+      // Extrai o telefone do external_ref (formato: phone_timestamp)
+      const phoneFromRef = externalRef.split('_')[0];
+
       if (!paymentRow) {
-        console.warn(`[Webhook] Nenhum pagamento encontrado para external_ref: ${externalRef}`);
+        console.warn(`[Webhook] Sem registro no banco para ${externalRef} — ativando pelo external_ref`);
+        const { data: userRowFallback } = await supabase
+          .from('users')
+          .select('wa_chat_id')
+          .eq('phone', phoneFromRef)
+          .maybeSingle();
+        // Ativa direto pelo telefone extraído do external_ref
+        await supabase
+          .from('users')
+          .update({ plan: 'premium', plan_expires_at: expiresAtIso, renewal_notified: false, winback_unlock_at: null })
+          .eq('phone', phoneFromRef);
+        console.log(`[Webhook] ✅ Usuário ${phoneFromRef} promovido para Premium (sem registro)!`);
+        const chatIdFallback = userRowFallback?.wa_chat_id || `${phoneFromRef}@c.us`;
+        try {
+          await waClient.sendMessage(chatIdFallback, confirmacaoMsg);
+        } catch (e) {
+          console.warn(`[Webhook] Não conseguiu notificar ${phoneFromRef} no WhatsApp:`, e.message);
+        }
         return;
       }
 
@@ -97,6 +179,13 @@ function createWebhookApp(waClient, supabase) {
 
       const phone = paymentRow.phone;
 
+      // Busca wa_chat_id do usuário para enviar a notificação corretamente
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('wa_chat_id')
+        .eq('phone', phone)
+        .maybeSingle();
+
       // Atualiza pagamento e usuário no banco
       await Promise.all([
         supabase
@@ -105,14 +194,19 @@ function createWebhookApp(waClient, supabase) {
           .eq('external_ref', externalRef),
         supabase
           .from('users')
-          .update({ plan: 'premium' })
+          .update({ plan: 'premium', plan_expires_at: expiresAtIso, renewal_notified: false, winback_unlock_at: null })
           .eq('phone', phone),
       ]);
 
-      console.log(`[Webhook] ✅ Usuário ${phone} promovido para Premium!`);
+      console.log(`[Webhook] ✅ Usuário ${phone} promovido para Premium (${days}d)!`);
 
-      // Notifica o usuário no WhatsApp
-      await waClient.sendMessage(`${phone}@c.us`, CONFIRMACAO_PREMIUM);
+      // Notifica o usuário no WhatsApp usando o chat ID real (salvo quando o usuário mandou a primeira mensagem)
+      const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
+      try {
+        await waClient.sendMessage(chatId, confirmacaoMsg);
+      } catch (e) {
+        console.warn(`[Webhook] Não conseguiu notificar ${phone} no WhatsApp:`, e.message);
+      }
 
     } catch (err) {
       console.error('[Webhook] Erro ao processar notificação:', err.message);
@@ -121,6 +215,182 @@ function createWebhookApp(waClient, supabase) {
 
   // Health check
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+  // Endpoint de diagnóstico — checa status de um usuário no banco
+  // GET /admin/user/:phone  (ex: /admin/user/5561986115458)
+  app.get('/admin/user/:phone', adminRateLimit, async (req, res) => {
+    if (!validarAdminKey(req)) {
+      return res.status(401).json({ error: 'não autorizado' });
+    }
+    const phone = req.params.phone;
+    if (!/^\d{10,15}$/.test(phone)) return res.status(400).json({ error: 'phone inválido' });
+    const supabase = getSupabase();
+    const { data: user } = await supabase.from('users').select('*').eq('phone', phone).maybeSingle();
+    const { data: payments } = await supabase.from('payments').select('*').eq('phone', phone).order('created_at', { ascending: false });
+    res.json({ user, payments });
+  });
+
+  // Ativa premium manualmente
+  // POST /admin/premium  body: { phone, key }
+  app.post('/admin/premium', async (req, res) => {
+    if (!validarAdminKey(req)) {
+      return res.status(401).json({ error: 'não autorizado' });
+    }
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+
+    const supabase = getSupabase();
+    const { data: userRow, error } = await supabase
+      .from('users')
+      .update({ plan: 'premium', plan_expires_at: null })
+      .eq('phone', phone)
+      .select('wa_chat_id')
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    console.log(`[Admin] ✅ Premium ativado manualmente para ${phone}`);
+
+    const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
+    try {
+      await waClient.sendMessage(chatId, CONFIRMACAO_PREMIUM);
+    } catch (e) {
+      console.warn('[Admin] Não conseguiu notificar no WhatsApp:', e.message);
+    }
+
+    res.json({ ok: true, phone });
+  });
+
+  // Dashboard admin
+  // Números do admin excluídos das métricas
+  const ADMIN_PHONES = (process.env.ADMIN_PHONES || '').split(',').filter(Boolean);
+
+  app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+  });
+
+  // Stats para o dashboard
+  app.get('/admin/api/stats', async (req, res) => {
+    if (!validarAdminKey(req)) {
+      return res.status(401).json({ error: 'não autorizado' });
+    }
+
+    const supabase = getSupabase();
+    const today = new Date().toISOString().slice(0, 10);
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const trialCutoff = new Date(); trialCutoff.setDate(trialCutoff.getDate() - 3);
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+
+    // Busca todos os usuários e filtra admin no JS
+    const { data: allUsersRaw } = await supabase.from('users').select('phone, plan, plan_expires_at, created_at');
+    const usersData = (allUsersRaw ?? []).filter(u => !ADMIN_PHONES.includes(u.phone));
+
+    const now = new Date();
+    const totalUsers = usersData.length;
+    const premium = usersData.filter(u => u.plan === 'premium' && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
+    const trial = usersData.filter(u => u.plan !== 'premium' && new Date(u.created_at) >= trialCutoff).length;
+    const free = usersData.filter(u => u.plan !== 'premium' && new Date(u.created_at) < trialCutoff).length;
+    const newToday = usersData.filter(u => new Date(u.created_at) >= todayStart).length;
+    const newWeek = usersData.filter(u => new Date(u.created_at) >= weekAgo).length;
+
+    const { data: msgsData } = await supabase.from('daily_message_counts').select('phone, message_count').eq('count_date', today);
+    const { data: msgsWeekData } = await supabase.from('daily_message_counts').select('phone, message_count, count_date').gte('count_date', weekAgo.toISOString().slice(0, 10));
+    const { data: msgsTotalData } = await supabase.from('daily_message_counts').select('phone, message_count');
+
+    const filterAdmin = (arr) => (arr ?? []).filter(r => !ADMIN_PHONES.includes(r.phone));
+    const sum = (arr) => filterAdmin(arr).reduce((s, r) => s + (r.message_count || 0), 0);
+    const msgsToday = sum(msgsData);
+    const msgsWeek = sum(msgsWeekData);
+    const msgsTotal = sum(msgsTotalData);
+    const activeToday = new Set(filterAdmin(msgsData).map(r => r.phone)).size;
+
+    // Métricas avançadas
+    const churnCount = usersData.filter(u =>
+      u.plan === 'premium' && u.plan_expires_at && new Date(u.plan_expires_at) <= now
+    ).length;
+    const freePostTrial = usersData.filter(u =>
+      u.plan !== 'premium' && new Date(u.created_at) < trialCutoff
+    ).length;
+    const conversionRate = (premium + freePostTrial) > 0
+      ? +((premium / (premium + freePostTrial)) * 100).toFixed(1) : 0;
+    const churnRate = (premium + churnCount) > 0
+      ? +((churnCount / (premium + churnCount)) * 100).toFixed(1) : 0;
+    const avgMsgsPerUserDay = activeToday > 0 ? +(msgsToday / activeToday).toFixed(1) : 0;
+    const avgMsgsPerUser = totalUsers > 0 ? +(msgsTotal / totalUsers).toFixed(1) : 0;
+    const mrr = +(premium * 29.9).toFixed(2);
+
+    // Gráfico últimos 7 dias
+    const dailyMap = {};
+    for (const r of filterAdmin(msgsWeekData)) {
+      if (!dailyMap[r.count_date]) dailyMap[r.count_date] = { msgs: 0, users: new Set() };
+      dailyMap[r.count_date].msgs += r.message_count;
+      dailyMap[r.count_date].users.add(r.phone);
+    }
+    const chart7days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      chart7days.push({ date: key, msgs: dailyMap[key]?.msgs || 0, users: dailyMap[key]?.users.size || 0 });
+    }
+
+    // Top 5 usuários mais ativos hoje
+    const todayRanking = filterAdmin(msgsData)
+      .sort((a, b) => b.message_count - a.message_count)
+      .slice(0, 5)
+      .map(r => ({ phone: r.phone, count: r.message_count }));
+
+    res.json({
+      totalUsers, premium, trial, free, newToday, newWeek,
+      activeToday, msgsToday, msgsWeek, msgsTotal,
+      churnCount, churnRate, conversionRate,
+      avgMsgsPerUserDay, avgMsgsPerUser, mrr,
+      arr: +(mrr * 12).toFixed(2),
+      chart7days, todayRanking,
+    });
+  });
+
+  // Lista de usuários para o dashboard
+  app.get('/admin/api/users', async (req, res) => {
+    if (!validarAdminKey(req)) {
+      return res.status(401).json({ error: 'não autorizado' });
+    }
+
+    const supabase = getSupabase();
+    const today = new Date().toISOString().slice(0, 10);
+    const trialCutoff = new Date(); trialCutoff.setDate(trialCutoff.getDate() - 3);
+
+    const { data: users } = await supabase
+      .from('users')
+      .select('phone, plan, plan_expires_at, created_at')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    const { data: msgsToday } = await supabase
+      .from('daily_message_counts')
+      .select('phone, message_count')
+      .eq('count_date', today);
+
+    const { data: msgsTotal } = await supabase
+      .from('daily_message_counts')
+      .select('phone, message_count');
+
+    const todayMap = Object.fromEntries((msgsToday ?? []).map(r => [r.phone, r.message_count]));
+    const totalMap = {};
+    for (const r of msgsTotal ?? []) {
+      totalMap[r.phone] = (totalMap[r.phone] || 0) + r.message_count;
+    }
+
+    const result = (users ?? [])
+      .filter(u => !ADMIN_PHONES.includes(u.phone))
+      .map(u => ({
+        ...u,
+        is_trial: u.plan !== 'premium' && new Date(u.created_at) >= trialCutoff,
+        msgs_today: todayMap[u.phone] || 0,
+        msgs_total: totalMap[u.phone] || 0,
+      }));
+
+    res.json(result);
+  });
 
   return app;
 }

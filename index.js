@@ -24,6 +24,7 @@ const SOFT_LIMIT_DAYS = 5;     // dias 4-5: limite suavizado antes do corte tota
 const SOFT_LIMIT = 10;         // mensagens/dia nos dias 4 e 5
 const POST_TRIAL_LIMIT = 3;    // mensagens/dia após o dia 5
 const PORT = parseInt(process.env.PORT || '3000', 10);
+const PRECO_24H = 4.99;
 const PRECO_MENSAL = 29.90;
 const PRECO_ANUAL = 299.00;
 const PRECO_WINBACK = 19.90;
@@ -45,9 +46,11 @@ const WELCOME_MESSAGE =
   `➡️ *Manda o print agora* ou descreve a situação em texto e eu entro em ação!`;
 
 const OPCOES_PREMIUM =
-  `👉 Escolhe seu plano:\n\n` +
+  `👉 Escolhe como continuar:\n\n` +
+  `⚡ *24h ilimitado* — R$4,99 → digita *24h*\n` +
   `📅 *Mensal* — R$29,90/mês → digita *mensal*\n` +
-  `📆 *Anual* — R$299/ano _(economiza R$60)_ → digita *anual*`;
+  `📆 *Anual* — R$299/ano _(economiza R$60)_ → digita *anual*\n\n` +
+  `_+1.200 caras já usaram essa semana_`;
 
 const TRANSICAO_SOFT_LIMIT =
   `Seus 3 dias ilimitados acabaram.\n\n` +
@@ -56,7 +59,7 @@ const TRANSICAO_SOFT_LIMIT =
   `Quer continuar ilimitado? ${OPCOES_PREMIUM}`;
 
 const LIMITE_TRIAL_ENDED_MESSAGE =
-  `Acabou por hoje. Volta amanhã com mais *${POST_TRIAL_LIMIT}* — ou continua agora 👇\n\n` +
+  `Sua conversa com ela não terminou — mas seu limite do dia sim 😅\n\n` +
   `${OPCOES_PREMIUM}`;
 
 // ---------------------------------------------------------------------------
@@ -1016,9 +1019,8 @@ async function upsellPicoPremium(message, trial, todayCount) {
   // Último dia do trial + já usou 3+ mensagens hoje
   if (trial.inTrial && trial.isLastDay && todayCount >= 3) {
     await client.sendMessage(message.from,
-      `Hoje é seu *último dia* de acesso ilimitado.\n\n` +
-      `Se quiser continuar tendo isso todo dia 👇\n\n` +
-      OPCOES_PREMIUM
+      `Hoje é seu *último dia* ilimitado — e você ainda tem conversa pra resolver 👆\n\n` +
+      `${OPCOES_PREMIUM}`
     );
     return;
   }
@@ -1028,9 +1030,8 @@ async function upsellPicoPremium(message, trial, todayCount) {
     const remaining = SOFT_LIMIT - todayCount;
     if (remaining === 2) {
       await client.sendMessage(message.from,
-        `Só *${remaining} mensagens* sobrando hoje.\n\n` +
-        `Se não quiser travar no meio da conversa 👇\n\n` +
-        OPCOES_PREMIUM
+        `Só *${remaining} mensagens* restando — não trava no meio da conversa com ela.\n\n` +
+        `${OPCOES_PREMIUM}`
       );
     }
     return;
@@ -1041,9 +1042,8 @@ async function upsellPicoPremium(message, trial, todayCount) {
     const remaining = POST_TRIAL_LIMIT - todayCount;
     if (remaining === 1) {
       await client.sendMessage(message.from,
-        `Última mensagem do dia no plano grátis.\n\n` +
-        `Pra não parar agora 👇\n\n` +
-        OPCOES_PREMIUM
+        `Última análise do dia — essa conversa com ela não terminou ainda 👆\n\n` +
+        `${OPCOES_PREMIUM}`
       );
     }
   }
@@ -1060,12 +1060,12 @@ async function upsellSonnetFree(message, sonnetInfo, trial) {
   const { restante } = sonnetInfo;
 
   if (restante === 0) {
-    // Última análise avançada usada — upsell completo
+    // Última análise avançada usada — upsell completo com framing de incompletude
     await new Promise(r => setTimeout(r, 2000));
     await client.sendMessage(message.from,
-      `Essa foi sua *última análise avançada* gratuita 🔥\n\n` +
-      `Essa é a análise que encaixa no momento dela — é o que o *Premium* entrega *30x por mês*: reconquistas, primeiros contatos, momentos que não podem errar.\n\n` +
-      OPCOES_PREMIUM
+      `Essa conversa com ela não terminou — mas suas análises avançadas gratuitas sim 🔥\n\n` +
+      `No *Premium* você tem *30 dessas por mês*: reconquistas, primeiros contatos, momentos que não podem errar.\n\n` +
+      `${OPCOES_PREMIUM}`
     );
   } else if (restante === 1) {
     // Penúltima — scarcity sutil
@@ -1204,11 +1204,7 @@ client.on('message', async (message) => {
         await message.reply('🌟 Você já é *Premium*! Pode mandar à vontade.');
       } else {
         await message.reply(
-          `Escolhe seu plano 👇\n\n` +
-          `📅 *Mensal* — R$29,90/mês\n` +
-          `👉 Responde *mensal*\n\n` +
-          `📆 *Anual* — R$299/ano _(economiza R$59!)_\n` +
-          `👉 Responde *anual*`
+          `${OPCOES_PREMIUM}`
         );
       }
       return;
@@ -1221,6 +1217,11 @@ client.on('message', async (message) => {
 
     if (cmd === 'anual') {
       await enviarCobrancaPix(message, phone, PRECO_ANUAL);
+      return;
+    }
+
+    if (cmd === '24h') {
+      await enviarCobrancaPix(message, phone, PRECO_24H);
       return;
     }
 
@@ -1272,15 +1273,19 @@ client.on('message', async (message) => {
 
           if (result.status === 'approved') {
             const amount = result.transaction_amount ?? 0;
-            const days = amount >= 100 ? 365 : 30;
+            const days = amount >= 100 ? 365 : amount <= 9.99 ? 1 : 30;
             const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + days);
+            if (days === 1) expiresAt.setHours(expiresAt.getHours() + 24);
+            else expiresAt.setDate(expiresAt.getDate() + days);
             await Promise.all([
               supabase.from('users').update({ plan: 'premium', plan_expires_at: expiresAt.toISOString(), renewal_notified: false, winback_unlock_at: null }).eq('phone', phone),
               supabase.from('payments').update({ status: 'approved' }).eq('mp_payment_id', pagamento.mp_payment_id),
             ]);
-            console.log(`[Paguei] ✅ Premium ativado via consulta MP para ${phone}`);
-            await message.reply('✅ *Pagamento confirmado!*\n\nBem-vindo ao *MandaAssim Premium* 🚀\n\nVocê agora tem mensagens *ilimitadas*. Manda o próximo print ou descreve a situação!');
+            console.log(`[Paguei] ✅ Premium ativado via consulta MP para ${phone} (${days}d)`);
+            const confirmMsg = days === 1
+              ? '✅ *24h ativado!*\n\nAcesso ilimitado pelas próximas *24 horas* 🚀\n\nAproveita — manda o print agora!'
+              : '✅ *Pagamento confirmado!*\n\nBem-vindo ao *MandaAssim Premium* 🚀\n\nVocê agora tem mensagens *ilimitadas*. Manda o próximo print ou descreve a situação!';
+            await message.reply(confirmMsg);
           } else {
             await message.reply(
               `⏳ Seu Pix ainda não foi confirmado pelo banco.\n\n` +
@@ -1357,21 +1362,20 @@ client.on('message', async (message) => {
       if (trial.expiredAt && await verificarWinback(phone, trial.expiredAt)) {
         await message.reply(
           `Seus créditos de hoje acabaram 😅\n\n` +
-          `Como você já foi Premium, tenho uma oferta especial:\n\n` +
-          `🔥 *R$19,90* no primeiro mês de volta _(era R$29,90)_\n\n` +
-          `👉 Digita *voltar* pra aproveitar`
+          `Como você já foi Premium, tenho uma oferta especial de volta:\n\n` +
+          `🔥 *R$19,90* no primeiro mês _(era R$29,90)_\n\n` +
+          `👉 Digita *voltar* pra aproveitar\n\n` +
+          `_+1.200 caras já usaram essa semana_`
         );
       } else if (conversaQuente) {
         await message.reply(
-          `Você estava indo bem com ela 🔥\n\n` +
-          `Seus créditos de hoje acabaram — e perder o ritmo agora seria um erro.\n\n` +
-          OPCOES_PREMIUM
+          `Você estava indo bem com ela — para aqui agora é perder o ritmo 🔥\n\n` +
+          `${OPCOES_PREMIUM}`
         );
       } else if (trial.inSoftLimit) {
         await message.reply(
-          `Suas ${SOFT_LIMIT} análises de hoje acabaram 😅\n\n` +
-          `${OPCOES_PREMIUM}\n\n` +
-          `Ou volta amanhã — você terá *${POST_TRIAL_LIMIT} análises* disponíveis 🔄`
+          `Suas ${SOFT_LIMIT} análises de hoje acabaram — essa conversa com ela não terminou ainda.\n\n` +
+          `${OPCOES_PREMIUM}`
         );
       } else {
         await message.reply(LIMITE_TRIAL_ENDED_MESSAGE);
