@@ -360,10 +360,91 @@ const SYSTEM_PROMPT_MINIMAL = `Gere 3 opções de mensagem curta para WhatsApp e
 😏 "[ousada]"
 ⚡ "[direta]"`;
 
-function getSystemPrompt(tier, girlContext = '') {
-  if (tier === 'minimal') return SYSTEM_PROMPT_MINIMAL;
-  if (tier === 'degraded') return SYSTEM_PROMPT_DEGRADED + girlContext;
-  return SYSTEM_PROMPT + girlContext;
+const SYSTEM_PROMPT_OUSADIA = `Você é o MandaAssim — wingman brasileiro. A conversa já tá no clima. Gere 3 opções com flerte, malícia ou duplo sentido elegante.
+
+REGRAS:
+- Sugere, nunca declara explicitamente
+- Duplo sentido > sentido único
+- Provocação > elogio
+- Sempre deixa ela com a próxima jogada
+- Máximo 8 palavras por opção
+- Português informal real do zap
+
+EVITA:
+- Elogio físico explícito
+- Pedido direto de foto/encontro
+- Qualquer coisa explicitamente sexual — implícito ganha sempre
+
+FORMATO:
+📍 _[situação em uma linha]_
+
+🔥 "[opção]"
+
+😏 "[opção com duplo sentido]"
+
+⚡ "[opção com malícia seca]"
+
+_[uma linha: por que funciona]_`;
+
+// ---------------------------------------------------------------------------
+// Roteamento por intent (arquitetura semântica)
+// ---------------------------------------------------------------------------
+
+const CLASSIFIER_PROMPT = `Você é um classificador de intent para um wingman AI brasileiro.
+
+Analise a situação descrita e classifique o tipo de resposta necessária em UMA das categorias:
+
+- one_liner: ela mandou algo trivial, curtíssimo, emoji, "kkkk", "sério?", "vdd", resposta de uma palavra. Resposta será 1-3 palavras.
+- volume: conversa fluindo normal. Smalltalk, perguntas neutras, manutenção, assunto comum.
+- premium: momento crítico — primeiro contato, ice breaker, match esfriou, ela testou interesse ("se você quisesse..."), recovery de conversa parada, mensagem ambígua importante.
+- ousadia: tom já tá no clima e a próxima mensagem precisa subir o flerte com malícia elegante.
+
+RESPONDA APENAS com a categoria, sem explicação.`;
+
+const INTENT_MODEL_CONFIG = {
+  one_liner: { model: 'google/gemini-2.5-flash-lite', maxTokens: 50,  temperature: 0.90, systemType: 'minimal'  },
+  volume:    { model: 'google/gemini-2.0-flash',      maxTokens: 300,  temperature: 0.85, systemType: 'degraded' },
+  premium:   { model: 'anthropic/claude-sonnet-4-6',  maxTokens: 600,  temperature: 0.80, systemType: 'full'     },
+  ousadia:   { model: 'meta-llama/llama-4-maverick',  maxTokens: 200,  temperature: 0.95, systemType: 'ousadia'  },
+};
+
+const INTENT_FALLBACKS = {
+  'google/gemini-2.5-flash-lite': 'google/gemini-2.0-flash-lite',
+  'anthropic/claude-sonnet-4-6':  'google/gemini-2.0-flash',
+  'meta-llama/llama-4-maverick':  'google/gemini-2.0-flash',
+};
+
+// Cap de intent por usage tier — evita Sonnet em quem abusa
+function capIntentByTier(intent, usageTier) {
+  if (usageTier === 'minimal')                          return 'one_liner';
+  if (usageTier === 'degraded' && intent === 'premium') return 'volume';
+  return intent;
+}
+
+async function classificarIntent(situacao) {
+  try {
+    const response = await openrouter.chat.completions.create({
+      model: 'google/gemini-2.0-flash-lite',
+      max_tokens: 10,
+      temperature: 0,
+      messages: [
+        { role: 'system', content: CLASSIFIER_PROMPT },
+        { role: 'user',   content: `Situação: ${String(situacao).slice(0, 600)}` },
+      ],
+    });
+    const raw = (response.choices[0]?.message?.content || '').trim().toLowerCase().replace(/[^a-z_]/g, '');
+    return Object.keys(INTENT_MODEL_CONFIG).includes(raw) ? raw : 'volume';
+  } catch (err) {
+    console.error('[Classifier] Erro:', err.message);
+    return 'volume'; // fallback seguro
+  }
+}
+
+function getSystemPrompt(systemType, girlContext = '') {
+  if (systemType === 'minimal'  || systemType === 'one_liner') return SYSTEM_PROMPT_MINIMAL;
+  if (systemType === 'ousadia')  return SYSTEM_PROMPT_OUSADIA + girlContext;
+  if (systemType === 'degraded') return SYSTEM_PROMPT_DEGRADED + girlContext;
+  return SYSTEM_PROMPT + girlContext; // full / premium
 }
 
 function extrairDiagnostico(texto) {
@@ -454,21 +535,39 @@ async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '',
   return response.choices[0]?.message?.content || 'Não consegui analisar a imagem. Tente enviar novamente.';
 }
 
-async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', tier = 'full') {
+async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', usageTier = 'full') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
-  const systemPrompt = getSystemPrompt(tier, girlContext);
-  const response = await openrouter.chat.completions.create({
-    model: MODELS[tier],
-    max_tokens: MAX_TOKENS[tier],
-    messages: [
-      { role: 'system', content: systemPrompt },
-      {
-        role: 'user',
-        content: `${prefixo}Situação real: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`,
-      },
-    ],
-  });
-  return response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
+
+  // 1. Classifica o intent semanticamente
+  const rawIntent = await classificarIntent(situacao);
+  // 2. Aplica cap de custo pelo uso mensal
+  const intent = capIntentByTier(rawIntent, usageTier);
+  const config  = INTENT_MODEL_CONFIG[intent];
+  const systemPrompt = getSystemPrompt(config.systemType, girlContext);
+
+  console.log(`[Intent] raw:${rawIntent} → capped:${intent} → model:${config.model}`);
+
+  const userContent = `${prefixo}Situação real: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`;
+
+  // 3. Tenta modelo principal, depois fallback
+  const modelos = [config.model, INTENT_FALLBACKS[config.model]].filter(Boolean);
+  for (const model of modelos) {
+    try {
+      const response = await openrouter.chat.completions.create({
+        model,
+        max_tokens: config.maxTokens,
+        temperature: config.temperature,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: userContent },
+        ],
+      });
+      return response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
+    } catch (err) {
+      console.error(`[OpenRouter] Falha em ${model}:`, err.message);
+      if (model === modelos[modelos.length - 1]) throw err;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
