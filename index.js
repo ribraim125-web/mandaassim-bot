@@ -543,15 +543,23 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   // 2. Aplica cap de custo pelo uso mensal
   let intent = capIntentByTier(rawIntent, usageTier);
 
-  // 3. Se intent é premium, verifica cap mensal de Sonnet
+  // 3. Verifica acesso ao Sonnet
   if (intent === 'premium' && phone) {
     const sonnetUsado = await getSonnetUsage(phone);
-    if (sonnetUsado >= SONNET_MONTHLY_CAP) {
-      console.log(`[Sonnet] Cap atingido (${sonnetUsado}/${SONNET_MONTHLY_CAP}) → downgrade para volume`);
-      intent = 'volume';
-    } else {
+
+    // 3 primeiras msgs de qualquer usuário → Sonnet (onboarding hook)
+    const noOnboarding = sonnetUsado < SONNET_ONBOARDING_CAP;
+
+    // Após onboarding: só premium pago tem acesso ao Sonnet (até 30/mês)
+    const temAcessoPremium = usageTier === 'full' && sonnetUsado < SONNET_MONTHLY_CAP;
+
+    if (noOnboarding || temAcessoPremium) {
       await incrementSonnetUsage(phone);
-      console.log(`[Sonnet] Uso: ${sonnetUsado + 1}/${SONNET_MONTHLY_CAP}`);
+      const motivo = noOnboarding ? `onboarding ${sonnetUsado + 1}/${SONNET_ONBOARDING_CAP}` : `premium ${sonnetUsado + 1}/${SONNET_MONTHLY_CAP}`;
+      console.log(`[Sonnet] ✅ ${motivo}`);
+    } else {
+      console.log(`[Sonnet] ❌ sem acesso (tier:${usageTier}, uso:${sonnetUsado}) → downgrade volume`);
+      intent = 'volume';
     }
   }
 
@@ -686,6 +694,7 @@ async function verificarWinback(phone, expiredAt) {
 }
 
 const SONNET_MONTHLY_CAP = 30;
+const SONNET_ONBOARDING_CAP = 3; // 3 primeiras msgs de qualquer usuário usam Sonnet
 
 async function getSonnetUsage(phone) {
   const supabase = getSupabase();
