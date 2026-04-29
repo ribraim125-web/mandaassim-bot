@@ -41,3 +41,13 @@ CREATE INDEX IF NOT EXISTS idx_payments_external_ref ON payments (external_ref);
 -- Se a tabela users já existir sem a coluna plan, rode só isso:
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ;
+
+-- Tabela de perfil das minas (memória persistente por usuário)
+CREATE TABLE IF NOT EXISTS girl_profiles (
+  phone           TEXT PRIMARY KEY,
+  girl_name       TEXT,
+  girl_context    TEXT,
+  current_situation TEXT,
+  what_worked     TEXT,
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);

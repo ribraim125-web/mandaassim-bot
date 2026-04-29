@@ -374,13 +374,27 @@ async function enviarResposta(message, sugestoes) {
   }
 }
 
-async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '') {
+const RECONQUISTA_CONTEXT = `
+
+MODO RECONQUISTA ATIVO — situação especial, aplique com cuidado:
+- Ela se afastou, sumiu, esfriou ou a relação terminou
+- Objetivo: reacender interesse SEM demonstrar necessidade ou desespero
+- NUNCA: "sinto sua falta", "preciso de você", "o que aconteceu", "me dá uma chance"
+- SEMPRE: leveza, indiferença calculada, curiosidade, valor pessoal
+
+Sequência natural de reconquista:
+1. Primeiro contato pós-sumiço: leve, sem cobrar, como se a vida tivesse continuado
+2. Criar curiosidade: algo que faz ela pensar em você sem explicar nada
+3. Posição de valor: mostrar que sua vida tá ótima, sem forçar
+4. Escalada só depois que ela reagir positivamente — não antes`;
+
+async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '', girlContext = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
   const instrucao = instrucaoExtra || `${prefixo}Leia toda a conversa do print. Identifique: (1) qual foi a ÚLTIMA mensagem dela — é isso que ele precisa responder agora, (2) o tom dela ao longo da conversa, (3) o momento da relação (primeiro contato, ficou frio, deu abertura, etc). Gere as 3 opções de resposta específicas para a última mensagem dela. Não seja genérico — leia o contexto real.`;
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    system: SYSTEM_PROMPT + girlContext,
     messages: [
       {
         role: 'user',
@@ -398,12 +412,12 @@ async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '',
   return textBlock ? textBlock.text : 'Não consegui analisar a imagem. Tente enviar novamente.';
 }
 
-async function analisarTextoComClaude(situacao, contextoExtra = '') {
+async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    system: SYSTEM_PROMPT + girlContext,
     messages: [
       {
         role: 'user',
@@ -543,6 +557,48 @@ async function incrementDailyCount(phone) {
 }
 
 // ---------------------------------------------------------------------------
+// Perfil dela — memória persistente no Supabase
+// ---------------------------------------------------------------------------
+
+async function getGirlProfile(phone) {
+  const supabase = getSupabase();
+  const { data } = await supabase.from('girl_profiles').select('*').eq('phone', phone).maybeSingle();
+  return data || null;
+}
+
+async function saveGirlProfile(phone, updates) {
+  const supabase = getSupabase();
+  await supabase.from('girl_profiles').upsert(
+    { phone, ...updates, updated_at: new Date().toISOString() },
+    { onConflict: 'phone' }
+  );
+}
+
+async function appendWhatWorked(phone, note) {
+  const supabase = getSupabase();
+  const { data } = await supabase.from('girl_profiles').select('what_worked').eq('phone', phone).maybeSingle();
+  const existing = data?.what_worked || '';
+  const lines = existing.split('\n').filter(Boolean);
+  lines.push(`• ${note}`);
+  const trimmed = lines.slice(-5).join('\n'); // mantém só os últimos 5
+  await supabase.from('girl_profiles').upsert(
+    { phone, what_worked: trimmed, updated_at: new Date().toISOString() },
+    { onConflict: 'phone' }
+  );
+}
+
+function buildGirlContext(profile) {
+  if (!profile) return '';
+  const parts = [];
+  if (profile.girl_name) parts.push(`Nome dela: ${profile.girl_name}`);
+  if (profile.girl_context) parts.push(`Quem ela é: ${profile.girl_context}`);
+  if (profile.current_situation) parts.push(`Situação atual: ${profile.current_situation}`);
+  if (profile.what_worked) parts.push(`O que já funcionou com ela anteriormente:\n${profile.what_worked}`);
+  if (!parts.length) return '';
+  return `\n\n--- PERFIL DELA (use para personalizar as respostas) ---\n${parts.join('\n')}\n---`;
+}
+
+// ---------------------------------------------------------------------------
 // Contexto por usuário (memória de curto prazo para "outra"/"mais")
 // ---------------------------------------------------------------------------
 
@@ -616,6 +672,16 @@ const AJUSTE_TOM = /^(mais |menos |bem |mais )(sensual|ousad[ao]|direto|direta|c
 function isAjusteTom(text) {
   return AJUSTE_TOM.test(text.trim());
 }
+
+// Perfil dela — comandos
+const DEFINE_GIRL_NAME = /^(ela se chama|nome dela[:\s]*|o nome dela[:\s]*[eé]?)\s*([a-zA-ZÀ-ú][a-zA-ZÀ-ú\s]{1,30})$/i;
+const DEFINE_GIRL_PROFILE = /^(ela [eé]|perfil dela[:\s]+|sobre ela[:\s]+|descreve ela[:\s]+)/i;
+const DEFINE_SITUATION = /^(situação[:\s]+|modo[:\s]+|contexto[:\s]+)/i;
+const VER_PERFIL = /^(perfil|ver perfil|perfil dela)$/i;
+const LIMPAR_PERFIL = /^(limpar perfil|apagar perfil|nova mina|nova menina|outra mina|esquece ela)$/i;
+const FEEDBACK_POSITIVO = /^(funcionou|deu certo|ela respondeu|foi bem|colou|deu boa|respondeu bem|ela topou|ela gostou|foi ótimo|mandou bem)$/i;
+const FEEDBACK_NEGATIVO = /^(não funcionou|nao funcionou|não rolou|nao rolou|não respondeu|nao respondeu|foi mal|não colou|nao colou|ignorou|ela ignorou)$/i;
+const RECONQUISTA_KEYWORDS = /reconquist|quero ela de volta|ela sumiu há|ela parou de responder|ela me deixou|ela foi embora|terminamos|ela terminou|quero reconquistar/i;
 
 // ---------------------------------------------------------------------------
 // WhatsApp Client
@@ -1025,6 +1091,83 @@ client.on('message', async (message) => {
       return;
     }
 
+    // Ver perfil dela salvo
+    if (VER_PERFIL.test(text)) {
+      const profile = await getGirlProfile(phone);
+      if (!profile || (!profile.girl_name && !profile.girl_context)) {
+        await message.reply(
+          'Ainda não tem perfil salvo 📋\n\n' +
+          'Manda assim:\n\n' +
+          '*ela se chama [nome]*\n' +
+          '*ela é [descrição]*\n\n' +
+          'Ex: _"ela é agitada, fica no zap o dia todo, já ficamos uma vez"_'
+        );
+      } else {
+        let txt = '📋 *Perfil dela:*\n\n';
+        if (profile.girl_name) txt += `👤 *Nome:* ${profile.girl_name}\n`;
+        if (profile.girl_context) txt += `📝 *Perfil:* ${profile.girl_context}\n`;
+        if (profile.current_situation) txt += `📍 *Situação:* ${profile.current_situation}\n`;
+        if (profile.what_worked) txt += `✅ *O que funcionou:\n*${profile.what_worked}\n`;
+        txt += '\n_Digita "limpar perfil" pra começar do zero_';
+        await message.reply(txt);
+      }
+      return;
+    }
+
+    // Limpar perfil dela
+    if (LIMPAR_PERFIL.test(text)) {
+      await saveGirlProfile(phone, { girl_name: null, girl_context: null, current_situation: null, what_worked: null });
+      userContext.delete(phone);
+      await message.reply('Perfil limpo ✅\n\nNova mina, nova estratégia 😏\n\nManda o print ou descreve a situação.');
+      return;
+    }
+
+    // Salvar nome dela
+    const nomeMatch = text.match(DEFINE_GIRL_NAME);
+    if (nomeMatch) {
+      const nome = nomeMatch[2].trim();
+      await saveGirlProfile(phone, { girl_name: nome });
+      await message.reply(`Salvo ✅ Ela se chama *${nome}*.\n\nAgora manda o print ou descreve o que aconteceu — vou usar o contexto dela nas respostas.`);
+      return;
+    }
+
+    // Salvar perfil dela
+    if (DEFINE_GIRL_PROFILE.test(text)) {
+      const desc = text.replace(DEFINE_GIRL_PROFILE, '').trim();
+      if (desc.length < 5) {
+        await message.reply('Descreve mais ela — personalidade, como é, o que rolou entre vocês.\n\nEx: _"ela é tímida mas quando conhece abre, a gente ficou mês passado e tá meio fria agora"_');
+        return;
+      }
+      await saveGirlProfile(phone, { girl_context: desc });
+      await message.reply(`Perfil salvo ✅\n\nAgora toda resposta vai ser personalizada pra ela. Manda o print ou descreve o que aconteceu 🎯`);
+      return;
+    }
+
+    // Salvar situação atual
+    if (DEFINE_SITUATION.test(text)) {
+      const sit = text.replace(DEFINE_SITUATION, '').trim();
+      await saveGirlProfile(phone, { current_situation: sit });
+      await message.reply(`Contexto salvo ✅\n\nManda o print ou o que ela disse por último.`);
+      return;
+    }
+
+    // Feedback positivo — registra o que funcionou
+    if (FEEDBACK_POSITIVO.test(text)) {
+      const ctx = getUserContext(phone);
+      if (ctx?.lastRequest) {
+        const ref = ctx.lastType === 'text' ? String(ctx.lastRequest).slice(0, 80) : 'print da conversa';
+        await appendWhatWorked(phone, ref);
+      }
+      await message.reply('Boa! 🔥 Anotei o que funcionou — vou usar de referência nas próximas.\n\nManda o próximo print quando quiser.');
+      return;
+    }
+
+    // Feedback negativo
+    if (FEEDBACK_NEGATIVO.test(text)) {
+      await message.reply('Tudo bem, nem toda mensagem conecta na hora certa 🤝\n\nManda como ela reagiu ou o próximo print — ajusto a abordagem.');
+      return;
+    }
+
     // Pedido de outra/mais — reutiliza contexto anterior
     if (isPedindoOutra(text)) {
       const ctx = getUserContext(phone);
@@ -1032,11 +1175,13 @@ client.on('message', async (message) => {
         await message.reply('Me manda a situação primeiro, aí eu gero quantas variações quiser 😎');
         return;
       }
+      const girlProfile = await getGirlProfile(phone);
+      const girlContext = buildGirlContext(girlProfile);
       await message.reply(getMensagemEspera());
       try {
         const sugestoes = ctx.lastType === 'image'
-          ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype)
-          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)');
+          ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext)
+          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext);
         await enviarResposta(message, sugestoes);
       } catch (err) {
         console.error('[Claude] Erro ao gerar variações:', err.message);
@@ -1053,11 +1198,13 @@ client.on('message', async (message) => {
         return;
       }
       setUserTonePreference(phone, text.trim());
+      const girlProfile = await getGirlProfile(phone);
+      const girlContext = buildGirlContext(girlProfile);
       await message.reply(getMensagemEspera());
       try {
         const sugestoes = ctx.lastType === 'image'
-          ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`)
-          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`);
+          ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext)
+          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext);
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
         await enviarResposta(message, sugestoes);
       } catch (err) {
@@ -1070,10 +1217,13 @@ client.on('message', async (message) => {
     // Análise normal
     const ctx = getUserContext(phone);
     const toneHint = ctx?.tonePreference ? `\nPreferência do usuário: ele tende a preferir tom "${ctx.tonePreference}" — leve isso em conta sem ignorar as outras opções.` : '';
+    const girlProfile = await getGirlProfile(phone);
+    const girlContext = buildGirlContext(girlProfile);
+    const reconquistaExtra = RECONQUISTA_KEYWORDS.test(text) ? RECONQUISTA_CONTEXT : '';
 
     await message.reply(getMensagemEspera());
     try {
-      const sugestoes = await analisarTextoComClaude(text, toneHint);
+      const sugestoes = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra);
       saveUserContext(phone, text, 'text');
       await enviarResposta(message, sugestoes);
       await contadorRestante(message, trial, todayCount);
@@ -1092,10 +1242,12 @@ client.on('message', async (message) => {
     }
     const ctxImg = getUserContext(phone);
     const toneHintImg = ctxImg?.tonePreference ? `\nPreferência do usuário: ele tende a preferir tom "${ctxImg.tonePreference}".` : '';
+    const girlProfileImg = await getGirlProfile(phone);
+    const girlContextImg = buildGirlContext(girlProfileImg);
 
     await message.reply(getMensagemEspera());
     try {
-      const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg);
+      const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg);
       saveUserContext(phone, media, 'image');
       await enviarResposta(message, sugestoes);
       await contadorRestante(message, trial, todayCount);
