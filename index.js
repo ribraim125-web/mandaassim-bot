@@ -593,6 +593,18 @@ function getModelTier(monthlyCount) {
   return 'minimal';
 }
 
+function getTrialTier(dailyCount) {
+  if (dailyCount <= 20) return 'full';
+  if (dailyCount <= 50) return 'degraded';
+  return 'minimal';
+}
+
+function resolveTier(trial, dailyCount, monthlyCount) {
+  if (trial.isPremium) return 'full';
+  if (trial.inTrial) return getTrialTier(dailyCount);
+  return getModelTier(monthlyCount);
+}
+
 async function incrementDailyCount(phone) {
   const supabase = getSupabase();
   const today = new Date().toISOString().slice(0, 10);
@@ -1239,7 +1251,7 @@ client.on('message', async (message) => {
       const girlProfile = await getGirlProfile(phone);
       const girlContext = buildGirlContext(girlProfile);
       const monthlyCount = await getMonthlyCount(phone);
-      const tier = trial.isPremium ? 'full' : getModelTier(monthlyCount);
+      const tier = resolveTier(trial, todayCount, monthlyCount);
       await message.reply(getMensagemEspera());
       try {
         const sugestoes = ctx.lastType === 'image'
@@ -1264,7 +1276,7 @@ client.on('message', async (message) => {
       const girlProfile = await getGirlProfile(phone);
       const girlContext = buildGirlContext(girlProfile);
       const monthlyCount = await getMonthlyCount(phone);
-      const tier = trial.isPremium ? 'full' : getModelTier(monthlyCount);
+      const tier = resolveTier(trial, todayCount, monthlyCount);
       await message.reply(getMensagemEspera());
       try {
         const sugestoes = ctx.lastType === 'image'
@@ -1286,8 +1298,8 @@ client.on('message', async (message) => {
     const girlContext = buildGirlContext(girlProfile);
     const reconquistaExtra = RECONQUISTA_KEYWORDS.test(text) ? RECONQUISTA_CONTEXT : '';
     const monthlyCount = await getMonthlyCount(phone);
-    const tier = trial.isPremium ? 'full' : getModelTier(monthlyCount);
-    console.log(`[Tier] ${phone} — ${monthlyCount} msgs/mês → tier: ${tier}`);
+    const tier = resolveTier(trial, todayCount, monthlyCount);
+    console.log(`[Tier] ${phone} — daily:${todayCount} monthly:${monthlyCount} → tier:${tier}`);
 
     await message.reply(getMensagemEspera());
     try {
