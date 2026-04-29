@@ -600,9 +600,8 @@ function getTrialTier(dailyCount) {
 }
 
 function resolveTier(trial, dailyCount, monthlyCount) {
-  if (trial.isPremium) return 'full';
   if (trial.inTrial) return getTrialTier(dailyCount);
-  return getModelTier(monthlyCount);
+  return getModelTier(monthlyCount); // premium e free: degradam por uso mensal
 }
 
 async function incrementDailyCount(phone) {
