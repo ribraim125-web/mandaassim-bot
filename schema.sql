@@ -42,6 +42,14 @@ CREATE INDEX IF NOT EXISTS idx_payments_external_ref ON payments (external_ref);
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ;
 
+-- Controle de uso do Sonnet por usuário/mês (cap de 30/mês)
+CREATE TABLE IF NOT EXISTS sonnet_monthly_usage (
+  phone  TEXT NOT NULL,
+  month  TEXT NOT NULL,  -- formato YYYY-MM
+  count  INT  NOT NULL DEFAULT 0,
+  UNIQUE (phone, month)
+);
+
 -- Tabela de perfil das minas (memória persistente por usuário)
 CREATE TABLE IF NOT EXISTS girl_profiles (
   phone           TEXT PRIMARY KEY,

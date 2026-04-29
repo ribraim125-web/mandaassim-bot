@@ -6,41 +6,33 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 async function migrate() {
   console.log('Rodando migração...');
 
-  const { error } = await supabase.rpc('exec_sql', {
-    sql: `
-      CREATE TABLE IF NOT EXISTS girl_profiles (
-        phone             TEXT PRIMARY KEY,
-        girl_name         TEXT,
-        girl_context      TEXT,
-        current_situation TEXT,
-        what_worked       TEXT,
-        updated_at        TIMESTAMPTZ DEFAULT NOW()
-      );
-    `
-  }).single();
-
-  if (error) {
-    // Tenta via insert direto pra testar conexão
-    const { error: e2 } = await supabase.from('girl_profiles').select('phone').limit(1);
-    if (!e2) {
-      console.log('✅ Tabela girl_profiles já existe!');
-    } else {
-      console.error('❌ Erro — cria a tabela manualmente no Supabase SQL Editor:');
-      console.log(`
-CREATE TABLE IF NOT EXISTS girl_profiles (
-  phone             TEXT PRIMARY KEY,
-  girl_name         TEXT,
-  girl_context      TEXT,
-  current_situation TEXT,
-  what_worked       TEXT,
-  updated_at        TIMESTAMPTZ DEFAULT NOW()
-);
-      `);
-    }
-    return;
+  // Testa girl_profiles
+  const { error: e1 } = await supabase.from('girl_profiles').select('phone').limit(1);
+  if (e1) {
+    console.log('⚠️  Tabela girl_profiles não encontrada. Crie manualmente no Supabase SQL Editor.');
+  } else {
+    console.log('✅ Tabela girl_profiles OK');
   }
 
-  console.log('✅ Tabela girl_profiles criada com sucesso!');
+  // Testa sonnet_monthly_usage
+  const { error: e2 } = await supabase.from('sonnet_monthly_usage').select('phone').limit(1);
+  if (e2) {
+    console.log('⚠️  Tabela sonnet_monthly_usage não encontrada. Crie manualmente:');
+    console.log(`
+CREATE TABLE IF NOT EXISTS sonnet_monthly_usage (
+  phone  TEXT NOT NULL,
+  month  TEXT NOT NULL,
+  count  INT  NOT NULL DEFAULT 0,
+  UNIQUE (phone, month)
+);
+    `);
+  } else {
+    console.log('✅ Tabela sonnet_monthly_usage OK');
+  }
+
+  if (!e1 && !e2) {
+    console.log('\n✅ Todas as tabelas OK!');
+  }
 }
 
 migrate();

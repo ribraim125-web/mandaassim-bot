@@ -535,21 +535,33 @@ async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '',
   return response.choices[0]?.message?.content || 'Não consegui analisar a imagem. Tente enviar novamente.';
 }
 
-async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', usageTier = 'full') {
+async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', usageTier = 'full', phone = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
 
   // 1. Classifica o intent semanticamente
   const rawIntent = await classificarIntent(situacao);
   // 2. Aplica cap de custo pelo uso mensal
-  const intent = capIntentByTier(rawIntent, usageTier);
-  const config  = INTENT_MODEL_CONFIG[intent];
-  const systemPrompt = getSystemPrompt(config.systemType, girlContext);
+  let intent = capIntentByTier(rawIntent, usageTier);
 
-  console.log(`[Intent] raw:${rawIntent} → capped:${intent} → model:${config.model}`);
+  // 3. Se intent é premium, verifica cap mensal de Sonnet
+  if (intent === 'premium' && phone) {
+    const sonnetUsado = await getSonnetUsage(phone);
+    if (sonnetUsado >= SONNET_MONTHLY_CAP) {
+      console.log(`[Sonnet] Cap atingido (${sonnetUsado}/${SONNET_MONTHLY_CAP}) → downgrade para volume`);
+      intent = 'volume';
+    } else {
+      await incrementSonnetUsage(phone);
+      console.log(`[Sonnet] Uso: ${sonnetUsado + 1}/${SONNET_MONTHLY_CAP}`);
+    }
+  }
+
+  const config = INTENT_MODEL_CONFIG[intent];
+  const systemPrompt = getSystemPrompt(config.systemType, girlContext);
+  console.log(`[Intent] raw:${rawIntent} → final:${intent} → model:${config.model}`);
 
   const userContent = `${prefixo}Situação real: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`;
 
-  // 3. Tenta modelo principal, depois fallback
+  // 4. Tenta modelo principal, depois fallback
   const modelos = [config.model, INTENT_FALLBACKS[config.model]].filter(Boolean);
   for (const model of modelos) {
     try {
@@ -671,6 +683,36 @@ async function verificarWinback(phone, expiredAt) {
   }
 
   return now >= new Date(data.winback_unlock_at);
+}
+
+const SONNET_MONTHLY_CAP = 30;
+
+async function getSonnetUsage(phone) {
+  const supabase = getSupabase();
+  const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const { data } = await supabase
+    .from('sonnet_monthly_usage')
+    .select('count')
+    .eq('phone', phone)
+    .eq('month', month)
+    .maybeSingle();
+  return data?.count || 0;
+}
+
+async function incrementSonnetUsage(phone) {
+  const supabase = getSupabase();
+  const month = new Date().toISOString().slice(0, 7);
+  const { data } = await supabase
+    .from('sonnet_monthly_usage')
+    .select('count')
+    .eq('phone', phone)
+    .eq('month', month)
+    .maybeSingle();
+  const newCount = (data?.count || 0) + 1;
+  await supabase
+    .from('sonnet_monthly_usage')
+    .upsert({ phone, month, count: newCount }, { onConflict: 'phone,month' });
+  return newCount;
 }
 
 async function getMonthlyCount(phone) {
@@ -1354,7 +1396,7 @@ client.on('message', async (message) => {
       try {
         const sugestoes = ctx.lastType === 'image'
           ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext)
-          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier);
+          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier, phone);
         await enviarResposta(message, sugestoes);
       } catch (err) {
         console.error('[OpenRouter] Erro ao gerar variações:', err.message);
@@ -1379,7 +1421,7 @@ client.on('message', async (message) => {
       try {
         const sugestoes = ctx.lastType === 'image'
           ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext)
-          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier);
+          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier, phone);
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
         await enviarResposta(message, sugestoes);
       } catch (err) {
@@ -1401,7 +1443,7 @@ client.on('message', async (message) => {
 
     await message.reply(getMensagemEspera());
     try {
-      const sugestoes = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier);
+      const sugestoes = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier, phone);
       saveUserContext(phone, text, 'text');
       await enviarResposta(message, sugestoes);
       await contadorRestante(message, trial, todayCount);
