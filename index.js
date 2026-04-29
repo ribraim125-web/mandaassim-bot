@@ -2,7 +2,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
-const Anthropic = require('@anthropic-ai/sdk').default;
+const OpenAI = require('openai');
 const { criarCobrancaPix } = require('./src/mercadopago');
 const { createWebhookApp } = require('./src/webhook');
 const { startWorker } = require('./src/followup/followupWorker');
@@ -60,10 +60,22 @@ const LIMITE_TRIAL_ENDED_MESSAGE =
   `${OPCOES_PREMIUM}`;
 
 // ---------------------------------------------------------------------------
-// Anthropic
+// OpenRouter — modelos por tier de uso mensal
 // ---------------------------------------------------------------------------
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const openrouter = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: 'https://openrouter.ai/api/v1',
+  defaultHeaders: { 'HTTP-Referer': 'https://mandaassim.com', 'X-Title': 'MandaAssim' },
+});
+
+const MODELS = {
+  full:     'anthropic/claude-haiku-4-5-20251001', // 0–400 msgs/mês
+  degraded: 'google/gemini-2.0-flash-lite',        // 401–700 msgs/mês
+  minimal:  'meta-llama/llama-3.1-8b-instruct',    // 701+ msgs/mês
+};
+
+const MAX_TOKENS = { full: 1024, degraded: 600, minimal: 300 };
 
 const SYSTEM_PROMPT = `Você é o MandaAssim — o amigo brasileiro que todo homem queria ter: aquele que entende de mulher, sabe ler o contexto e sempre sabe exatamente o que falar. Você não é coach, não é assistente, não dá sermão. É um parceiro que conhece o jogo.
 
@@ -321,6 +333,39 @@ Se o usuário pedir qualquer coisa fora desse escopo (receitas, código, matemá
 "Só entendo de conquista 😏 Me manda o print da conversa ou descreve a situação com ela."
 Não explique, não se desculpe, não tente ajudar de outro jeito. Só redireciona.`;
 
+const SYSTEM_PROMPT_DEGRADED = `Você é o MandaAssim — gera 3 opções de mensagem para WhatsApp de conquista.
+
+REGRAS:
+- Português brasileiro informal, jeito real de falar no zap
+- Sem formalidade, sem elogio genérico, sem robótico
+- Máximo 8 palavras por opção
+- 3 opções completamente diferentes entre si
+
+FORMATO DE SAÍDA:
+📍 _[situação em uma linha]_
+
+🔥 "[opção romântica]"
+
+😏 "[opção ousada]"
+
+⚡ "[opção direta]"
+
+_[uma linha: por que funciona]_
+
+Se pedido fora de conquista: "Só entendo de conquista 😏 Me manda o print ou descreve a situação."`;
+
+const SYSTEM_PROMPT_MINIMAL = `Gere 3 opções de mensagem curta para WhatsApp em português brasileiro casual. Máximo 6 palavras cada. Sem explicações.
+
+🔥 "[romântica]"
+😏 "[ousada]"
+⚡ "[direta]"`;
+
+function getSystemPrompt(tier, girlContext = '') {
+  if (tier === 'minimal') return SYSTEM_PROMPT_MINIMAL;
+  if (tier === 'degraded') return SYSTEM_PROMPT_DEGRADED + girlContext;
+  return SYSTEM_PROMPT + girlContext;
+}
+
 function extrairDiagnostico(texto) {
   const match = texto.match(/📍\s*_([^_\n]+)_/);
   return match ? match[1].trim() : null;
@@ -391,42 +436,39 @@ Sequência natural de reconquista:
 async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '', girlContext = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
   const instrucao = instrucaoExtra || `${prefixo}Leia toda a conversa do print. Identifique: (1) qual foi a ÚLTIMA mensagem dela — é isso que ele precisa responder agora, (2) o tom dela ao longo da conversa, (3) o momento da relação (primeiro contato, ficou frio, deu abertura, etc). Gere as 3 opções de resposta específicas para a última mensagem dela. Não seja genérico — leia o contexto real.`;
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT + girlContext,
+  // Imagens sempre usam modelo full (visão obrigatória)
+  const response = await openrouter.chat.completions.create({
+    model: MODELS.full,
+    max_tokens: MAX_TOKENS.full,
     messages: [
+      { role: 'system', content: SYSTEM_PROMPT + girlContext },
       {
         role: 'user',
         content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mimeType, data: base64Data },
-          },
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Data}` } },
           { type: 'text', text: instrucao },
         ],
       },
     ],
   });
-  const textBlock = response.content.find((b) => b.type === 'text');
-  return textBlock ? textBlock.text : 'Não consegui analisar a imagem. Tente enviar novamente.';
+  return response.choices[0]?.message?.content || 'Não consegui analisar a imagem. Tente enviar novamente.';
 }
 
-async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '') {
+async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', tier = 'full') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT + girlContext,
+  const systemPrompt = getSystemPrompt(tier, girlContext);
+  const response = await openrouter.chat.completions.create({
+    model: MODELS[tier],
+    max_tokens: MAX_TOKENS[tier],
     messages: [
+      { role: 'system', content: systemPrompt },
       {
         role: 'user',
         content: `${prefixo}Situação real: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`,
       },
     ],
   });
-  const textBlock = response.content.find((b) => b.type === 'text');
-  return textBlock ? textBlock.text : 'Não consegui gerar respostas. Tente descrever melhor a situação.';
+  return response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
 }
 
 // ---------------------------------------------------------------------------
@@ -530,6 +572,25 @@ async function verificarWinback(phone, expiredAt) {
   }
 
   return now >= new Date(data.winback_unlock_at);
+}
+
+async function getMonthlyCount(phone) {
+  const supabase = getSupabase();
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  const startDate = startOfMonth.toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from('daily_message_counts')
+    .select('message_count')
+    .eq('phone', phone)
+    .gte('count_date', startDate);
+  return (data || []).reduce((sum, row) => sum + (row.message_count || 0), 0);
+}
+
+function getModelTier(monthlyCount) {
+  if (monthlyCount <= 400) return 'full';
+  if (monthlyCount <= 700) return 'degraded';
+  return 'minimal';
 }
 
 async function incrementDailyCount(phone) {
@@ -1177,14 +1238,16 @@ client.on('message', async (message) => {
       }
       const girlProfile = await getGirlProfile(phone);
       const girlContext = buildGirlContext(girlProfile);
+      const monthlyCount = await getMonthlyCount(phone);
+      const tier = trial.isPremium ? 'full' : getModelTier(monthlyCount);
       await message.reply(getMensagemEspera());
       try {
         const sugestoes = ctx.lastType === 'image'
           ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext)
-          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext);
+          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier);
         await enviarResposta(message, sugestoes);
       } catch (err) {
-        console.error('[Claude] Erro ao gerar variações:', err.message);
+        console.error('[OpenRouter] Erro ao gerar variações:', err.message);
         await message.reply('Deu ruim, tenta mandar de novo 😅');
       }
       return;
@@ -1200,15 +1263,17 @@ client.on('message', async (message) => {
       setUserTonePreference(phone, text.trim());
       const girlProfile = await getGirlProfile(phone);
       const girlContext = buildGirlContext(girlProfile);
+      const monthlyCount = await getMonthlyCount(phone);
+      const tier = trial.isPremium ? 'full' : getModelTier(monthlyCount);
       await message.reply(getMensagemEspera());
       try {
         const sugestoes = ctx.lastType === 'image'
           ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext)
-          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext);
+          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier);
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
         await enviarResposta(message, sugestoes);
       } catch (err) {
-        console.error('[Claude] Erro ao ajustar tom:', err.message);
+        console.error('[OpenRouter] Erro ao ajustar tom:', err.message);
         await message.reply('Deu ruim aqui, tenta de novo 😅');
       }
       return;
@@ -1220,16 +1285,19 @@ client.on('message', async (message) => {
     const girlProfile = await getGirlProfile(phone);
     const girlContext = buildGirlContext(girlProfile);
     const reconquistaExtra = RECONQUISTA_KEYWORDS.test(text) ? RECONQUISTA_CONTEXT : '';
+    const monthlyCount = await getMonthlyCount(phone);
+    const tier = trial.isPremium ? 'full' : getModelTier(monthlyCount);
+    console.log(`[Tier] ${phone} — ${monthlyCount} msgs/mês → tier: ${tier}`);
 
     await message.reply(getMensagemEspera());
     try {
-      const sugestoes = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra);
+      const sugestoes = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier);
       saveUserContext(phone, text, 'text');
       await enviarResposta(message, sugestoes);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
     } catch (err) {
-      console.error('[Claude] Erro ao analisar texto:', err.message);
+      console.error('[OpenRouter] Erro ao analisar texto:', err.message);
       await message.reply('Deu ruim aqui, tenta de novo 😅');
     }
 
