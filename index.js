@@ -421,6 +421,32 @@ function capIntentByTier(intent, usageTier) {
   return intent;
 }
 
+// ---------------------------------------------------------------------------
+// Scoring situacional — quão crítico é este momento para usar Sonnet?
+// ---------------------------------------------------------------------------
+
+const SONNET_TRIGGER_PATTERNS = [
+  { regex: /reconquist|quero ela de volta|ela sumiu há|ela parou de responder|ela me deixou|ela foi embora|terminamos|ela terminou|quero reconquistar/i, score: 10, label: 'reconquista' },
+  { regex: /sumiu|ghoste|parou de responder|ficou fria|esfriou|não responde|desapareceu|sem resposta|deixou no vácuo/i,                                  score: 9,  label: 'ghosting' },
+  { regex: /primeiro contato|match|nunca conversei|não me conhece|começar do zero|abrir conversa|quebrar o gelo|puxar assunto/i,                          score: 8,  label: 'primeiro_contato' },
+  { regex: /chamar pra sair|marcar encontro|convidar|pedir|proposta|date|rolar algo|se a gente|falar sobre nós/i,                                         score: 8,  label: 'chamada_acao' },
+  { regex: /ela disse que|ela perguntou se|ela quis saber|ela testou|ela mandou|ela foi em|ela falou que/i,                                               score: 7,  label: 'mensagem_direta' },
+  { regex: /terminei|terminou|brigamos|briga|discussão|ficou chateada|magoou|não quer mais/i,                                                             score: 8,  label: 'conflito' },
+];
+
+// Threshold mínimo para usar Sonnet no plano grátis
+const SONNET_FREE_MIN_SCORE = 7;
+
+function calcularSituationScore(text, intent) {
+  let score = 0;
+  for (const { regex, score: pts } of SONNET_TRIGGER_PATTERNS) {
+    if (regex.test(text)) score = Math.max(score, pts);
+  }
+  // Intent classificado como premium já indica situação crítica
+  if (intent === 'premium') score = Math.max(score, 7);
+  return score;
+}
+
 async function classificarIntent(situacao) {
   try {
     const response = await openrouter.chat.completions.create({
@@ -535,7 +561,7 @@ async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '',
   return response.choices[0]?.message?.content || 'Não consegui analisar a imagem. Tente enviar novamente.';
 }
 
-async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', usageTier = 'full', phone = '') {
+async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', usageTier = 'full', phone = '', recentSuccess = false) {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
 
   // 1. Classifica o intent semanticamente
@@ -543,33 +569,27 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   // 2. Aplica cap de custo pelo uso mensal
   let intent = capIntentByTier(rawIntent, usageTier);
 
-  // 3. Verifica acesso ao Sonnet
+  // 3. Score situacional — quão crítico é este momento?
+  const situationScore = calcularSituationScore(situacao, rawIntent);
+
+  // 4. Resolve acesso ao Sonnet com lógica inteligente de prioridade
+  let sonnetInfo = { acesso: false };
   if (intent === 'premium' && phone) {
-    const sonnetUsado = await getSonnetUsage(phone);
-
-    // 3 primeiras msgs de qualquer usuário → Sonnet (onboarding hook)
-    const noOnboarding = sonnetUsado < SONNET_ONBOARDING_CAP;
-
-    // Após onboarding: só premium pago tem acesso ao Sonnet (até 30/mês)
-    const temAcessoPremium = usageTier === 'full' && sonnetUsado < SONNET_MONTHLY_CAP;
-
-    if (noOnboarding || temAcessoPremium) {
+    sonnetInfo = await resolverAcessoSonnet(phone, intent, usageTier, situationScore, recentSuccess);
+    if (sonnetInfo.acesso) {
       await incrementSonnetUsage(phone);
-      const motivo = noOnboarding ? `onboarding ${sonnetUsado + 1}/${SONNET_ONBOARDING_CAP}` : `premium ${sonnetUsado + 1}/${SONNET_MONTHLY_CAP}`;
-      console.log(`[Sonnet] ✅ ${motivo}`);
     } else {
-      console.log(`[Sonnet] ❌ sem acesso (tier:${usageTier}, uso:${sonnetUsado}) → downgrade volume`);
-      intent = 'volume';
+      intent = 'volume'; // downgrade silencioso
     }
   }
 
   const config = INTENT_MODEL_CONFIG[intent];
   const systemPrompt = getSystemPrompt(config.systemType, girlContext);
-  console.log(`[Intent] raw:${rawIntent} → final:${intent} → model:${config.model}`);
+  console.log(`[Roteamento] raw:${rawIntent} score:${situationScore} → final:${intent} → ${config.model}`);
 
   const userContent = `${prefixo}Situação real: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`;
 
-  // 4. Tenta modelo principal, depois fallback
+  // 5. Tenta modelo principal, depois fallback
   const modelos = [config.model, INTENT_FALLBACKS[config.model]].filter(Boolean);
   for (const model of modelos) {
     try {
@@ -582,7 +602,11 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
           { role: 'user',   content: userContent },
         ],
       });
-      return response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
+      return {
+        text: response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.',
+        sonnetInfo,
+        intent,
+      };
     } catch (err) {
       console.error(`[OpenRouter] Falha em ${model}:`, err.message);
       if (model === modelos[modelos.length - 1]) throw err;
@@ -722,6 +746,42 @@ async function incrementSonnetUsage(phone) {
     .from('sonnet_monthly_usage')
     .upsert({ phone, month, count: newCount }, { onConflict: 'phone,month' });
   return newCount;
+}
+
+// ---------------------------------------------------------------------------
+// Resolver inteligente de acesso ao Sonnet
+// ---------------------------------------------------------------------------
+
+async function resolverAcessoSonnet(phone, intent, usageTier, situationScore, recentSuccess) {
+  if (intent !== 'premium') return { acesso: false };
+
+  const sonnetUsado = await getSonnetUsage(phone);
+  const isPremiumUser = usageTier === 'full';
+
+  // Usuário premium: Sonnet para qualquer intent premium, até 30/mês
+  if (isPremiumUser) {
+    if (sonnetUsado < SONNET_MONTHLY_CAP) {
+      return { acesso: true, tipo: 'premium', restante: SONNET_MONTHLY_CAP - sonnetUsado - 1 };
+    }
+    return { acesso: false, motivo: 'cap_mensal_premium' };
+  }
+
+  // Usuário free: Sonnet apenas para momentos de alto impacto
+  if (sonnetUsado >= SONNET_ONBOARDING_CAP) {
+    return { acesso: false, motivo: 'cap_gratuito_esgotado', sonnetUsado };
+  }
+
+  // Sucesso recente → boost no score (pico emocional = máxima receptividade)
+  const scoreEfetivo = recentSuccess ? Math.min(situationScore + 3, 10) : situationScore;
+
+  if (scoreEfetivo >= SONNET_FREE_MIN_SCORE) {
+    const restante = SONNET_ONBOARDING_CAP - sonnetUsado - 1;
+    console.log(`[Sonnet] Free aprovado — score:${scoreEfetivo} (base:${situationScore} boost:${recentSuccess}) usado:${sonnetUsado + 1}/${SONNET_ONBOARDING_CAP}`);
+    return { acesso: true, tipo: 'onboarding', restante, totalUsado: sonnetUsado + 1 };
+  }
+
+  console.log(`[Sonnet] Free bloqueado — score:${scoreEfetivo} < ${SONNET_FREE_MIN_SCORE} → downgrade volume`);
+  return { acesso: false, motivo: 'score_insuficiente', scoreEfetivo };
 }
 
 async function getMonthlyCount(phone) {
@@ -987,6 +1047,33 @@ async function upsellPicoPremium(message, trial, todayCount) {
       );
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Upsell progressivo após Sonnet gratuito (conversão no pico emocional)
+// ---------------------------------------------------------------------------
+
+async function upsellSonnetFree(message, sonnetInfo, trial) {
+  // Só dispara para free que acabou de usar Sonnet de onboarding
+  if (trial.isPremium || !sonnetInfo?.acesso || sonnetInfo.tipo !== 'onboarding') return;
+
+  const { restante } = sonnetInfo;
+
+  if (restante === 0) {
+    // Última análise avançada usada — upsell completo
+    await new Promise(r => setTimeout(r, 2000));
+    await client.sendMessage(message.from,
+      `Essa foi sua *última análise avançada* gratuita 🔥\n\n` +
+      `Essa é a análise que encaixa no momento dela — é o que o *Premium* entrega *30x por mês*: reconquistas, primeiros contatos, momentos que não podem errar.\n\n` +
+      OPCOES_PREMIUM
+    );
+  } else if (restante === 1) {
+    // Penúltima — scarcity sutil
+    await client.sendMessage(message.from,
+      `_⚡ Análise avançada — só mais 1 gratuita depois dessa_`
+    );
+  }
+  // restante >= 2: silencioso — não interrompe a experiência
 }
 
 // ---------------------------------------------------------------------------
@@ -1373,13 +1460,16 @@ client.on('message', async (message) => {
       return;
     }
 
-    // Feedback positivo — registra o que funcionou
+    // Feedback positivo — registra o que funcionou + ativa boost para próxima análise
     if (FEEDBACK_POSITIVO.test(text)) {
       const ctx = getUserContext(phone);
       if (ctx?.lastRequest) {
         const ref = ctx.lastType === 'text' ? String(ctx.lastRequest).slice(0, 80) : 'print da conversa';
         await appendWhatWorked(phone, ref);
       }
+      // Marca recentSuccess → próxima análise recebe boost de score para Sonnet
+      const current = userContext.get(phone) || {};
+      userContext.set(phone, { ...current, recentSuccess: true });
       await message.reply('Boa! 🔥 Anotei o que funcionou — vou usar de referência nas próximas.\n\nManda o próximo print quando quiser.');
       return;
     }
@@ -1403,10 +1493,10 @@ client.on('message', async (message) => {
       const tier = resolveTier(trial, todayCount, monthlyCount);
       await message.reply(getMensagemEspera());
       try {
-        const sugestoes = ctx.lastType === 'image'
-          ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext)
+        const result = ctx.lastType === 'image'
+          ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext) }
           : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier, phone);
-        await enviarResposta(message, sugestoes);
+        await enviarResposta(message, result.text);
       } catch (err) {
         console.error('[OpenRouter] Erro ao gerar variações:', err.message);
         await message.reply('Deu ruim, tenta mandar de novo 😅');
@@ -1428,11 +1518,11 @@ client.on('message', async (message) => {
       const tier = resolveTier(trial, todayCount, monthlyCount);
       await message.reply(getMensagemEspera());
       try {
-        const sugestoes = ctx.lastType === 'image'
-          ? await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext)
+        const result = ctx.lastType === 'image'
+          ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext) }
           : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier, phone);
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
-        await enviarResposta(message, sugestoes);
+        await enviarResposta(message, result.text);
       } catch (err) {
         console.error('[OpenRouter] Erro ao ajustar tom:', err.message);
         await message.reply('Deu ruim aqui, tenta de novo 😅');
@@ -1443,18 +1533,25 @@ client.on('message', async (message) => {
     // Análise normal
     const ctx = getUserContext(phone);
     const toneHint = ctx?.tonePreference ? `\nPreferência do usuário: ele tende a preferir tom "${ctx.tonePreference}" — leve isso em conta sem ignorar as outras opções.` : '';
+    const recentSuccess = ctx?.recentSuccess || false;
     const girlProfile = await getGirlProfile(phone);
     const girlContext = buildGirlContext(girlProfile);
     const reconquistaExtra = RECONQUISTA_KEYWORDS.test(text) ? RECONQUISTA_CONTEXT : '';
     const monthlyCount = await getMonthlyCount(phone);
     const tier = resolveTier(trial, todayCount, monthlyCount);
-    console.log(`[Tier] ${phone} — daily:${todayCount} monthly:${monthlyCount} → tier:${tier}`);
+    console.log(`[Tier] ${phone} — daily:${todayCount} monthly:${monthlyCount} → tier:${tier} recentSuccess:${recentSuccess}`);
 
     await message.reply(getMensagemEspera());
     try {
-      const sugestoes = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier, phone);
+      const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier, phone, recentSuccess);
       saveUserContext(phone, text, 'text');
-      await enviarResposta(message, sugestoes);
+      // Limpa o boost de recentSuccess após usar
+      if (recentSuccess) {
+        const updCtx = userContext.get(phone) || {};
+        userContext.set(phone, { ...updCtx, recentSuccess: false });
+      }
+      await enviarResposta(message, result.text);
+      await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
     } catch (err) {
