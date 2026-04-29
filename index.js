@@ -969,32 +969,29 @@ Cola uma dessas pra abrir 👇
 _[uma linha: por que essa abordagem funciona pra esse perfil específico]_`;
 
 // ---------------------------------------------------------------------------
-// Transcrição de áudio via Groq Whisper (gratuito, PT-BR nativo)
+// Transcrição de áudio via Gemini (OpenRouter — mesma chave já configurada)
 // ---------------------------------------------------------------------------
 
 async function transcreverAudio(base64Data, mimetype) {
-  const buffer = Buffer.from(base64Data, 'base64');
-  // WhatsApp envia áudio como ogg/opus (ptt) ou mpeg/mp4 (encaminhado)
-  const ext = mimetype.includes('ogg') ? 'ogg' : mimetype.includes('mp4') ? 'm4a' : 'mp3';
-
-  const formData = new FormData();
-  formData.append('file', new Blob([buffer], { type: mimetype }), `audio.${ext}`);
-  formData.append('model', 'whisper-large-v3-turbo');
-  formData.append('language', 'pt');
-  formData.append('response_format', 'text');
-
-  const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
-    body: formData,
+  const response = await openrouter.chat.completions.create({
+    model: 'google/gemini-2.0-flash',
+    max_tokens: 400,
+    temperature: 0,
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'audio_url',
+          audio_url: { url: `data:${mimetype};base64,${base64Data}` },
+        },
+        {
+          type: 'text',
+          text: 'Transcreva exatamente o que está sendo dito neste áudio em português brasileiro. Retorne APENAS o texto transcrito, sem comentários, sem pontuação desnecessária.',
+        },
+      ],
+    }],
   });
-
-  if (!res.ok) {
-    const err = await res.text().catch(() => String(res.status));
-    throw new Error(`Groq Whisper ${res.status}: ${err}`);
-  }
-
-  return (await res.text()).trim();
+  return (response.choices[0]?.message?.content || '').trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -1688,11 +1685,6 @@ client.on('message', async (message) => {
   } else if (message.type === 'audio' || message.type === 'ptt') {
     // Áudio de voz — transcreve com Groq Whisper e analisa como texto
     console.log(`[Áudio] ${phone} enviou ${message.type}.`);
-
-    if (!process.env.GROQ_API_KEY) {
-      await message.reply('Transcrição de áudio não disponível agora 😅 Descreve em texto.');
-      return;
-    }
 
     const media = await message.downloadMedia();
     if (!media) {
