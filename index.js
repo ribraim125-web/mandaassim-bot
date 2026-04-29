@@ -376,7 +376,7 @@ async function enviarResposta(message, sugestoes) {
 
 async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
-  const instrucao = instrucaoExtra || `${prefixo}Analise essa conversa e gere as 3 opções de resposta.`;
+  const instrucao = instrucaoExtra || `${prefixo}Leia toda a conversa do print. Identifique: (1) qual foi a ÚLTIMA mensagem dela — é isso que ele precisa responder agora, (2) o tom dela ao longo da conversa, (3) o momento da relação (primeiro contato, ficou frio, deu abertura, etc). Gere as 3 opções de resposta específicas para a última mensagem dela. Não seja genérico — leia o contexto real.`;
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
@@ -407,7 +407,7 @@ async function analisarTextoComClaude(situacao, contextoExtra = '') {
     messages: [
       {
         role: 'user',
-        content: `${prefixo}Situação: ${situacao}\n\nGere as 3 opções de resposta para essa situação.`,
+        content: `${prefixo}Situação real: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`,
       },
     ],
   });
