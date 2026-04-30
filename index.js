@@ -1587,6 +1587,7 @@ client.on('message', async (message) => {
       const girlContext = buildGirlContext(girlProfile);
       const monthlyCount = await getMonthlyCount(phone);
       const tier = resolveTier(trial, todayCount, monthlyCount);
+      await message.reply(getMensagemEspera());
       const stopTyping1 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
@@ -1614,6 +1615,7 @@ client.on('message', async (message) => {
       const girlContext = buildGirlContext(girlProfile);
       const monthlyCount = await getMonthlyCount(phone);
       const tier = resolveTier(trial, todayCount, monthlyCount);
+      await message.reply(getMensagemEspera());
       const stopTyping2 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
@@ -1641,6 +1643,7 @@ client.on('message', async (message) => {
     const tier = resolveTier(trial, todayCount, monthlyCount);
     console.log(`[Tier] ${phone} — daily:${todayCount} monthly:${monthlyCount} → tier:${tier} recentSuccess:${recentSuccess}`);
 
+    await message.reply(getMensagemEspera());
     const stopTyping3 = await startTyping(message);
     try {
       const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier, phone, recentSuccess);
@@ -1677,6 +1680,7 @@ client.on('message', async (message) => {
     if (isPerfilMode) {
       // Modo perfil: gera abertura de conversa baseada na foto dela
       console.log(`[Perfil] ${phone} enviou foto de perfil (caption: "${caption}")`);
+      await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
       const stopTypingPerfil = await startTyping(message);
       try {
         const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, PROFILE_OPENER_PROMPT, '', girlContextImg);
@@ -1693,6 +1697,7 @@ client.on('message', async (message) => {
     } else {
       // Modo conversa: analisa o print normalmente
       console.log(`[Imagem] ${phone} enviou um print.`);
+      await message.reply(getMensagemEspera());
       const stopTypingImg = await startTyping(message);
       try {
         const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg);
@@ -1718,6 +1723,7 @@ client.on('message', async (message) => {
       return;
     }
 
+    await message.reply(MENSAGENS_ESPERA_AUDIO[Math.floor(Math.random() * MENSAGENS_ESPERA_AUDIO.length)]);
     const stopTypingAudio = await startTyping(message);
 
     try {
