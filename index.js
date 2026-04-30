@@ -545,7 +545,24 @@ Sequência natural de reconquista:
 
 async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '', girlContext = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
-  const instrucao = instrucaoExtra || `${prefixo}Leia toda a conversa do print. Identifique: (1) qual foi a ÚLTIMA mensagem dela — é isso que ele precisa responder agora, (2) o tom dela ao longo da conversa, (3) o momento da relação (primeiro contato, ficou frio, deu abertura, etc). Gere as 3 opções de resposta específicas para a última mensagem dela. Não seja genérico — leia o contexto real.`;
+  const instrucao = instrucaoExtra || `${prefixo}Antes de tudo, identifique o TIPO desta imagem:
+
+A) PRINT DE CONVERSA (WhatsApp, Instagram DM, Tinder, etc.) → balões de mensagem, chat
+B) STORIES / STATUS / REELS / POST → foto ou vídeo que ela postou, sem balões de chat
+C) FOTO DE PERFIL → foto de perfil dela (Tinder, Instagram, etc.)
+
+Se for A (PRINT DE CONVERSA):
+Leia toda a conversa. Identifique qual foi a ÚLTIMA mensagem dela e gere 3 opções de resposta específicas para ela. Não seja genérico — leia o contexto real.
+
+Se for B (STORIES/POST):
+Analise o que aparece visualmente: onde ela está, o que está fazendo, humor/vibe, detalhes específicos.
+Gere 3 reações ao stories — curtas, específicas ao conteúdo, que abram conversa de forma natural. PROIBIDO: "que foto linda", "incrível", elogios genéricos.
+
+Se for C (FOTO DE PERFIL):
+Analise estilo, expressão, cenário, detalhes específicos.
+Gere 3 aberturas de conversa baseadas no que você viu — específicas, nunca genéricas.
+
+Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
   // Imagens sempre usam modelo full (visão obrigatória)
   const response = await openrouter.chat.completions.create({
     model: MODELS.full,
