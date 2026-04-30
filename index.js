@@ -1808,17 +1808,22 @@ async function verificarExpiracoes() {
 // Inicialização
 // ---------------------------------------------------------------------------
 
+// Remove o lock do Chrome de processos anteriores (evita loop de restart)
+const fs = require('fs');
+const chromeLockPath = require('path').join(__dirname, '.wwebjs_auth/session-mandaassim-bot/SingletonLock');
+try { fs.unlinkSync(chromeLockPath); console.log('[Boot] Lock do Chrome removido.'); } catch (_) {}
+
 const webhookApp = createWebhookApp(client);
 const server = webhookApp.listen(PORT, () => {
   console.log(`[Webhook] Servidor rodando na porta ${PORT}`);
 });
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`[Webhook] Porta ${PORT} já em uso — aguardando 3s e tentando novamente...`);
+    console.error(`[Webhook] Porta ${PORT} já em uso — aguardando 5s e tentando novamente...`);
     setTimeout(() => {
       server.close();
       server.listen(PORT);
-    }, 3000);
+    }, 5000);
   } else {
     console.error('[Webhook] Erro no servidor:', err.message);
   }
@@ -1827,7 +1832,6 @@ server.on('error', (err) => {
 client.on('ready', () => {
   console.log('[Bot] Conectado e pronto para receber mensagens!');
   startWorker(client);
-  // Verifica expirações 15s após iniciar e depois a cada 6 horas
   setTimeout(verificarExpiracoes, 15000);
   setInterval(verificarExpiracoes, 6 * 60 * 60 * 1000);
 });
