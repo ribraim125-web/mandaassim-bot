@@ -73,9 +73,9 @@ const openrouter = new OpenAI({
 });
 
 const MODELS = {
-  full:     'anthropic/claude-haiku-4-5-20251001', // 0–400 msgs/mês
-  degraded: 'google/gemini-2.0-flash-lite',        // 401–700 msgs/mês
-  minimal:  'meta-llama/llama-3.1-8b-instruct',    // 701+ msgs/mês
+  full:     'google/gemini-2.0-flash',      // análise de imagens (visão nativa)
+  degraded: 'google/gemini-2.0-flash-lite', // fallback degradado
+  minimal:  'google/gemini-2.0-flash-lite', // fallback mínimo
 };
 
 const MAX_TOKENS = { full: 1024, degraded: 600, minimal: 300 };
@@ -405,14 +405,14 @@ Analise a situação descrita e classifique o tipo de resposta necessária em UM
 RESPONDA APENAS com a categoria, sem explicação.`;
 
 const INTENT_MODEL_CONFIG = {
-  one_liner: { model: 'google/gemini-2.5-flash-lite', maxTokens: 50,  temperature: 0.90, systemType: 'minimal'  },
+  one_liner: { model: 'google/gemini-2.0-flash-lite', maxTokens: 50,  temperature: 0.90, systemType: 'minimal'  },
   volume:    { model: 'google/gemini-2.0-flash',      maxTokens: 300,  temperature: 0.85, systemType: 'degraded' },
   premium:   { model: 'anthropic/claude-sonnet-4-6',  maxTokens: 600,  temperature: 0.80, systemType: 'full'     },
   ousadia:   { model: 'meta-llama/llama-4-maverick',  maxTokens: 200,  temperature: 0.95, systemType: 'ousadia'  },
 };
 
 const INTENT_FALLBACKS = {
-  'google/gemini-2.5-flash-lite': 'google/gemini-2.0-flash-lite',
+  'google/gemini-2.0-flash-lite': 'google/gemini-2.0-flash',
   'anthropic/claude-sonnet-4-6':  'google/gemini-2.0-flash',
   'meta-llama/llama-4-maverick':  'google/gemini-2.0-flash',
 };
@@ -453,7 +453,7 @@ function calcularSituationScore(text, intent) {
 async function classificarIntent(situacao) {
   try {
     const response = await openrouter.chat.completions.create({
-      model: 'google/gemini-2.0-flash-lite',
+      model: 'google/gemini-2.0-flash',
       max_tokens: 10,
       temperature: 0,
       messages: [
