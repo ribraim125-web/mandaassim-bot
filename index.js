@@ -260,8 +260,10 @@ CENÁRIOS ESPECIAIS:
 
 FORMATO DE SAÍDA — sempre uma mensagem só, sem introdução:
 
-Para análise de conversa:
+Para análise de conversa ou situação específica com ela:
 📍 _[diagnóstico em uma linha: tom dela agora + o que está sinalizando]_
+
+💡 [Dica/ensinamento sobre o que está acontecendo — 2 a 4 linhas, linguagem direta e natural. Use *negrito* nas palavras-chave. Explica a psicologia da situação, o que ela está testando, o que o cara precisa entender. Sem autoajuda, sem papo de coach. Como um amigo que realmente entende de mulher explicando o jogo. Deve ter espaçamento e ser fácil de ler.]
 
 Cola uma dessas 👇
 
@@ -521,12 +523,22 @@ function parsearOpcoes(texto) {
   return resultado;
 }
 
+function extrairDica(texto) {
+  const match = texto.match(/💡\s*(.+?)(?=\n\n(?:Cola|Escolhe|🔥|😏|⚡)|$)/s);
+  return match ? match[1].trim() : null;
+}
+
 async function enviarResposta(message, sugestoes) {
   const diagnostico = extrairDiagnostico(sugestoes);
+  const dica = extrairDica(sugestoes);
   const opcoes = parsearOpcoes(sugestoes);
 
   if (diagnostico) {
     await client.sendMessage(message.from, `📍 _${diagnostico}_`);
+  }
+
+  if (dica) {
+    await client.sendMessage(message.from, `💡 ${dica}`);
   }
 
   if (opcoes.length >= 2) {
