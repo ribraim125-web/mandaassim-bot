@@ -132,10 +132,6 @@ function createWebhookApp(waClient) {
       const amount = result.transaction_amount ?? 0;
       const days = amount >= 100 ? 365 : amount <= 9.99 ? 1 : 30;
       const confirmacaoMsg = days === 1 ? CONFIRMACAO_24H : CONFIRMACAO_PREMIUM;
-      const expiresAt = new Date();
-      if (days === 1) expiresAt.setHours(expiresAt.getHours() + 24);
-      else expiresAt.setDate(expiresAt.getDate() + days);
-      const expiresAtIso = expiresAt.toISOString();
 
       const supabase = getSupabase();
 
@@ -153,9 +149,17 @@ function createWebhookApp(waClient) {
         console.warn(`[Webhook] Sem registro no banco para ${externalRef} — ativando pelo external_ref`);
         const { data: userRowFallback } = await supabase
           .from('users')
-          .select('wa_chat_id')
+          .select('wa_chat_id, plan, plan_expires_at')
           .eq('phone', phoneFromRef)
           .maybeSingle();
+        // Acumula: se ainda é premium e não expirou, soma a partir da data atual de expiração
+        const baseDate = (userRowFallback?.plan === 'premium' && userRowFallback?.plan_expires_at && new Date(userRowFallback.plan_expires_at) > new Date())
+          ? new Date(userRowFallback.plan_expires_at)
+          : new Date();
+        const expiresAt = new Date(baseDate);
+        if (days === 1) expiresAt.setHours(expiresAt.getHours() + 24);
+        else expiresAt.setDate(expiresAt.getDate() + days);
+        const expiresAtIso = expiresAt.toISOString();
         // Ativa direto pelo telefone extraído do external_ref
         await supabase
           .from('users')
@@ -179,12 +183,21 @@ function createWebhookApp(waClient) {
 
       const phone = paymentRow.phone;
 
-      // Busca wa_chat_id do usuário para enviar a notificação corretamente
+      // Busca wa_chat_id e expiração atual do usuário
       const { data: userRow } = await supabase
         .from('users')
-        .select('wa_chat_id')
+        .select('wa_chat_id, plan, plan_expires_at')
         .eq('phone', phone)
         .maybeSingle();
+
+      // Acumula: se ainda é premium e não expirou, soma a partir da data atual de expiração
+      const baseDate = (userRow?.plan === 'premium' && userRow?.plan_expires_at && new Date(userRow.plan_expires_at) > new Date())
+        ? new Date(userRow.plan_expires_at)
+        : new Date();
+      const expiresAt = new Date(baseDate);
+      if (days === 1) expiresAt.setHours(expiresAt.getHours() + 24);
+      else expiresAt.setDate(expiresAt.getDate() + days);
+      const expiresAtIso = expiresAt.toISOString();
 
       // Atualiza pagamento e usuário no banco
       await Promise.all([
