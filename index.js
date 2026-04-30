@@ -548,30 +548,32 @@ Sequência natural de reconquista:
 
 async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '', girlContext = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
-  const instrucao = instrucaoExtra || `${prefixo}Antes de tudo, identifique o TIPO desta imagem:
+  const instrucao = instrucaoExtra || `${prefixo}CONTEXTO: o usuário está tentando conquistar uma mulher e enviou essa imagem para pedir ajuda. SEMPRE trate a imagem como algo relacionado a ela — stories, post, perfil, foto que ela compartilhou, ou print da conversa com ela.
 
-A) PRINT DE CONVERSA (WhatsApp, Instagram DM, Tinder, etc.) → balões de mensagem, chat
-B) STORIES / STATUS / REELS / POST → foto ou vídeo que ela postou, sem balões de chat
-C) FOTO DE PERFIL → foto de perfil dela (Tinder, Instagram, etc.)
+Identifique o TIPO desta imagem:
 
-Se for A (PRINT DE CONVERSA):
-Leia toda a conversa. Identifique qual foi a ÚLTIMA mensagem dela e gere 3 opções de resposta específicas para ela. Não seja genérico — leia o contexto real.
+A) PRINT DE CONVERSA (balões de mensagem, chat do WhatsApp/Instagram/Tinder)
+→ Leia a conversa toda. Identifique a ÚLTIMA mensagem dela e gere 3 opções de resposta específicas. Não seja genérico.
 
-Se for B (STORIES/POST):
-Analise o que aparece visualmente: onde ela está, o que está fazendo, humor/vibe, detalhes específicos.
-Gere 3 reações ao stories — curtas, específicas ao conteúdo, que abram conversa de forma natural. PROIBIDO: "que foto linda", "incrível", elogios genéricos.
+B) STORIES / POST / FOTO dela (qualquer foto sem balões de chat — comida, viagem, lugar, selfie, animal, atividade, qualquer coisa)
+→ Assuma que é um stories ou post dela. Analise o que aparece: o que está sendo mostrado, vibe, detalhes específicos.
+→ Gere 3 reações curtas e naturais para mandar pra ela — específicas ao conteúdo, que abram conversa. NUNCA: "que lindo", "incrível", elogios genéricos.
+→ Se for comida: comente algo sobre o prato de forma inesperada. Se for lugar: curiosidade sobre o contexto. Se for selfie: algo específico da foto, nunca elogio de aparência.
 
-Se for C (FOTO DE PERFIL):
-Analise estilo, expressão, cenário, detalhes específicos.
-Gere 3 aberturas de conversa baseadas no que você viu — específicas, nunca genéricas.
+C) FOTO DE PERFIL (Tinder, Instagram, app de relacionamento)
+→ Gere 3 aberturas de conversa baseadas no que você viu — específicas, nunca genéricas.
 
 Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
-  // Imagens sempre usam modelo full (visão obrigatória)
+  // Imagens usam system prompt sem o redirect de "fora do escopo"
+  const SYSTEM_PROMPT_IMAGE = SYSTEM_PROMPT.replace(
+    /FOCO EXCLUSIVO[\s\S]*?Não explique, não se desculpe, não tente ajudar de outro jeito\. Só redireciona\./,
+    'FOCO EXCLUSIVO: Você existe para ajudar homens a conquistar mulheres. Qualquer imagem enviada é sempre tratada como algo relacionado à mulher que ele quer conquistar.'
+  );
   const response = await openrouter.chat.completions.create({
     model: MODELS.full,
     max_tokens: MAX_TOKENS.full,
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT + girlContext },
+      { role: 'system', content: SYSTEM_PROMPT_IMAGE + girlContext },
       {
         role: 'user',
         content: [
