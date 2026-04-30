@@ -934,6 +934,24 @@ function getMensagemEspera() {
   return MENSAGENS_ESPERA[Math.floor(Math.random() * MENSAGENS_ESPERA.length)];
 }
 
+// Mostra "digitando..." nativo do WhatsApp enquanto processa
+// Retorna função para parar o indicador
+async function startTyping(message) {
+  let chat;
+  try {
+    chat = await message.getChat();
+    await chat.sendStateTyping();
+  } catch (_) { return () => {}; }
+  // Renova a cada 4s (WhatsApp para automaticamente após ~5s)
+  const interval = setInterval(() => {
+    chat.sendStateTyping().catch(() => {});
+  }, 4000);
+  return () => {
+    clearInterval(interval);
+    chat.clearState().catch(() => {});
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Detecção de foto de perfil (Tinder/Instagram) e prompt específico de abertura
 // ---------------------------------------------------------------------------
@@ -1569,13 +1587,15 @@ client.on('message', async (message) => {
       const girlContext = buildGirlContext(girlProfile);
       const monthlyCount = await getMonthlyCount(phone);
       const tier = resolveTier(trial, todayCount, monthlyCount);
-      await message.reply(getMensagemEspera());
+      const stopTyping1 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
           ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext) }
           : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier, phone);
+        stopTyping1();
         await enviarResposta(message, result.text);
       } catch (err) {
+        stopTyping1();
         console.error('[OpenRouter] Erro ao gerar variações:', err.message);
         await message.reply('Deu ruim, tenta mandar de novo 😅');
       }
@@ -1594,14 +1614,16 @@ client.on('message', async (message) => {
       const girlContext = buildGirlContext(girlProfile);
       const monthlyCount = await getMonthlyCount(phone);
       const tier = resolveTier(trial, todayCount, monthlyCount);
-      await message.reply(getMensagemEspera());
+      const stopTyping2 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
           ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext) }
           : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier, phone);
+        stopTyping2();
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
         await enviarResposta(message, result.text);
       } catch (err) {
+        stopTyping2();
         console.error('[OpenRouter] Erro ao ajustar tom:', err.message);
         await message.reply('Deu ruim aqui, tenta de novo 😅');
       }
@@ -1619,11 +1641,11 @@ client.on('message', async (message) => {
     const tier = resolveTier(trial, todayCount, monthlyCount);
     console.log(`[Tier] ${phone} — daily:${todayCount} monthly:${monthlyCount} → tier:${tier} recentSuccess:${recentSuccess}`);
 
-    await message.reply(getMensagemEspera());
+    const stopTyping3 = await startTyping(message);
     try {
       const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier, phone, recentSuccess);
+      stopTyping3();
       saveUserContext(phone, text, 'text');
-      // Limpa o boost de recentSuccess após usar
       if (recentSuccess) {
         const updCtx = userContext.get(phone) || {};
         userContext.set(phone, { ...updCtx, recentSuccess: false });
@@ -1633,6 +1655,7 @@ client.on('message', async (message) => {
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
     } catch (err) {
+      stopTyping3();
       console.error('[OpenRouter] Erro ao analisar texto:', err.message);
       await message.reply('Deu ruim aqui, tenta de novo 😅');
     }
@@ -1654,36 +1677,39 @@ client.on('message', async (message) => {
     if (isPerfilMode) {
       // Modo perfil: gera abertura de conversa baseada na foto dela
       console.log(`[Perfil] ${phone} enviou foto de perfil (caption: "${caption}")`);
-      const esperaPerfil = MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)];
-      await message.reply(esperaPerfil);
+      const stopTypingPerfil = await startTyping(message);
       try {
         const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, PROFILE_OPENER_PROMPT, '', girlContextImg);
+        stopTypingPerfil();
         saveUserContext(phone, media, 'image');
         await enviarResposta(message, sugestoes);
         await contadorRestante(message, trial, todayCount);
         await upsellPicoPremium(message, trial, todayCount);
       } catch (err) {
+        stopTypingPerfil();
         console.error('[Perfil] Erro:', err.message);
         await message.reply('Não consegui analisar o perfil, tenta mandar de novo 😅');
       }
     } else {
       // Modo conversa: analisa o print normalmente
       console.log(`[Imagem] ${phone} enviou um print.`);
-      await message.reply(getMensagemEspera());
+      const stopTypingImg = await startTyping(message);
       try {
         const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg);
+        stopTypingImg();
         saveUserContext(phone, media, 'image');
         await enviarResposta(message, sugestoes);
         await contadorRestante(message, trial, todayCount);
         await upsellPicoPremium(message, trial, todayCount);
       } catch (err) {
+        stopTypingImg();
         console.error('[Claude] Erro ao analisar imagem:', err.message);
         await message.reply('Não consegui ler esse print, tenta mandar de novo');
       }
     }
 
   } else if (message.type === 'audio' || message.type === 'ptt') {
-    // Áudio de voz — transcreve com Groq Whisper e analisa como texto
+    // Áudio de voz — transcreve e analisa como texto
     console.log(`[Áudio] ${phone} enviou ${message.type}.`);
 
     const media = await message.downloadMedia();
@@ -1692,13 +1718,13 @@ client.on('message', async (message) => {
       return;
     }
 
-    const esperaAudio = MENSAGENS_ESPERA_AUDIO[Math.floor(Math.random() * MENSAGENS_ESPERA_AUDIO.length)];
-    await message.reply(esperaAudio);
+    const stopTypingAudio = await startTyping(message);
 
     try {
       const transcricao = await transcreverAudio(media.data, media.mimetype);
 
       if (!transcricao || transcricao.length < 3) {
+        stopTypingAudio();
         await message.reply('Não consegui entender o áudio 😅 Tenta descrever em texto.');
         return;
       }
@@ -1718,6 +1744,7 @@ client.on('message', async (message) => {
       const recentSuccessAudio = ctxAudio?.recentSuccess || false;
 
       const result = await analisarTextoComClaude(transcricao, '', girlContextAudio + reconquistaExtraAudio, tierAudio, phone, recentSuccessAudio);
+      stopTypingAudio();
       saveUserContext(phone, transcricao, 'text');
       if (recentSuccessAudio) {
         const updCtx = userContext.get(phone) || {};
@@ -1728,6 +1755,7 @@ client.on('message', async (message) => {
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
     } catch (err) {
+      stopTypingAudio();
       console.error('[Áudio] Erro:', err.message);
       await message.reply('Não consegui processar o áudio 😅 Tenta descrever em texto.');
     }
