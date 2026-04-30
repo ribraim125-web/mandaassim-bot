@@ -73,9 +73,9 @@ const openrouter = new OpenAI({
 });
 
 const MODELS = {
-  full:     'google/gemini-2.0-flash',      // análise de imagens (visão nativa)
-  degraded: 'google/gemini-2.0-flash-lite', // fallback degradado
-  minimal:  'google/gemini-2.0-flash-lite', // fallback mínimo
+  full:     'google/gemini-2.0-flash-001',      // análise de imagens (visão nativa)
+  degraded: 'google/gemini-2.0-flash-lite-001', // fallback degradado
+  minimal:  'google/gemini-2.0-flash-lite-001', // fallback mínimo
 };
 
 const MAX_TOKENS = { full: 1024, degraded: 600, minimal: 300 };
@@ -405,16 +405,16 @@ Analise a situação descrita e classifique o tipo de resposta necessária em UM
 RESPONDA APENAS com a categoria, sem explicação.`;
 
 const INTENT_MODEL_CONFIG = {
-  one_liner: { model: 'google/gemini-2.0-flash-lite', maxTokens: 50,  temperature: 0.90, systemType: 'minimal'  },
-  volume:    { model: 'google/gemini-2.0-flash',      maxTokens: 300,  temperature: 0.85, systemType: 'degraded' },
-  premium:   { model: 'anthropic/claude-sonnet-4-6',  maxTokens: 600,  temperature: 0.80, systemType: 'full'     },
-  ousadia:   { model: 'meta-llama/llama-4-maverick',  maxTokens: 200,  temperature: 0.95, systemType: 'ousadia'  },
+  one_liner: { model: 'google/gemini-2.0-flash-lite-001', maxTokens: 50,  temperature: 0.90, systemType: 'minimal'  },
+  volume:    { model: 'google/gemini-2.0-flash-001',      maxTokens: 300,  temperature: 0.85, systemType: 'degraded' },
+  premium:   { model: 'anthropic/claude-sonnet-4.6',      maxTokens: 600,  temperature: 0.80, systemType: 'full'     },
+  ousadia:   { model: 'meta-llama/llama-4-maverick',      maxTokens: 200,  temperature: 0.95, systemType: 'ousadia'  },
 };
 
 const INTENT_FALLBACKS = {
-  'google/gemini-2.0-flash-lite': 'google/gemini-2.0-flash',
-  'anthropic/claude-sonnet-4-6':  'google/gemini-2.0-flash',
-  'meta-llama/llama-4-maverick':  'google/gemini-2.0-flash',
+  'google/gemini-2.0-flash-lite-001': 'google/gemini-2.0-flash-001',
+  'anthropic/claude-sonnet-4.6':      'google/gemini-2.0-flash-001',
+  'meta-llama/llama-4-maverick':      'google/gemini-2.0-flash-001',
 };
 
 // Cap de intent por usage tier — evita Sonnet em quem abusa
@@ -453,7 +453,7 @@ function calcularSituationScore(text, intent) {
 async function classificarIntent(situacao) {
   try {
     const response = await openrouter.chat.completions.create({
-      model: 'google/gemini-2.0-flash',
+      model: 'google/gemini-2.0-flash-001',
       max_tokens: 10,
       temperature: 0,
       messages: [
@@ -1775,8 +1775,19 @@ async function verificarExpiracoes() {
 // ---------------------------------------------------------------------------
 
 const webhookApp = createWebhookApp(client);
-webhookApp.listen(PORT, () => {
+const server = webhookApp.listen(PORT, () => {
   console.log(`[Webhook] Servidor rodando na porta ${PORT}`);
+});
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`[Webhook] Porta ${PORT} já em uso — aguardando 3s e tentando novamente...`);
+    setTimeout(() => {
+      server.close();
+      server.listen(PORT);
+    }, 3000);
+  } else {
+    console.error('[Webhook] Erro no servidor:', err.message);
+  }
 });
 
 client.on('ready', () => {
