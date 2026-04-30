@@ -958,6 +958,43 @@ async function startTyping(message) {
 
 const PROFILE_OPENER_KEYWORDS = /\b(perfil|tinder|bumble|hinge|instagram|insta|foto dela|abertura|abre|como abordo|como falo|como chego|match|como abro|como conquisto|quero falar com ela)\b/i;
 
+const STORY_KEYWORDS = /\b(stories|story|storie|status|reels|reel|post dela|postou|publicou)\b/i;
+
+const STORY_PROMPT = `Você é o MandaAssim. Essa é uma foto de stories/status/reels que ela postou.
+
+Analise o que aparece no stories:
+- O que ela está fazendo, onde está, o que está mostrando
+- Humor/vibe: animada, entediada, nostálgica, provocando, feliz, misteriosa
+- Detalhe mais marcante: comida, lugar, roupa, legenda, músicaa, situação
+- Se tiver texto ou legenda no stories, leia e use
+
+GERE 3 REAÇÕES completamente diferentes — o objetivo é iniciar ou esquentar a conversa usando o stories como gancho:
+- Mencione algo ESPECÍFICO do stories — nunca "que foto linda" ou "legal isso"
+- Tom de quem viu o stories e teve uma reação genuína, casual
+- Máximo 10 palavras por opção
+- PROIBIDO: elogios genéricos de aparência
+- PROIBIDO: perguntas óbvias demais ("onde é isso?", "tá bem?")
+- A melhor reação de stories é a que faz ela responder sem perceber que era uma estratégia
+
+TÉCNICAS PRA USAR (escolhe uma por opção):
+- Comentar algo específico com curiosidade genuína → faz ela contar mais
+- Humor seco ou ironia sobre o que aparece → ela ri e responde
+- Provocação leve baseada no conteúdo → cria tensão boa
+- Referência que só faz sentido se você realmente assistiu → prova que prestou atenção
+
+FORMATO DE SAÍDA:
+📍 _[uma linha: o que o stories revela sobre ela agora — humor, intenção, contexto]_
+
+Cola uma dessas 👇
+
+🔥 "[reação curiosa/genuína baseada no que aparece no stories]"
+
+😏 "[reação ousada/provocadora usando algo específico do stories]"
+
+⚡ "[reação seca e direta — referencia o stories de forma inesperada]"
+
+_[uma linha: por que essa abordagem funciona pra esse stories específico]_`;
+
 const PROFILE_OPENER_PROMPT = `Você é o MandaAssim. Essa é a foto do perfil dela — Tinder, Instagram ou similar.
 
 Analise visualmente:
@@ -1672,12 +1709,30 @@ client.on('message', async (message) => {
 
     const caption = message.body?.trim() || '';
     const isPerfilMode = PROFILE_OPENER_KEYWORDS.test(caption);
+    const isStoryMode = STORY_KEYWORDS.test(caption);
     const ctxImg = getUserContext(phone);
     const toneHintImg = ctxImg?.tonePreference ? `\nPreferência do usuário: ele tende a preferir tom "${ctxImg.tonePreference}".` : '';
     const girlProfileImg = await getGirlProfile(phone);
     const girlContextImg = buildGirlContext(girlProfileImg);
 
-    if (isPerfilMode) {
+    if (isStoryMode) {
+      // Modo stories: gera reação ao stories dela
+      console.log(`[Stories] ${phone} enviou foto de stories (caption: "${caption}")`);
+      await message.reply('Vendo o stories dela... ⏳');
+      const stopTypingStory = await startTyping(message);
+      try {
+        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, STORY_PROMPT, '', girlContextImg);
+        stopTypingStory();
+        saveUserContext(phone, media, 'image');
+        await enviarResposta(message, sugestoes);
+        await contadorRestante(message, trial, todayCount);
+        await upsellPicoPremium(message, trial, todayCount);
+      } catch (err) {
+        stopTypingStory();
+        console.error('[Stories] Erro:', err.message);
+        await message.reply('Não consegui analisar o stories, tenta mandar de novo 😅');
+      }
+    } else if (isPerfilMode) {
       // Modo perfil: gera abertura de conversa baseada na foto dela
       console.log(`[Perfil] ${phone} enviou foto de perfil (caption: "${caption}")`);
       await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
