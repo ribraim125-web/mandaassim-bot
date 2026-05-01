@@ -298,14 +298,28 @@ _por que funciona: [1 linha]_`;
 // Roteamento por intent (arquitetura semântica)
 // ---------------------------------------------------------------------------
 
-const CLASSIFIER_PROMPT = `Você é um classificador de intent para um wingman AI brasileiro.
+const CLASSIFIER_PROMPT = `Você é um classificador de intent para um wingman AI brasileiro. Analise a situação e responda com UMA categoria.
 
-Analise a situação descrita e classifique o tipo de resposta necessária em UMA das categorias:
+CATEGORIAS:
 
-- one_liner: ela mandou algo trivial, curtíssimo, emoji, "kkkk", "sério?", "vdd", resposta de uma palavra. Resposta será 1-3 palavras.
-- volume: conversa fluindo normal. Smalltalk, perguntas neutras, manutenção, assunto comum.
-- premium: momento crítico — primeiro contato, ice breaker, match esfriou, ela testou interesse ("se você quisesse..."), recovery de conversa parada, mensagem ambígua importante.
-- ousadia: tom já tá no clima e a próxima mensagem precisa subir o flerte com malícia elegante.
+one_liner → ela mandou emoji, "kkk", "rs", "oi", "sério?", "vdd", uma palavra. Resposta deve ser curtíssima.
+
+volume → conversa fluindo normal: ela falou sobre o dia, trabalho, faculdade, pergunta neutra, assunto comum sem tensão emocional.
+
+premium → USE SEMPRE que houver tensão, teste, ambiguidade ou momento decisivo:
+  - Ela deu desculpa ("to ocupada", "tenho coisas pra fazer", "fica pra outro dia", "tô cansada")
+  - Ela sumiu e voltou / ficou fria depois de quente
+  - Ela testou interesse ("se você quisesse...", "você me daria atenção se...")
+  - Primeiro contato / quebrar o gelo
+  - Ela foi ambígua ou difícil de interpretar
+  - Match esfriou / conversa travada
+  - Ela deu em cima e depois recuou
+  - Reconquista / ela voltou depois de sumiço longo
+  - O cara não sabe o que ela quis dizer
+
+ousadia → clima já quente, flerte mútuo claro, precisa escalar com malícia ou duplo sentido.
+
+REGRA: na dúvida entre volume e premium, escolha premium.
 
 RESPONDA APENAS com a categoria, sem explicação.`;
 
