@@ -533,6 +533,19 @@ const INTENT_FALLBACKS = {
   'meta-llama/llama-4-maverick':      'google/gemini-2.0-flash-001',
 };
 
+// Limita o intent ao que o tier de uso permite
+function capIntentByTier(intent, tier) {
+  if (tier === 'minimal') {
+    // Tier mínimo: só one_liner e volume (modelos baratos)
+    if (intent === 'premium' || intent === 'ousadia') return 'volume';
+  }
+  if (tier === 'degraded') {
+    // Tier degradado: sem ousadia (Llama caro), premium vira volume
+    if (intent === 'premium' || intent === 'ousadia') return 'volume';
+  }
+  return intent; // tier 'full': tudo liberado
+}
+
 async function classificarIntent(situacao) {
   try {
     const response = await openrouter.chat.completions.create({
