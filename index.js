@@ -523,7 +523,7 @@ RESPONDA APENAS com a categoria, sem explicação.`;
 const INTENT_MODEL_CONFIG = {
   one_liner: { model: 'google/gemini-2.0-flash-lite-001', maxTokens: 80,  temperature: 0.90, systemType: 'minimal'  },
   volume:    { model: 'google/gemini-2.0-flash-001',      maxTokens: 600,  temperature: 0.85, systemType: 'degraded' },
-  premium:   { model: 'anthropic/claude-haiku-4.5',       maxTokens: 800,  temperature: 0.80, systemType: 'full'     },
+  premium:   { model: 'anthropic/claude-haiku-4.5',       maxTokens: 250,  temperature: 0.80, systemType: 'full'     },
   ousadia:   { model: 'meta-llama/llama-4-maverick',      maxTokens: 500,  temperature: 0.95, systemType: 'ousadia'  },
 };
 
@@ -691,32 +691,58 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
   return response.choices[0]?.message?.content || 'Não consegui analisar a imagem. Tente enviar novamente.';
 }
 
-async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', usageTier = 'full', phone = '', recentSuccess = false) {
+// Limites diários de uso do Haiku por plano
+const HAIKU_DAILY_LIMIT = { premium: 10, free: 3 };
+
+async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', usageTier = 'full', phone = '', recentSuccess = false, isPremium = false) {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
 
   const rawIntent = await classificarIntent(situacao);
-  const intent = capIntentByTier(rawIntent, usageTier);
+  let intent = capIntentByTier(rawIntent, usageTier);
+
+  // Limite diário do Haiku: 3 free / 10 premium
+  if (intent === 'premium') {
+    const haikuLimit = isPremium ? HAIKU_DAILY_LIMIT.premium : HAIKU_DAILY_LIMIT.free;
+    const haikuCount = getHaikuCount(phone);
+    if (haikuCount >= haikuLimit) {
+      console.log(`[Haiku] ${phone} atingiu limite diário (${haikuCount}/${haikuLimit}) → fallback volume`);
+      intent = 'volume';
+    }
+  }
+
   const config = INTENT_MODEL_CONFIG[intent];
   const systemPrompt = getSystemPrompt(config.systemType, girlContext);
   console.log(`[Roteamento] raw:${rawIntent} → final:${intent} → ${config.model}`);
 
-  const userContent = `${prefixo}Situação real: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`;
+  // Monta histórico recente (sliding window: últimas situações desta sessão)
+  const ctx = userContext.get(phone);
+  const history = ctx?.history || [];
+  const historicoStr = history.length > 1
+    ? '\n\nHistórico recente desta conversa com a mina (contexto adicional):\n' +
+      history.slice(-8, -1).map((s, i) => `${i + 1}. ${s}`).join('\n')
+    : '';
+
+  const userContent = `${prefixo}${historicoStr}\n\nSituação atual: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
 
   const modelos = [config.model, INTENT_FALLBACKS[config.model]].filter(Boolean);
   for (const model of modelos) {
     try {
       let text;
       if (model.startsWith('anthropic/') && process.env.ANTHROPIC_API_KEY) {
-        // Chama a API da Anthropic diretamente (sem overhead do OpenRouter)
+        // Chama a API da Anthropic diretamente com prompt caching no system prompt
         const modelId = model.replace('anthropic/', '');
         const msg = await anthropic.messages.create({
           model: modelId,
           max_tokens: config.maxTokens,
-          system: systemPrompt,
+          // Prompt caching: cobra 10% do input nas leituras seguintes do mesmo system prompt
+          system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: userContent }],
         });
         text = msg.content[0]?.text || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
-        console.log(`[Anthropic] Direto → ${modelId}`);
+        const cached = msg.usage?.cache_read_input_tokens || 0;
+        const written = msg.usage?.cache_creation_input_tokens || 0;
+        console.log(`[Anthropic] ${modelId} | cache_read:${cached} cache_write:${written} out:${msg.usage?.output_tokens}`);
+        incrementHaikuCount(phone);
       } else {
         const response = await openrouter.chat.completions.create({
           model,
@@ -941,11 +967,33 @@ function buildGirlContext(profile) {
 // Contexto por usuário (memória de curto prazo para "outra"/"mais")
 // ---------------------------------------------------------------------------
 
-const userContext = new Map(); // phone -> { lastRequest, lastType, scenario, tonePreference }
+const userContext = new Map(); // phone -> { lastRequest, lastType, scenario, tonePreference, history[] }
+
+// Contador diário de chamadas ao Haiku por usuário (in-memory, reseta meia-noite)
+const haikuDailyUsage = new Map(); // phone -> { date: 'YYYY-MM-DD', count: number }
+
+function getHaikuCount(phone) {
+  const today = new Date().toISOString().slice(0, 10);
+  const e = haikuDailyUsage.get(phone);
+  return (e?.date === today) ? e.count : 0;
+}
+
+function incrementHaikuCount(phone) {
+  const today = new Date().toISOString().slice(0, 10);
+  const count = getHaikuCount(phone) + 1;
+  haikuDailyUsage.set(phone, { date: today, count });
+  return count;
+}
 
 function saveUserContext(phone, request, type) {
   const current = userContext.get(phone) || {};
-  userContext.set(phone, { ...current, lastRequest: request, lastType: type, lastRequestAt: Date.now() });
+  const history = current.history || [];
+  // Só registra situações em texto no histórico (não imagens)
+  if (type === 'text' && typeof request === 'string') {
+    history.push(request.slice(0, 200)); // limita tamanho por entrada
+    if (history.length > 10) history.shift(); // sliding window: máx 10
+  }
+  userContext.set(phone, { ...current, lastRequest: request, lastType: type, lastRequestAt: Date.now(), history });
 }
 
 function setUserTonePreference(phone, tone) {
@@ -1664,7 +1712,7 @@ client.on('message', async (message) => {
       try {
         const result = ctx.lastType === 'image'
           ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext) }
-          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier, phone);
+          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier, phone, false, trial.isPremium);
         stopTyping1();
         await enviarResposta(message, result.text);
       } catch (err) {
@@ -1692,7 +1740,7 @@ client.on('message', async (message) => {
       try {
         const result = ctx.lastType === 'image'
           ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext) }
-          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier, phone);
+          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier, phone, false, trial.isPremium);
         stopTyping2();
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
         await enviarResposta(message, result.text);
@@ -1718,7 +1766,7 @@ client.on('message', async (message) => {
     await message.reply(getMensagemEspera());
     const stopTyping3 = await startTyping(message);
     try {
-      const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier, phone, recentSuccess);
+      const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier, phone, recentSuccess, trial.isPremium);
       stopTyping3();
       saveUserContext(phone, text, 'text');
       if (recentSuccess) {
@@ -1839,7 +1887,7 @@ client.on('message', async (message) => {
       const ctxAudio = getUserContext(phone);
       const recentSuccessAudio = ctxAudio?.recentSuccess || false;
 
-      const result = await analisarTextoComClaude(transcricao, '', girlContextAudio + reconquistaExtraAudio, tierAudio, phone, recentSuccessAudio);
+      const result = await analisarTextoComClaude(transcricao, '', girlContextAudio + reconquistaExtraAudio, tierAudio, phone, recentSuccessAudio, trial.isPremium);
       stopTypingAudio();
       saveUserContext(phone, transcricao, 'text');
       if (recentSuccessAudio) {
