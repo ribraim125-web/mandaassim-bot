@@ -312,13 +312,13 @@ RESPONDA APENAS com a categoria, sem explicação.`;
 const INTENT_MODEL_CONFIG = {
   one_liner: { model: 'google/gemini-2.0-flash-lite-001', maxTokens: 80,  temperature: 0.90, systemType: 'minimal'  },
   volume:    { model: 'google/gemini-2.0-flash-001',      maxTokens: 600,  temperature: 0.85, systemType: 'degraded' },
-  premium:   { model: 'anthropic/claude-haiku-4.5',       maxTokens: 250,  temperature: 0.80, systemType: 'full'     },
+  premium:   { model: 'anthropic/claude-haiku-4-5-20251001', maxTokens: 250,  temperature: 0.80, systemType: 'full'     },
   ousadia:   { model: 'meta-llama/llama-4-maverick',      maxTokens: 500,  temperature: 0.95, systemType: 'ousadia'  },
 };
 
 const INTENT_FALLBACKS = {
   'google/gemini-2.0-flash-lite-001': 'google/gemini-2.0-flash-001',
-  'anthropic/claude-haiku-4.5':       'google/gemini-2.0-flash-001',
+  'anthropic/claude-haiku-4-5-20251001': 'google/gemini-2.0-flash-001',
   'meta-llama/llama-4-maverick':      'google/gemini-2.0-flash-001',
 };
 
