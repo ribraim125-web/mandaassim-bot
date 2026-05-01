@@ -839,6 +839,43 @@ function getMensagemEspera() {
   return MENSAGENS_ESPERA[Math.floor(Math.random() * MENSAGENS_ESPERA.length)];
 }
 
+// ---------------------------------------------------------------------------
+// Coaching — pede contexto quando situação é vaga
+// ---------------------------------------------------------------------------
+
+async function gerarPerguntaContexto(situacao) {
+  try {
+    const response = await openrouter.chat.completions.create({
+      model: 'google/gemini-2.0-flash-lite-001',
+      max_tokens: 80,
+      temperature: 0.7,
+      messages: [
+        {
+          role: 'system',
+          content: `Você é o MandaAssim — wingman brasileiro casual. Precisa entender melhor a situação antes de dar conselho.
+Faça APENAS UMA pergunta direta e natural, como um amigo faria no WhatsApp.
+Foco: entender o estágio da conversa (se conheceram agora, ficaram, tão se falando há quanto tempo), e o que exatamente aconteceu.
+Seja objetivo. Máx 2 frases curtas.`,
+        },
+        {
+          role: 'user',
+          content: `Situação que recebi: "${situacao}"\n\nQual pergunta fazer para entender melhor e dar o conselho certo?`,
+        },
+      ],
+    });
+    return response.choices[0]?.message?.content?.trim() ||
+      'Me conta mais — como vocês se conheceram e tem quanto tempo tão conversando?';
+  } catch (_) {
+    return 'Me conta mais do contexto — como vocês se conheceram e tem quanto tempo tão se falando?';
+  }
+}
+
+function situacaoEhVaga(situacao, temHistorico, temPerfil) {
+  if (temHistorico || temPerfil) return false; // já tem contexto
+  const palavras = situacao.trim().split(/\s+/).length;
+  return palavras < 12; // menos de 12 palavras = provavelmente vago
+}
+
 // Mostra "digitando..." nativo do WhatsApp enquanto processa
 // Retorna função para parar o indicador
 async function startTyping(message) {
@@ -1560,6 +1597,36 @@ client.on('message', async (message) => {
 
     // Análise normal
     const ctx = getUserContext(phone);
+
+    // --- Fluxo de coaching: o usuário está respondendo uma pergunta de contexto? ---
+    if (ctx?.awaitingContext && ctx?.pendingRequest) {
+      // Combina a situação original com o contexto fornecido agora
+      const situacaoCompleta = `${ctx.pendingRequest}\n\nContexto adicional: ${text}`;
+      const current = userContext.get(phone) || {};
+      userContext.set(phone, { ...current, awaitingContext: false, pendingRequest: null });
+
+      const girlProfileCtx = await getGirlProfile(phone);
+      const girlContextCtx = buildGirlContext(girlProfileCtx);
+      const monthlyCountCtx = await getMonthlyCount(phone);
+      const tierCtx = resolveTier(trial, todayCount, monthlyCountCtx);
+
+      await message.reply(getMensagemEspera());
+      const stopTypingCtx = await startTyping(message);
+      try {
+        const result = await analisarTextoComClaude(situacaoCompleta, '', girlContextCtx, tierCtx, phone, false, trial.isPremium);
+        stopTypingCtx();
+        saveUserContext(phone, situacaoCompleta, 'text');
+        await enviarResposta(message, result.text);
+        await contadorRestante(message, trial, todayCount);
+        await upsellPicoPremium(message, trial, todayCount);
+      } catch (err) {
+        stopTypingCtx();
+        console.error('[Coaching] Erro na análise com contexto:', err.message);
+        await message.reply('Deu ruim aqui, tenta de novo 😅');
+      }
+      return;
+    }
+
     const toneHint = ctx?.tonePreference ? `\nPreferência do usuário: ele tende a preferir tom "${ctx.tonePreference}" — leve isso em conta sem ignorar as outras opções.` : '';
     const recentSuccess = ctx?.recentSuccess || false;
     const girlProfile = await getGirlProfile(phone);
@@ -1568,6 +1635,18 @@ client.on('message', async (message) => {
     const monthlyCount = await getMonthlyCount(phone);
     const tier = resolveTier(trial, todayCount, monthlyCount);
     console.log(`[Tier] ${phone} — daily:${todayCount} monthly:${monthlyCount} → tier:${tier} recentSuccess:${recentSuccess}`);
+
+    // --- Coaching: pede contexto se a situação for vaga ---
+    const temHistorico = (ctx?.history?.length || 0) > 0;
+    const temPerfil = !!(girlProfile?.girl_context || girlProfile?.current_situation);
+    if (situacaoEhVaga(text, temHistorico, temPerfil)) {
+      const pergunta = await gerarPerguntaContexto(text);
+      const current = userContext.get(phone) || {};
+      userContext.set(phone, { ...current, awaitingContext: true, pendingRequest: text });
+      console.log(`[Coaching] Pedindo contexto para ${phone}`);
+      await message.reply(pergunta);
+      return;
+    }
 
     await message.reply(getMensagemEspera());
     const stopTyping3 = await startTyping(message);
