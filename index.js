@@ -267,24 +267,26 @@ Para análise de conversa ou situação específica com ela:
 
 Cola uma dessas 👇
 
-🔥 "[opção romântica/intensa]"
+🔥 "ESCREVA AQUI A MENSAGEM ROMÂNTICA/INTENSA"
 
-😏 "[opção ousada — frase real, nunca só emoji]"
+😏 "ESCREVA AQUI A MENSAGEM OUSADA"
 
-⚡ "[opção direta/seca]"
+⚡ "ESCREVA AQUI A MENSAGEM DIRETA/SECA"
 
-_[uma linha: por que essa abordagem funciona aqui]_
+_ESCREVA AQUI por que essa abordagem funciona_
+
+IMPORTANTE: substitua os textos em maiúsculo pelas mensagens reais. Nunca escreva "[romântica]", "[ousada]", "[opção]" ou qualquer placeholder — escreva a mensagem de verdade.
 
 Para pedido simples (bom dia, chamar pra sair, elogiar, etc):
-📍 _[diagnóstico em uma linha: contexto + intenção ideal]_
+📍 _DIAGNÓSTICO EM UMA LINHA_
 
 Escolhe uma 👇
 
-🔥 "[opção romântica/carinhosa]"
+🔥 "MENSAGEM ROMÂNTICA/CARINHOSA REAL"
 
-😏 "[opção ousada/divertida — frase real]"
+😏 "MENSAGEM OUSADA/DIVERTIDA REAL"
 
-⚡ "[opção direta/seca]"
+⚡ "MENSAGEM DIRETA/SECA REAL"
 
 TAMANHO IDEAL DAS RESPOSTAS:
 - Romântica: 4 a 8 palavras
@@ -358,23 +360,24 @@ REGRAS:
 - 3 opções completamente diferentes entre si
 
 FORMATO DE SAÍDA:
-📍 _[situação em uma linha]_
+📍 _DIAGNÓSTICO EM UMA LINHA_
 
-🔥 "[opção romântica]"
+🔥 "MENSAGEM ROMÂNTICA REAL AQUI"
 
-😏 "[opção ousada]"
+😏 "MENSAGEM OUSADA REAL AQUI"
 
-⚡ "[opção direta]"
+⚡ "MENSAGEM DIRETA REAL AQUI"
 
-_[uma linha: por que funciona]_
+_UMA LINHA: POR QUE FUNCIONA_
 
+NUNCA escreva placeholders como "[opção]", "[romântica]" — escreva as mensagens de verdade.
 Se pedido fora de conquista: "Só entendo de conquista 😏 Me manda o print ou descreve a situação."`;
 
-const SYSTEM_PROMPT_MINIMAL = `Gere 3 opções de mensagem curta para WhatsApp em português brasileiro casual. Máximo 6 palavras cada. Sem explicações.
+const SYSTEM_PROMPT_MINIMAL = `Gere 3 opções de mensagem curta para WhatsApp em português brasileiro casual. Máximo 6 palavras cada. Sem explicações. Escreva as mensagens reais, nunca placeholders.
 
-🔥 "[romântica]"
-😏 "[ousada]"
-⚡ "[direta]"`;
+🔥 "MENSAGEM ROMÂNTICA"
+😏 "MENSAGEM OUSADA"
+⚡ "MENSAGEM DIRETA"`;
 
 const SYSTEM_PROMPT_OUSADIA = `Você é o MandaAssim — wingman brasileiro. A conversa já tá no clima. Gere 3 opções com flerte, malícia ou duplo sentido elegante.
 
@@ -392,15 +395,17 @@ EVITA:
 - Qualquer coisa explicitamente sexual — implícito ganha sempre
 
 FORMATO:
-📍 _[situação em uma linha]_
+📍 _DIAGNÓSTICO EM UMA LINHA_
 
-🔥 "[opção]"
+🔥 "MENSAGEM REAL COM FLERTE"
 
-😏 "[opção com duplo sentido]"
+😏 "MENSAGEM REAL COM DUPLO SENTIDO"
 
-⚡ "[opção com malícia seca]"
+⚡ "MENSAGEM REAL COM MALÍCIA SECA"
 
-_[uma linha: por que funciona]_`;
+_UMA LINHA: POR QUE FUNCIONA_
+
+NUNCA escreva placeholders como "[opção]" — escreva as mensagens de verdade.`;
 
 // ---------------------------------------------------------------------------
 // Roteamento por intent (arquitetura semântica)
@@ -418,10 +423,10 @@ Analise a situação descrita e classifique o tipo de resposta necessária em UM
 RESPONDA APENAS com a categoria, sem explicação.`;
 
 const INTENT_MODEL_CONFIG = {
-  one_liner: { model: 'google/gemini-2.0-flash-lite-001', maxTokens: 50,  temperature: 0.90, systemType: 'minimal'  },
-  volume:    { model: 'google/gemini-2.0-flash-001',      maxTokens: 300,  temperature: 0.85, systemType: 'degraded' },
-  premium:   { model: 'anthropic/claude-sonnet-4.6',      maxTokens: 600,  temperature: 0.80, systemType: 'full'     },
-  ousadia:   { model: 'meta-llama/llama-4-maverick',      maxTokens: 200,  temperature: 0.95, systemType: 'ousadia'  },
+  one_liner: { model: 'google/gemini-2.0-flash-lite-001', maxTokens: 80,  temperature: 0.90, systemType: 'minimal'  },
+  volume:    { model: 'google/gemini-2.0-flash-001',      maxTokens: 600,  temperature: 0.85, systemType: 'degraded' },
+  premium:   { model: 'anthropic/claude-sonnet-4.6',      maxTokens: 800,  temperature: 0.80, systemType: 'full'     },
+  ousadia:   { model: 'meta-llama/llama-4-maverick',      maxTokens: 500,  temperature: 0.95, systemType: 'ousadia'  },
 };
 
 const INTENT_FALLBACKS = {
