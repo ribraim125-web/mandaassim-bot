@@ -282,6 +282,78 @@ Cola uma dessas 👇
 ⚡ "mensagem com malícia seca"
 _por que funciona: [1 linha]_`;
 
+const SYSTEM_PROMPT_COACH = `Você é o MandaAssim — parte wingman, parte coach de relacionamento. Você entende a fundo a psicologia feminina, como funcionam atrações, relacionamentos e reconquistas no Brasil.
+
+Quando alguém traz uma situação que precisa de estratégia — não só uma mensagem — você age como aquele amigo que já viu tudo, entende o jogo de verdade e fala sem rodeios.
+
+=== COMO VOCÊ PENSA ===
+
+1. O que ela tá sentindo e por que agiu assim? A maioria dos caras só vê o comportamento. Você lê o que tá por trás.
+2. O cara tá cometendo qual erro clássico? Perseguindo demais, mostrando necessidade, explicando quando não precisava, reagindo a teste?
+3. Qual é o movimento certo agora — não o que parece certo emocionalmente, o que realmente funciona?
+
+=== PRINCÍPIOS QUE VOCÊ APLICA ===
+
+- Polo atrai, carência repele. Quem persegue perde poder.
+- Silêncio estratégico > explicação. Ação > conversa.
+- Ela não tá com raiva de você — tá testando se você tem polo.
+- Relacionamento não se conserta com papo, conserta com comportamento.
+- Mulher não esquece o cara que a fez sentir. Ela esquece o que você disse.
+
+=== DOMÍNIOS ===
+
+RECONQUISTA:
+- Reconquista se faz com comportamento, não com palavra
+- No-contact mínimo 14-21 dias antes do primeiro contato pós-término
+- Primeiro contato: casual, sem referência ao passado, como se sua vida estivesse ótima
+- Nunca explica o término, nunca pede desculpa de novo
+- Cria curiosidade, não dá certeza
+
+RELACIONAMENTO ESFRIANDO:
+- Frieza ≠ fim do interesse. Geralmente é teste ou baixa energia dela
+- Menos textos, mais presença de verdade quando juntos
+- Não pergunta "tá tudo bem com a gente?" — demonstra que sua vida é boa com ou sem ela
+- Para de tentar resolver com conversa — resolve com comportamento diferente
+
+ELA SUMIU / GHOSTING:
+- Não manda mensagem em sequência, nunca
+- Espera 5-7 dias. Volta casual, uma mensagem só, como se fosse normal
+- Se continua sumida depois de 2 tentativas espaçadas → deixa ir
+
+ELA QUER SABER SE VOCÊ GOSTA:
+- Nunca declara de cara — cria mais interesse do que resolve
+- Mostra com ações, não com palavras
+- Deixa ela chegar até você
+
+EX NAMORADA:
+- 3-4 semanas de no-contact antes de qualquer contato
+- Não menciona o relacionamento no primeiro contato
+- Demonstra que cresceu — não diz, faz ela sentir
+- Se ela foi embora por falta de polo: recupera o polo antes de tentar voltar
+
+=== FORMATO DE SAÍDA ===
+
+Sem papo de autoajuda. Sem "trabalhe sua autoestima". Direto, como um amigo que entende o jogo.
+
+📍 _[o que realmente tá acontecendo — 1 linha]_
+
+[2-3 parágrafos: explica a psicologia dela, o que o cara tá fazendo de errado se for o caso, o que realmente tá em jogo. Use *negrito* nos pontos críticos. Linguagem direta e natural, sem caretice.]
+
+*O que fazer agora:*
+• [ação concreta 1]
+• [ação concreta 2]
+• [ação concreta 3]
+
+*Evita isso:*
+• [erro comum 1]
+• [erro comum 2]
+
+[Se tiver uma mensagem específica pra mandar em algum momento, adiciona:]
+Quando chegar a hora 👇
+🔥 "mensagem"
+😏 "mensagem"
+⚡ "mensagem"`;
+
 // ---------------------------------------------------------------------------
 // Roteamento por intent (arquitetura semântica)
 // ---------------------------------------------------------------------------
@@ -290,49 +362,52 @@ const CLASSIFIER_PROMPT = `Você é um classificador de intent para um wingman A
 
 CATEGORIAS:
 
-one_liner → ela mandou emoji, "kkk", "rs", "oi", "sério?", "vdd", uma palavra. Resposta deve ser curtíssima.
+one_liner → ela mandou emoji, "kkk", "rs", "oi", "sério?", "vdd", uma palavra. Resposta curtíssima.
 
-volume → conversa fluindo normal: ela falou sobre o dia, trabalho, faculdade, pergunta neutra, assunto comum sem tensão emocional.
+volume → conversa fluindo normal: ela falou sobre o dia, trabalho, faculdade, pergunta neutra, assunto comum sem tensão.
 
-premium → USE SEMPRE que houver tensão, teste, ambiguidade ou momento decisivo:
-  - Ela deu desculpa ("to ocupada", "tenho coisas pra fazer", "fica pra outro dia", "tô cansada")
+premium → tensão, teste, ambiguidade ou momento decisivo numa conversa ativa:
+  - Ela deu desculpa ("to ocupada", "tenho coisas pra fazer", "fica pra outro dia")
   - Ela sumiu e voltou / ficou fria depois de quente
-  - Ela testou interesse ("se você quisesse...", "você me daria atenção se...")
+  - Ela testou interesse, foi ambígua, deu em cima e recuou
   - Primeiro contato / quebrar o gelo
-  - Ela foi ambígua ou difícil de interpretar
-  - Match esfriou / conversa travada
-  - Ela deu em cima e depois recuou
-  - Reconquista / ela voltou depois de sumiço longo
-  - O cara não sabe o que ela quis dizer
 
-ousadia → clima já quente, flerte mútuo claro, precisa escalar com malícia ou duplo sentido.
+coaching → o cara precisa de estratégia, análise ou orientação — não só uma mensagem:
+  - Reconquista ("quero reconquistar ela", "ela terminou comigo", "minha ex")
+  - Relacionamento esfriando ("minha namorada tá fria", "tamos brigando muito")
+  - Não sabe o que fazer ("devo mandar mensagem?", "ela me bloqueou", "o que faço?")
+  - Entender comportamento dela ("por que ela fez isso?", "o que ela quis dizer?")
+  - Pede conselho geral de como agir numa situação
 
-REGRA: na dúvida entre volume e premium, escolha premium.
+ousadia → clima quente, flerte mútuo claro, precisa escalar com malícia ou duplo sentido.
+
+REGRA: na dúvida entre volume e premium → premium. Na dúvida entre premium e coaching → coaching.
 
 RESPONDA APENAS com a categoria, sem explicação.`;
 
 const INTENT_MODEL_CONFIG = {
-  one_liner: { model: 'google/gemini-2.0-flash-lite-001', maxTokens: 80,  temperature: 0.90, systemType: 'minimal'  },
-  volume:    { model: 'google/gemini-2.0-flash-001',      maxTokens: 600,  temperature: 0.85, systemType: 'degraded' },
-  premium:   { model: 'anthropic/claude-haiku-4-5-20251001', maxTokens: 250,  temperature: 0.80, systemType: 'full'     },
-  ousadia:   { model: 'meta-llama/llama-4-maverick',      maxTokens: 500,  temperature: 0.95, systemType: 'ousadia'  },
+  one_liner: { model: 'google/gemini-2.0-flash-lite-001',    maxTokens: 80,  temperature: 0.90, systemType: 'minimal'  },
+  volume:    { model: 'google/gemini-2.0-flash-001',          maxTokens: 600, temperature: 0.85, systemType: 'degraded' },
+  premium:   { model: 'anthropic/claude-haiku-4-5-20251001',  maxTokens: 250, temperature: 0.80, systemType: 'full'     },
+  coaching:  { model: 'anthropic/claude-haiku-4-5-20251001',  maxTokens: 600, temperature: 0.75, systemType: 'coach'    },
+  ousadia:   { model: 'meta-llama/llama-4-maverick',          maxTokens: 500, temperature: 0.95, systemType: 'ousadia'  },
 };
 
 const INTENT_FALLBACKS = {
-  'google/gemini-2.0-flash-lite-001': 'google/gemini-2.0-flash-001',
+  'google/gemini-2.0-flash-lite-001':   'google/gemini-2.0-flash-001',
   'anthropic/claude-haiku-4-5-20251001': 'google/gemini-2.0-flash-001',
-  'meta-llama/llama-4-maverick':      'google/gemini-2.0-flash-001',
+  'meta-llama/llama-4-maverick':         'google/gemini-2.0-flash-001',
 };
 
 // Limita o intent ao que o tier de uso permite
 function capIntentByTier(intent, tier) {
   if (tier === 'minimal') {
-    // Tier mínimo: só one_liner e volume (modelos baratos)
-    if (intent === 'premium' || intent === 'ousadia') return 'volume';
+    if (intent === 'premium' || intent === 'ousadia' || intent === 'coaching') return 'volume';
   }
   if (tier === 'degraded') {
-    // Tier degradado: sem ousadia (Llama caro), premium vira volume
-    if (intent === 'premium' || intent === 'ousadia') return 'volume';
+    if (intent === 'ousadia') return 'volume';
+    // coaching e premium degradam pra volume no tier degraded
+    if (intent === 'coaching' || intent === 'premium') return 'volume';
   }
   return intent; // tier 'full': tudo liberado
 }
@@ -360,6 +435,7 @@ function getSystemPrompt(systemType, girlContext = '') {
   if (systemType === 'minimal'  || systemType === 'one_liner') return SYSTEM_PROMPT_MINIMAL;
   if (systemType === 'ousadia')  return SYSTEM_PROMPT_OUSADIA + girlContext;
   if (systemType === 'degraded') return SYSTEM_PROMPT_DEGRADED + girlContext;
+  if (systemType === 'coach')    return SYSTEM_PROMPT_COACH + girlContext;
   return SYSTEM_PROMPT + girlContext; // full / premium
 }
 
@@ -406,10 +482,49 @@ function extrairPorQueFunciona(texto) {
   return match ? match[1].trim() : null;
 }
 
-async function enviarResposta(message, sugestoes) {
+async function enviarResposta(message, sugestoes, intent = '') {
   const diagnostico = extrairDiagnostico(sugestoes);
-  const dica = extrairDica(sugestoes);
   const opcoes = parsearOpcoes(sugestoes);
+
+  // --- Coaching: análise + bullets, sem 3 opções de mensagem (ou com, no fim) ---
+  if (intent === 'coaching') {
+    // Remove o diagnóstico do texto antes de enviar o corpo
+    const corpo = sugestoes
+      .replace(/📍\s*_[^_\n]+_\n*/g, '')
+      .trim()
+      .replace(/\n{3,}/g, '\n\n');
+
+    // Bloco 1: diagnóstico
+    if (diagnostico) {
+      await client.sendMessage(message.from, `📍 _${diagnostico}_`);
+    }
+
+    // Bloco 2: análise + plano (tudo junto — é coaching, faz sentido ser mais longo)
+    if (opcoes.length >= 2) {
+      // Tem mensagens específicas no final → separa
+      const semOpcoes = corpo
+        .replace(/Quando chegar a hora.*$/s, '')
+        .replace(/🔥\s*"[^"]+"\n?/g, '')
+        .replace(/😏\s*"[^"]+"\n?/g, '')
+        .replace(/⚡\s*"[^"]+"\n?/g, '')
+        .trim();
+      if (semOpcoes) await client.sendMessage(message.from, semOpcoes);
+
+      // Bloco 3: mensagens
+      const linhas = ['Quando chegar a hora 👇'];
+      for (const { emoji, msg } of opcoes) {
+        linhas.push('');
+        linhas.push(`${emoji}  "${msg}"`);
+      }
+      await client.sendMessage(message.from, linhas.join('\n'));
+    } else {
+      await client.sendMessage(message.from, corpo);
+    }
+    return;
+  }
+
+  // --- Formato padrão: diagnóstico + dica + 3 opções ---
+  const dica = extrairDica(sugestoes);
   const porque = extrairPorQueFunciona(sugestoes);
 
   // Bloco 1 — contexto: diagnóstico + dica juntos, limpo
@@ -1555,7 +1670,7 @@ client.on('message', async (message) => {
           ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext) }
           : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier, phone, false, trial.isPremium);
         stopTyping1();
-        await enviarResposta(message, result.text);
+        await enviarResposta(message, result.text, result.intent);
       } catch (err) {
         stopTyping1();
         console.error('[OpenRouter] Erro ao gerar variações:', err.message);
@@ -1584,7 +1699,7 @@ client.on('message', async (message) => {
           : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier, phone, false, trial.isPremium);
         stopTyping2();
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
-        await enviarResposta(message, result.text);
+        await enviarResposta(message, result.text, result.intent);
       } catch (err) {
         stopTyping2();
         console.error('[OpenRouter] Erro ao ajustar tom:', err.message);
@@ -1614,7 +1729,7 @@ client.on('message', async (message) => {
         const result = await analisarTextoComClaude(situacaoCompleta, '', girlContextCtx, tierCtx, phone, false, trial.isPremium);
         stopTypingCtx();
         saveUserContext(phone, situacaoCompleta, 'text');
-        await enviarResposta(message, result.text);
+        await enviarResposta(message, result.text, result.intent);
         await contadorRestante(message, trial, todayCount);
         await upsellPicoPremium(message, trial, todayCount);
       } catch (err) {
@@ -1656,7 +1771,7 @@ client.on('message', async (message) => {
         const updCtx = userContext.get(phone) || {};
         userContext.set(phone, { ...updCtx, recentSuccess: false });
       }
-      await enviarResposta(message, result.text);
+      await enviarResposta(message, result.text, result.intent);
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
@@ -1777,7 +1892,7 @@ client.on('message', async (message) => {
         const updCtx = userContext.get(phone) || {};
         userContext.set(phone, { ...updCtx, recentSuccess: false });
       }
-      await enviarResposta(message, result.text);
+      await enviarResposta(message, result.text, result.intent);
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
