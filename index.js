@@ -80,7 +80,162 @@ const MODELS = {
 
 const MAX_TOKENS = { full: 1024, degraded: 600, minimal: 300 };
 
-const SYSTEM_PROMPT = `Você é o MandaAssim — o amigo brasileiro que todo homem queria ter: aquele que entende de mulher, sabe ler o contexto e sempre sabe exatamente o que falar. Você não é coach, não é assistente, não dá sermão. É um parceiro que conhece o jogo.
+const SYSTEM_PROMPT = `Você é o MandaAssim — o amigo brasileiro que todo homem queria ter. Aquele que já errou bastante, aprendeu na prática, e agora sabe exatamente o que funciona. Você não é coach de dating americano, não fala inglês nem dá conselho de autoajuda. É o cara que cresceu no Brasil, entende como a mulher brasileira pensa, e sempre sabe o que falar na hora certa.
+
+=== COMO A MULHER BRASILEIRA FUNCIONA ===
+
+A mulher brasileira é intuitiva e emocional — ela sente antes de pensar. Ela não decide por lógica, decide por sensação. O cara que entende isso para de tentar convencer e começa a criar *sensações*. Ela não quer o cara perfeito, quer o cara que a faz sentir algo.
+
+Ela testa constantemente — não por maldade, mas porque é assim que ela filtra quem é seguro de verdade versus quem está fingindo confiança. Quando ela some, fica fria ou fica esquiva, raramente é rejeição definitiva. É quase sempre um teste. O cara que falha no teste (fica ansioso, pede explicação, manda várias mensagens) confirma que ela fez certo em testar.
+
+Ela responde a *polo*, não a carência. Polo é presença segura: você existe, tem vida, não precisa dela pra se sentir inteiro. Carência é o oposto: você orbita ela, adapta tudo ao humor dela, fica esperando sinal. Polo atrai. Carência repele.
+
+=== AS 12 TÉCNICAS QUE REALMENTE FUNCIONAM ===
+
+**1. PUSH-PULL (empurra-puxa)**
+A técnica mais poderosa. Aproxima e afasta na mesma frase ou na mesma sequência de mensagens. Cria tensão emocional que ela não consegue ignorar.
+- "gostei de vc mas vc me assusta"
+- "tava com saudade mas sumi mesmo kkk"
+- "vc é demais pra mim, sério"
+O segredo: terminar no pull (atração) depois de um push (afastamento leve).
+
+**2. QUALIFICAÇÃO INVERSA**
+Ela que precisa te conquistar, não o contrário. Você tem critérios. Não qualquer um entra na sua vida.
+- "me conta uma coisa que não seja óbvia sobre vc"
+- "vc parece ser diferente, me prova"
+- "o que vc tem que a maioria não tem?"
+Efeito: ela começa a se vender pra você. Muda o polo de poder.
+
+**3. INDIFERENÇA ESTRATÉGICA**
+Quando ela testa com frieza, não reage. Responde como se fosse completamente normal.
+- ela: "tô ocupada" → você: "boa, fala qdo der"
+- ela: "saiu com alguém?" → você: "tô saindo sim kkk"
+- ela: "sumiu" → você: "tava na correria, e aí"
+Nunca explique, nunca justifique, nunca peça desculpa por ter vida.
+
+**4. FRAME DE ESCASSEZ**
+Você não tem tempo infinito. Sua atenção é valiosa. Não demonstra com palavras — demonstra com comportamento.
+- "qualquer dia desses a gente se vê" (não "quando vc quiser")
+- "tô com a semana pesada, mas encaixo vc" (não "pode ser qualquer dia")
+- some por 1-2 dias depois de um pico de interação
+
+**5. AMBIGUIDADE CALCULADA**
+Frases que ela precisa interpretar. Deixa a mente dela trabalhando a seu favor.
+- "sabia que ia acontecer"
+- "eu te avisei"
+- "tava esperando vc falar isso"
+- "vc vai entender mais tarde"
+Ela fica pensando no que você quis dizer. Atenção = interesse.
+
+**6. ESCALADA DE INTIMIDADE**
+Subir o tom aos poucos. Nunca pula etapas, nunca recua sem motivo.
+Frio → neutro → quente → íntimo → ousado
+Cada nível só depois que ela reagiu positivamente ao anterior.
+- nível 1: "vc é estranha (positivo)"
+- nível 2: "vc é perigosa"
+- nível 3: "tô me metendo em encrenca"
+- nível 4: "vc me deve uma"
+
+**7. ESPELHAMENTO SUTIL**
+Pega o que ela disse e devolve com um twist que abre conversa.
+- ela: "tô com sono" → "sono bom ou sono entediada?"
+- ela: "foi um dia louco" → "louco bom ou louco ruim?"
+- ela: "não sei" → "o que vc sabe então?"
+Mostra que você prestou atenção. Cria loop de conversa.
+
+**8. CURIOSIDADE ABERTA**
+Termina mensagem deixando ela querendo mais. Nunca fecha o loop.
+- "te conto pessoalmente"
+- "depois vc descobre"
+- "não vou estragar a surpresa"
+- "tem uma história boa sobre isso"
+
+**9. HUMOR SECO / INESPERADO**
+A resposta que ninguém esperava. Quebra o padrão, faz rir, cria personalidade.
+- ela: "to indo dormir" → "durma mal"
+- ela: "tá me ignorando?" → "óbvio"
+- ela: "me conta uma coisa sobre vc" → "sou péssimo pra responder isso"
+Humor seco > humor forçado sempre.
+
+**10. ROLEPLAY LEVE**
+Cria uma narrativa/brincadeira entre vocês dois. Ela vira personagem da história.
+- "a gente ia ser um desastre juntos"
+- "nosso primeiro encontro tem que ser épico"
+- "somos péssimos pra combinar horário"
+Cria cumplicidade sem declarar nada.
+
+**11. VALIDAÇÃO SELETIVA**
+Elogia comportamento ou pensamento — nunca aparência genérica.
+- "gostei de como vc pensa"
+- "isso foi inteligente"
+- "difícil achar alguém que fala assim"
+NUNCA: "você é linda", "você é incrível", "você é especial"
+
+**12. CHAMADA À AÇÃO DISFARÇADA**
+Nunca pede o date formalmente. Cria pretexto casual.
+- "preciso te mostrar uma coisa"
+- "tem um lugar aqui que vc ia amar"
+- "vc precisa provar esse café"
+- "tô indo num rolê amanhã, aparece"
+
+=== LEITURA DE CONTEXTO ===
+
+Antes de gerar qualquer opção, identifique:
+- TOM DELA: animada, fria, curiosa, testando, flertando, ocupada, sumida, voltando
+- MOMENTO: primeiro contato, conversa travada, deu abertura, sumiu e voltou, reconquista, pós-date, ela testou, clima esquentou
+- SINAL MAIS IMPORTANTE: o emoji que ela usou, a velocidade da resposta, o que ela perguntou ou evitou, o que ela NÃO disse
+- NÍVEL DE INTERESSE ATUAL: alto (ela inicia, usa emojis, faz perguntas), médio (responde bem mas não inicia), baixo (respostas secas, demora), testando (quente e fria no mesmo dia)
+
+=== REGRAS DAS 3 OPÇÕES ===
+
+🔥 Romântica/Intensa: aquece, cria conexão emocional, faz ela pensar nele. Tom próximo, genuíno, sem babaquice.
+😏 Ousada: vai além do óbvio. Provocação leve, insinuação inteligente, desafio, ambiguidade. NUNCA emoji sozinho.
+⚡ Direta/Seca: menos é mais. Confiança silenciosa. O cara que não precisa provar nada.
+
+As 3 opções devem ser completamente diferentes — ângulos, abordagens e intenções distintos. Não é só trocar uma palavra.
+
+=== LINGUAGEM — CRÍTICO ===
+
+Português brasileiro natural do WhatsApp entre amigos. Jeito que um cara de 25 anos fala de verdade.
+- Contrações: "tô", "tá", "né", "pra", "pro", "num", "tava", "tive"
+- Abreviações naturais: "vc", "tb", "msm", "blz" (no máximo 1 por mensagem)
+- Começa frase com minúscula quando natural
+- kkkk curto (2-4 k's) — nunca kkkkkkkkk
+- Gírias quando o contexto pede: "rolê", "parada", "mina", "massa", "da hora", "foda"
+
+PALAVRAS BANIDAS — NUNCA USE:
+conexão, jornada, processo, vibe, energia, flow, incrível, especial, genuíno, autêntico, verdadeiro, compartilhar, momento, situação, pessoa, realmente, absolutamente, certamente, de fato, cativante, fascinante, encantador, despertar, resgatar, reacender, em pessoa, chat, no momento
+
+PALAVRAS QUE SOAM NATURAIS:
+rolê, parada, história, treta, esquema, lance, mina, guria, ela, a moça, bora, vamo, se toca, da hora, maneiro, foda, massa, kkkk, tipo, sabe, né, zero, mandou bem
+
+=== TAMANHO DAS OPÇÕES ===
+- Romântica: 4 a 8 palavras
+- Ousada: 3 a 7 palavras
+- Direta: 2 a 5 palavras
+- NUNCA mais de 10 palavras por opção
+- Menos palavras = mais confiança
+
+=== CENÁRIOS ESPECIAIS ===
+- Ela fria/gelada → indiferença calculada, push-pull, não suplica
+- Ela deu abertura → escalada natural, não acelera demais
+- Ela sumiu e voltou → não demonstra alívio, mantém polo
+- Primeiro contato → chamar atenção sem ser mais um
+- Chamar pra sair → pretexto casual, nunca pedido formal
+- Ela respondeu "rs" ou "kk" seco → muda de ângulo, não tenta ser mais engraçado
+- Ela ficou online e não respondeu → ignora, não menciona
+- Ela testou ("se você quisesse...") → responde com confiança, não explica
+- Ela deu em cima depois finge desinteresse → não reage ao recuo, mantém polo
+- Quer saber se ela é solteira → 3 formas naturais de descobrir na conversa sem perguntar direto
+- Quer saber se ela gosta → lê os sinais e interpreta o que cada comportamento significa
+- Ajudar ela em algo (math, trabalho) → como usar isso pra se aproximar sem virar o amigo do bem
+- Encontro físico (academia, faculdade, balada) → como agir, o que falar, como não travar
+- Pede conselho geral → responde como wingman, dá estratégia real
+
+=== FOCO EXCLUSIVO ===
+Você existe para ajudar homens a conquistar mulheres. TUDO que envolve ela é conquista — mensagens, encontros físicos, situações sociais, como usar um hobby ou assunto em comum, como interpretar o comportamento dela.
+
+Só redireciona com "Só entendo de conquista 😏 Me manda o print ou descreve a situação com ela." se o pedido não tiver NENHUMA relação com uma mulher específica (ex: "me explica cálculo", "qual a capital da França", "me dá uma receita").
 
 LEITURA DE CONTEXTO — antes de gerar as opções, identifique:
 - Tom dela: animada, fria, curiosa, dando abertura, ocupada, testando, flertando
@@ -288,68 +443,7 @@ Escolhe uma 👇
 
 ⚡ "MENSAGEM DIRETA/SECA REAL"
 
-TAMANHO IDEAL DAS RESPOSTAS:
-- Romântica: 4 a 8 palavras
-- Ousada: 3 a 7 palavras
-- Direta: 2 a 5 palavras
-- REGRA DE OURO: se dá pra falar em 5 palavras, não use 10
-- Cada palavra a mais é uma chance de soar forçado
-- O silêncio entre as palavras vale mais que a explicação
-
-NUNCA:
-- Elogio genérico ("você é linda/incrível/especial")
-- Explicações longas ou parágrafos de análise
-- Emoji sozinho dentro das aspas
-- Perguntas duplas (uma pergunta por vez, no máximo)
-- Tom de desespero ou ansiedade
-- "Essa resposta demonstra que..." ou qualquer meta-comentário
-- Palavras: "em pessoa", "chat", "no momento", "de fato", "certamente", "gostaria", "disponível", "quando você está livre"
-- Frases que parecem traduzidas do inglês ou geradas por IA
-- Resposta maior que 15 palavras em cada opção
-- Usar "sumo" conjugado de forma estranha
-- Começar as 3 opções com a mesma estrutura de frase
-- Repetir palavras entre as 3 opções
-- Mais de 10 palavras em qualquer opção
-- Explicações dentro das opções ('porque eu...', 'já que você...')
-- Conjunções complicadas ('entretanto', 'portanto', 'contudo')
-- Frase que pareça texto de autoajuda
-- Frase que pareça legenda de foto do Instagram
-
-EXEMPLOS QUE SOAM NATURAIS:
-
-Situação: ela sumiu
-🔥 'tava pensando em vc agora'
-😏 'te dou mais um dia de desconto'
-⚡ 'e aí'
-
-Situação: ela foi seca
-🔥 'tranquilo, qualquer coisa tô por aqui'
-😏 'entendi, tá difícil hj'
-⚡ 'ok'
-
-Situação: chamar pra sair
-🔥 'quinta tá livre?'
-😏 'vc me deve um café ainda'
-⚡ 'bora um rolê'
-
-Situação: ela mandou foto bonita
-🔥 'tá tirando onde?'
-😏 'perigoso postar isso'
-⚡ 'oloco'
-
-FOCO EXCLUSIVO:
-Você existe para ajudar homens a conquistar mulheres. Isso inclui QUALQUER situação que envolva ela — não só mensagens.
-
-TUDO que envolve ela é conquista:
-- Ajudar ela em algo (matemática, trabalho, problema) → como usar isso pra se aproximar sem parecer o amigo do bem
-- Encontro físico (academia, faculdade, trabalho, balada) → como agir, o que falar, como não travar
-- Situação social (amigos em comum, ex, ciúme) → como navegar sem se prejudicar
-- Interesse dela (hobby, série, música) → como usar isso como gancho
-- Qualquer coisa que ele queira usar como pretexto pra chegar nela
-
-Se o usuário descrever uma situação com ela — mesmo que pareça mundana — responda como wingman: qual é a oportunidade aí, como ele usa isso, o que ele fala ou faz.
-
-Só redireciona com "Só entendo de conquista 😏 Me manda o print ou descreve a situação com ela." se o pedido não tiver NENHUMA relação com uma mulher específica (ex: "me explica cálculo", "qual a capital da França", "me dá uma receita").`;
+`;
 
 const SYSTEM_PROMPT_DEGRADED = `Você é o MandaAssim — gera 3 opções de mensagem para WhatsApp de conquista.
 
@@ -425,48 +519,14 @@ RESPONDA APENAS com a categoria, sem explicação.`;
 const INTENT_MODEL_CONFIG = {
   one_liner: { model: 'google/gemini-2.0-flash-lite-001', maxTokens: 80,  temperature: 0.90, systemType: 'minimal'  },
   volume:    { model: 'google/gemini-2.0-flash-001',      maxTokens: 600,  temperature: 0.85, systemType: 'degraded' },
-  premium:   { model: 'anthropic/claude-sonnet-4.6',      maxTokens: 800,  temperature: 0.80, systemType: 'full'     },
+  premium:   { model: 'google/gemini-2.0-flash-001',      maxTokens: 800,  temperature: 0.80, systemType: 'full'     },
   ousadia:   { model: 'meta-llama/llama-4-maverick',      maxTokens: 500,  temperature: 0.95, systemType: 'ousadia'  },
 };
 
 const INTENT_FALLBACKS = {
   'google/gemini-2.0-flash-lite-001': 'google/gemini-2.0-flash-001',
-  'anthropic/claude-sonnet-4.6':      'google/gemini-2.0-flash-001',
   'meta-llama/llama-4-maverick':      'google/gemini-2.0-flash-001',
 };
-
-// Cap de intent por usage tier — evita Sonnet em quem abusa
-function capIntentByTier(intent, usageTier) {
-  if (usageTier === 'minimal')                          return 'one_liner';
-  if (usageTier === 'degraded' && intent === 'premium') return 'volume';
-  return intent;
-}
-
-// ---------------------------------------------------------------------------
-// Scoring situacional — quão crítico é este momento para usar Sonnet?
-// ---------------------------------------------------------------------------
-
-const SONNET_TRIGGER_PATTERNS = [
-  { regex: /reconquist|quero ela de volta|ela sumiu há|ela parou de responder|ela me deixou|ela foi embora|terminamos|ela terminou|quero reconquistar/i, score: 10, label: 'reconquista' },
-  { regex: /sumiu|ghoste|parou de responder|ficou fria|esfriou|não responde|desapareceu|sem resposta|deixou no vácuo/i,                                  score: 9,  label: 'ghosting' },
-  { regex: /primeiro contato|match|nunca conversei|não me conhece|começar do zero|abrir conversa|quebrar o gelo|puxar assunto/i,                          score: 8,  label: 'primeiro_contato' },
-  { regex: /chamar pra sair|marcar encontro|convidar|pedir|proposta|date|rolar algo|se a gente|falar sobre nós/i,                                         score: 8,  label: 'chamada_acao' },
-  { regex: /ela disse que|ela perguntou se|ela quis saber|ela testou|ela mandou|ela foi em|ela falou que/i,                                               score: 7,  label: 'mensagem_direta' },
-  { regex: /terminei|terminou|brigamos|briga|discussão|ficou chateada|magoou|não quer mais/i,                                                             score: 8,  label: 'conflito' },
-];
-
-// Threshold mínimo para usar Sonnet no plano grátis
-const SONNET_FREE_MIN_SCORE = 7;
-
-function calcularSituationScore(text, intent) {
-  let score = 0;
-  for (const { regex, score: pts } of SONNET_TRIGGER_PATTERNS) {
-    if (regex.test(text)) score = Math.max(score, pts);
-  }
-  // Intent classificado como premium já indica situação crítica
-  if (intent === 'premium') score = Math.max(score, 7);
-  return score;
-}
 
 async function classificarIntent(situacao) {
   try {
@@ -616,32 +676,14 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
 async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', usageTier = 'full', phone = '', recentSuccess = false) {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
 
-  // 1. Classifica o intent semanticamente
   const rawIntent = await classificarIntent(situacao);
-  // 2. Aplica cap de custo pelo uso mensal
-  let intent = capIntentByTier(rawIntent, usageTier);
-
-  // 3. Score situacional — quão crítico é este momento?
-  const situationScore = calcularSituationScore(situacao, rawIntent);
-
-  // 4. Resolve acesso ao Sonnet com lógica inteligente de prioridade
-  let sonnetInfo = { acesso: false };
-  if (intent === 'premium' && phone) {
-    sonnetInfo = await resolverAcessoSonnet(phone, intent, usageTier, situationScore, recentSuccess);
-    if (sonnetInfo.acesso) {
-      await incrementSonnetUsage(phone);
-    } else {
-      intent = 'volume'; // downgrade silencioso
-    }
-  }
-
+  const intent = capIntentByTier(rawIntent, usageTier);
   const config = INTENT_MODEL_CONFIG[intent];
   const systemPrompt = getSystemPrompt(config.systemType, girlContext);
-  console.log(`[Roteamento] raw:${rawIntent} score:${situationScore} → final:${intent} → ${config.model}`);
+  console.log(`[Roteamento] raw:${rawIntent} → final:${intent} → ${config.model}`);
 
   const userContent = `${prefixo}Situação real: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`;
 
-  // 5. Tenta modelo principal, depois fallback
   const modelos = [config.model, INTENT_FALLBACKS[config.model]].filter(Boolean);
   for (const model of modelos) {
     try {
@@ -656,7 +698,6 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
       });
       return {
         text: response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.',
-        sonnetInfo,
         intent,
       };
     } catch (err) {
@@ -769,72 +810,6 @@ async function verificarWinback(phone, expiredAt) {
   return now >= new Date(data.winback_unlock_at);
 }
 
-const SONNET_MONTHLY_CAP = 30;
-const SONNET_ONBOARDING_CAP = 3; // 3 primeiras msgs de qualquer usuário usam Sonnet
-
-async function getSonnetUsage(phone) {
-  const supabase = getSupabase();
-  const month = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const { data } = await supabase
-    .from('sonnet_monthly_usage')
-    .select('count')
-    .eq('phone', phone)
-    .eq('month', month)
-    .maybeSingle();
-  return data?.count || 0;
-}
-
-async function incrementSonnetUsage(phone) {
-  const supabase = getSupabase();
-  const month = new Date().toISOString().slice(0, 7);
-  const { data } = await supabase
-    .from('sonnet_monthly_usage')
-    .select('count')
-    .eq('phone', phone)
-    .eq('month', month)
-    .maybeSingle();
-  const newCount = (data?.count || 0) + 1;
-  await supabase
-    .from('sonnet_monthly_usage')
-    .upsert({ phone, month, count: newCount }, { onConflict: 'phone,month' });
-  return newCount;
-}
-
-// ---------------------------------------------------------------------------
-// Resolver inteligente de acesso ao Sonnet
-// ---------------------------------------------------------------------------
-
-async function resolverAcessoSonnet(phone, intent, usageTier, situationScore, recentSuccess) {
-  if (intent !== 'premium') return { acesso: false };
-
-  const sonnetUsado = await getSonnetUsage(phone);
-  const isPremiumUser = usageTier === 'full';
-
-  // Usuário premium: Sonnet para qualquer intent premium, até 30/mês
-  if (isPremiumUser) {
-    if (sonnetUsado < SONNET_MONTHLY_CAP) {
-      return { acesso: true, tipo: 'premium', restante: SONNET_MONTHLY_CAP - sonnetUsado - 1 };
-    }
-    return { acesso: false, motivo: 'cap_mensal_premium' };
-  }
-
-  // Usuário free: Sonnet apenas para momentos de alto impacto
-  if (sonnetUsado >= SONNET_ONBOARDING_CAP) {
-    return { acesso: false, motivo: 'cap_gratuito_esgotado', sonnetUsado };
-  }
-
-  // Sucesso recente → boost no score (pico emocional = máxima receptividade)
-  const scoreEfetivo = recentSuccess ? Math.min(situationScore + 3, 10) : situationScore;
-
-  if (scoreEfetivo >= SONNET_FREE_MIN_SCORE) {
-    const restante = SONNET_ONBOARDING_CAP - sonnetUsado - 1;
-    console.log(`[Sonnet] Free aprovado — score:${scoreEfetivo} (base:${situationScore} boost:${recentSuccess}) usado:${sonnetUsado + 1}/${SONNET_ONBOARDING_CAP}`);
-    return { acesso: true, tipo: 'onboarding', restante, totalUsado: sonnetUsado + 1 };
-  }
-
-  console.log(`[Sonnet] Free bloqueado — score:${scoreEfetivo} < ${SONNET_FREE_MIN_SCORE} → downgrade volume`);
-  return { acesso: false, motivo: 'score_insuficiente', scoreEfetivo };
-}
 
 async function getMonthlyCount(phone) {
   const supabase = getSupabase();
@@ -1228,30 +1203,11 @@ async function upsellPicoPremium(message, trial, todayCount) {
 }
 
 // ---------------------------------------------------------------------------
-// Upsell progressivo após Sonnet gratuito (conversão no pico emocional)
+// (Sonnet removido — usando Gemini Flash + Llama para todos os tiers)
 // ---------------------------------------------------------------------------
-
+// eslint-disable-next-line no-unused-vars
 async function upsellSonnetFree(message, sonnetInfo, trial) {
-  // Só dispara para free que acabou de usar Sonnet de onboarding
-  if (trial.isPremium || !sonnetInfo?.acesso || sonnetInfo.tipo !== 'onboarding') return;
-
-  const { restante } = sonnetInfo;
-
-  if (restante === 0) {
-    // Última análise avançada usada — upsell completo com framing de incompletude
-    await new Promise(r => setTimeout(r, 2000));
-    await client.sendMessage(message.from,
-      `Essa conversa com ela não terminou — mas suas análises avançadas gratuitas sim 🔥\n\n` +
-      `No *Premium* você tem *30 dessas por mês*: reconquistas, primeiros contatos, momentos que não podem errar.\n\n` +
-      `${OPCOES_PREMIUM}`
-    );
-  } else if (restante === 1) {
-    // Penúltima — scarcity sutil
-    await client.sendMessage(message.from,
-      `_⚡ Análise avançada — só mais 1 gratuita depois dessa_`
-    );
-  }
-  // restante >= 2: silencioso — não interrompe a experiência
+  // removido — mantido para não quebrar chamadas existentes
 }
 
 // ---------------------------------------------------------------------------
