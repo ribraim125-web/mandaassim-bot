@@ -842,6 +842,9 @@ function getMensagemEspera() {
 // Mostra "digitando..." nativo do WhatsApp enquanto processa
 // Retorna função para parar o indicador
 async function startTyping(message) {
+  // Aguarda 700ms para garantir que a mensagem "Analisando..." já apareceu
+  // antes do indicador de digitando começar
+  await new Promise(r => setTimeout(r, 700));
   let chat;
   try {
     chat = await message.getChat();
