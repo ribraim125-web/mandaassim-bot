@@ -3,6 +3,7 @@ const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
 const OpenAI = require('openai');
+const Anthropic = require('@anthropic-ai/sdk');
 const { criarCobrancaPix } = require('./src/mercadopago');
 const { createWebhookApp } = require('./src/webhook');
 const { startWorker } = require('./src/followup/followupWorker');
@@ -71,6 +72,9 @@ const openrouter = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   defaultHeaders: { 'HTTP-Referer': 'https://mandaassim.com', 'X-Title': 'MandaAssim' },
 });
+
+// Cliente direto da Anthropic (Haiku — mais barato e sem overhead do OpenRouter)
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const MODELS = {
   full:     'google/gemini-2.0-flash-001',      // análise de imagens (visão nativa)
@@ -688,21 +692,33 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   const modelos = [config.model, INTENT_FALLBACKS[config.model]].filter(Boolean);
   for (const model of modelos) {
     try {
-      const response = await openrouter.chat.completions.create({
-        model,
-        max_tokens: config.maxTokens,
-        temperature: config.temperature,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userContent },
-        ],
-      });
-      return {
-        text: response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.',
-        intent,
-      };
+      let text;
+      if (model.startsWith('anthropic/') && process.env.ANTHROPIC_API_KEY) {
+        // Chama a API da Anthropic diretamente (sem overhead do OpenRouter)
+        const modelId = model.replace('anthropic/', '');
+        const msg = await anthropic.messages.create({
+          model: modelId,
+          max_tokens: config.maxTokens,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userContent }],
+        });
+        text = msg.content[0]?.text || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
+        console.log(`[Anthropic] Direto → ${modelId}`);
+      } else {
+        const response = await openrouter.chat.completions.create({
+          model,
+          max_tokens: config.maxTokens,
+          temperature: config.temperature,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user',   content: userContent },
+          ],
+        });
+        text = response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
+      }
+      return { text, intent };
     } catch (err) {
-      console.error(`[OpenRouter] Falha em ${model}:`, err.message);
+      console.error(`[Roteamento] Falha em ${model}:`, err.message);
       if (model === modelos[modelos.length - 1]) throw err;
     }
   }

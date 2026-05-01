@@ -17,21 +17,22 @@ function getPayment() {
  * @param {string} phone - número do usuário (sem @c.us)
  * @returns {{ qrCodeBase64: string, qrCodeText: string, paymentId: string }}
  */
-async function criarCobrancaPix(phone) {
+async function criarCobrancaPix(phone, amount = PRECO_PREMIUM) {
   const supabase = getSupabase();
   const payment = getPayment();
   const externalRef = `${phone}_${Date.now()}`;
 
-  await supabase.from('payments').insert({
+  const { error: insertError } = await supabase.from('payments').insert({
     phone,
     external_ref: externalRef,
     status: 'pending',
-    amount: PRECO_PREMIUM,
+    amount,
   });
+  if (insertError) console.error('[Pix] Erro ao salvar pagamento no banco:', insertError.message);
 
   const result = await payment.create({
     body: {
-      transaction_amount: PRECO_PREMIUM,
+      transaction_amount: amount,
       description: 'MandaAssim Premium',
       payment_method_id: 'pix',
       external_reference: externalRef,
