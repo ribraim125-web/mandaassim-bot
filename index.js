@@ -201,33 +201,21 @@ TAMANHO: 2 a 8 palavras por opção. Máx 10. Nunca parágrafos nas mensagens.
 
 === FORMATO DE SAÍDA ===
 
-Sempre sem introdução. Vai direto.
+Sem introdução. Sem papo. Vai direto.
 
-Para situação específica com ela:
-📍 _[diagnóstico: tom dela agora + o que está sinalizando — 1 linha]_
+📍 _[uma linha: o que ela tá sinalizando agora]_
 
-💡 [O que está acontecendo de verdade e o que o cara precisa entender — 2 a 4 linhas. Linguagem direta, zero autoajuda. Use *asterisco simples* para negrito — NUNCA **duplo asterisco**. Como um amigo que entende de mulher explicando o jogo.]
+💡 [O que está acontecendo de verdade — 2 a 4 linhas. Direto, sem autoajuda. Explica a psicologia. Use *negrito* pra marcar o que é mais importante. NUNCA **duplo asterisco**.]
 
-Cola uma dessas 👇
+🔥 "mensagem real aqui"
 
-🔥 "MENSAGEM REAL"
+😏 "mensagem real aqui"
 
-😏 "MENSAGEM REAL"
+⚡ "mensagem real aqui"
 
-⚡ "MENSAGEM REAL"
+_por que funciona: uma linha_
 
-_por que funciona: [1 linha]_
-
-Para pedido simples (bom dia, chamar pra sair, responder emoji):
-📍 _diagnóstico_
-
-Escolhe uma 👇
-
-🔥 "MENSAGEM"
-😏 "MENSAGEM"
-⚡ "MENSAGEM"
-
-CRÍTICO: NUNCA escreva placeholders como "[romântica]", "[ousada]", "[opção]". Escreva as mensagens reais.`;
+CRÍTICO: escreva as mensagens de verdade. NUNCA "[romântica]", "[ousada]", "[opção]" ou qualquer placeholder.`;
 
 const SYSTEM_PROMPT_DEGRADED = `Você é o MandaAssim — wingman brasileiro. Gera 3 opções de mensagem de conquista pro WhatsApp.
 
@@ -383,27 +371,25 @@ function extrairDiagnostico(texto) {
 function parsearOpcoes(texto) {
   const resultado = [];
 
-  // Formato de análise de conversa: 🔥 😏 ⚡
   const analise = [
-    { regex: /🔥\s*"([^"]+)"/s, label: '🔥 *Romântica* — copia essa:' },
-    { regex: /😏\s*"([^"]+)"/s, label: '😏 *Ousada* — copia essa:' },
-    { regex: /⚡\s*"([^"]+)"/s, label: '⚡ *Direta* — copia essa:' },
+    { regex: /🔥\s*"([^"]+)"/s, emoji: '🔥' },
+    { regex: /😏\s*"([^"]+)"/s, emoji: '😏' },
+    { regex: /⚡\s*"([^"]+)"/s, emoji: '⚡' },
   ];
-  for (const { regex, label } of analise) {
+  for (const { regex, emoji } of analise) {
     const match = texto.match(regex);
-    if (match) resultado.push({ label, msg: match[1].trim() });
+    if (match) resultado.push({ emoji, msg: match[1].trim() });
   }
   if (resultado.length >= 2) return resultado;
 
-  // Formato simples: 1️⃣ 2️⃣ 3️⃣
   const simples = [
-    { regex: /1️⃣\s*"([^"]+)"/s, label: '1️⃣ *Opção 1* — copia essa:' },
-    { regex: /2️⃣\s*"([^"]+)"/s, label: '2️⃣ *Opção 2* — copia essa:' },
-    { regex: /3️⃣\s*"([^"]+)"/s, label: '3️⃣ *Opção 3* — copia essa:' },
+    { regex: /1️⃣\s*"([^"]+)"/s, emoji: '1️⃣' },
+    { regex: /2️⃣\s*"([^"]+)"/s, emoji: '2️⃣' },
+    { regex: /3️⃣\s*"([^"]+)"/s, emoji: '3️⃣' },
   ];
-  for (const { regex, label } of simples) {
+  for (const { regex, emoji } of simples) {
     const match = texto.match(regex);
-    if (match) resultado.push({ label, msg: match[1].trim() });
+    if (match) resultado.push({ emoji, msg: match[1].trim() });
   }
 
   return resultado;
@@ -412,30 +398,42 @@ function parsearOpcoes(texto) {
 function extrairDica(texto) {
   const match = texto.match(/💡\s*(.+?)(?=\n\n(?:Cola|Escolhe|🔥|😏|⚡)|$)/s);
   if (!match) return null;
-  // Converte **duplo** para *simples* (WhatsApp não renderiza markdown duplo)
   return match[1].trim().replace(/\*\*([^*]+)\*\*/g, '*$1*');
+}
+
+function extrairPorQueFunciona(texto) {
+  const match = texto.match(/_por que funciona[:\s]*([^_\n]+)_/i);
+  return match ? match[1].trim() : null;
 }
 
 async function enviarResposta(message, sugestoes) {
   const diagnostico = extrairDiagnostico(sugestoes);
   const dica = extrairDica(sugestoes);
   const opcoes = parsearOpcoes(sugestoes);
+  const porque = extrairPorQueFunciona(sugestoes);
 
-  if (diagnostico) {
-    await client.sendMessage(message.from, `📍 _${diagnostico}_`);
+  // Bloco 1 — contexto: diagnóstico + dica juntos, limpo
+  if (diagnostico || dica) {
+    const partes = [];
+    if (diagnostico) partes.push(`📍 _${diagnostico}_`);
+    if (dica) partes.push(`💡 ${dica}`);
+    await client.sendMessage(message.from, partes.join('\n\n'));
   }
 
-  if (dica) {
-    await client.sendMessage(message.from, `💡 ${dica}`);
-  }
-
+  // Bloco 2 — opções: tudo numa mensagem só, fácil de ler e copiar
   if (opcoes.length >= 2) {
-    for (const { label, msg } of opcoes) {
-      await client.sendMessage(message.from, label);
-      await client.sendMessage(message.from, msg);
+    const linhas = ['*Escolhe uma* 👇'];
+    for (const { emoji, msg } of opcoes) {
+      linhas.push('');
+      linhas.push(`${emoji}  "${msg}"`);
     }
+    if (porque) {
+      linhas.push('');
+      linhas.push(`_${porque}_`);
+    }
+    await client.sendMessage(message.from, linhas.join('\n'));
   } else {
-    // Fallback: manda tudo em uma mensagem
+    // Fallback
     await message.reply(sugestoes.trim().replace(/\n{3,}/g, '\n\n'));
   }
 }
