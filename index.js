@@ -263,7 +263,7 @@ FORMATO DE SAÍDA — sempre uma mensagem só, sem introdução:
 Para análise de conversa ou situação específica com ela:
 📍 _[diagnóstico em uma linha: tom dela agora + o que está sinalizando]_
 
-💡 [Dica/ensinamento sobre o que está acontecendo — 2 a 4 linhas, linguagem direta e natural. Use *negrito* nas palavras-chave. Explica a psicologia da situação, o que ela está testando, o que o cara precisa entender. Sem autoajuda, sem papo de coach. Como um amigo que realmente entende de mulher explicando o jogo. Deve ter espaçamento e ser fácil de ler.]
+💡 [Dica/ensinamento sobre o que está acontecendo — 2 a 4 linhas, linguagem direta e natural. Use *asterisco simples* para negrito (formato WhatsApp): *palavra* — NUNCA use **duplo asterisco**. Explica a psicologia da situação, o que ela está testando, o que o cara precisa entender. Sem autoajuda, sem papo de coach. Como um amigo que realmente entende de mulher explicando o jogo. Deve ter espaçamento e ser fácil de ler.]
 
 Cola uma dessas 👇
 
@@ -525,7 +525,9 @@ function parsearOpcoes(texto) {
 
 function extrairDica(texto) {
   const match = texto.match(/💡\s*(.+?)(?=\n\n(?:Cola|Escolhe|🔥|😏|⚡)|$)/s);
-  return match ? match[1].trim() : null;
+  if (!match) return null;
+  // Converte **duplo** para *simples* (WhatsApp não renderiza markdown duplo)
+  return match[1].trim().replace(/\*\*([^*]+)\*\*/g, '*$1*');
 }
 
 async function enviarResposta(message, sugestoes) {
