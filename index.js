@@ -1026,9 +1026,6 @@ function situacaoEhVaga(situacao, temHistorico, temPerfil) {
 // Mostra "digitando..." nativo do WhatsApp enquanto processa
 // Retorna função para parar o indicador
 async function startTyping(message) {
-  // Aguarda 700ms para garantir que a mensagem "Analisando..." já apareceu
-  // antes do indicador de digitando começar
-  await new Promise(r => setTimeout(r, 700));
   let chat;
   try {
     chat = await message.getChat();
@@ -1697,7 +1694,7 @@ client.on('message', async (message) => {
       const girlContext = buildGirlContext(girlProfile);
       const monthlyCount = await getMonthlyCount(phone);
       const tier = resolveTier(trial, todayCount, monthlyCount);
-      await message.reply(getMensagemEspera());
+      
       const stopTyping1 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
@@ -1725,7 +1722,7 @@ client.on('message', async (message) => {
       const girlContext = buildGirlContext(girlProfile);
       const monthlyCount = await getMonthlyCount(phone);
       const tier = resolveTier(trial, todayCount, monthlyCount);
-      await message.reply(getMensagemEspera());
+      
       const stopTyping2 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
@@ -1775,7 +1772,7 @@ client.on('message', async (message) => {
         const monthlyCountCtx = await getMonthlyCount(phone);
         const tierCtx = resolveTier(trial, todayCount, monthlyCountCtx);
 
-        await message.reply(getMensagemEspera());
+        
         const stopTypingFinal = await startTyping(message);
         try {
           const result = await analisarTextoComClaude(situacaoCompleta, '', girlContextCtx, tierCtx, phone, false, trial.isPremium);
@@ -1816,7 +1813,7 @@ client.on('message', async (message) => {
       return;
     }
 
-    await message.reply(getMensagemEspera());
+    
     const stopTyping3 = await startTyping(message);
     try {
       const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier, phone, recentSuccess, trial.isPremium);
@@ -1888,7 +1885,7 @@ client.on('message', async (message) => {
     } else {
       // Modo conversa: analisa o print normalmente
       console.log(`[Imagem] ${phone} enviou um print.`);
-      await message.reply(getMensagemEspera());
+      
       const stopTypingImg = await startTyping(message);
       try {
         const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg);
