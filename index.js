@@ -955,7 +955,11 @@ function getMensagemEspera() {
 // Coaching — pede contexto quando situação é vaga
 // ---------------------------------------------------------------------------
 
-async function gerarPerguntaContexto(situacao) {
+// Gera próxima pergunta de contexto levando em conta o que já foi respondido
+async function gerarPerguntaContexto(situacaoOriginal, qa = []) {
+  const historico = qa.length > 0
+    ? '\n\nO que já sei:\n' + qa.map(({ q, a }) => `- Perguntei: "${q}" → Ele disse: "${a}"`).join('\n')
+    : '';
   try {
     const response = await openrouter.chat.completions.create({
       model: 'google/gemini-2.0-flash-lite-001',
@@ -964,24 +968,53 @@ async function gerarPerguntaContexto(situacao) {
       messages: [
         {
           role: 'system',
-          content: `Você é o MandaAssim — wingman brasileiro. Precisa entender melhor a situação antes de dar conselho.
-Faça APENAS UMA pergunta direta e natural, como um amigo mandaria no WhatsApp.
-Foco: entender o estágio (se conheceram agora, ficaram, tempo que tão se falando) e o que exatamente aconteceu.
-Seja curto e direto. Máx 2 frases.
-NUNCA use: "massa", "incrível", "caramba", "nossa", "poxa", "uau", elogios antes da pergunta.
-Vai direto na pergunta — sem saudação, sem comentário sobre a situação.`,
+          content: `Você é o MandaAssim — wingman brasileiro direto. Está coletando contexto antes de dar conselho.
+Faça UMA pergunta curta e natural, como um amigo no WhatsApp.
+Não repita o que já sabe. Vá para o próximo ponto importante.
+NUNCA use: "massa", "incrível", "nossa", "caramba", "uau", elogios.
+Sem saudação, sem comentário — só a pergunta.`,
         },
         {
           role: 'user',
-          content: `Situação que recebi: "${situacao}"\n\nQual pergunta fazer para entender melhor e dar o conselho certo?`,
+          content: `Situação: "${situacaoOriginal}"${historico}\n\nQual a próxima pergunta mais importante pra entender o caso?`,
         },
       ],
     });
     return response.choices[0]?.message?.content?.trim() ||
-      'Me conta mais — como vocês se conheceram e tem quanto tempo tão conversando?';
+      'E como tá o clima entre vocês agora — ela tá fria, normal, ou sumida?';
   } catch (_) {
-    return 'Me conta mais do contexto — como vocês se conheceram e tem quanto tempo tão se falando?';
+    return 'Me conta mais — o que rolou exatamente antes disso acontecer?';
   }
+}
+
+// Decide se já tem contexto suficiente ou precisa de mais uma pergunta (máx 3 turnos)
+async function precisaDeMaisContexto(situacaoOriginal, qa) {
+  if (qa.length >= 3) return false; // nunca mais de 3 perguntas
+  try {
+    const historico = qa.map(({ q, a }) => `P: "${q}" → R: "${a}"`).join('\n');
+    const response = await openrouter.chat.completions.create({
+      model: 'google/gemini-2.0-flash-lite-001',
+      max_tokens: 10,
+      temperature: 0,
+      messages: [{
+        role: 'user',
+        content: `Situação: "${situacaoOriginal}"\nContexto coletado:\n${historico}\n\nTenho contexto suficiente para dar um conselho personalizado de qualidade? Responda APENAS: sim ou nao`,
+      }],
+    });
+    const ans = (response.choices[0]?.message?.content || '').toLowerCase();
+    return ans.includes('nao') || ans.includes('não');
+  } catch (_) {
+    return false;
+  }
+}
+
+function montarContextoCoaching(situacaoOriginal, qa) {
+  const linhas = [`Situação relatada: "${situacaoOriginal}"`];
+  if (qa.length > 0) {
+    linhas.push('\nContexto coletado em conversa:');
+    qa.forEach(({ q, a }) => linhas.push(`- ${q} → "${a}"`));
+  }
+  return linhas.join('\n');
 }
 
 function situacaoEhVaga(situacao, temHistorico, temPerfil) {
@@ -1712,31 +1745,50 @@ client.on('message', async (message) => {
     // Análise normal
     const ctx = getUserContext(phone);
 
-    // --- Fluxo de coaching: o usuário está respondendo uma pergunta de contexto? ---
-    if (ctx?.awaitingContext && ctx?.pendingRequest) {
-      // Combina a situação original com o contexto fornecido agora
-      const situacaoCompleta = `${ctx.pendingRequest}\n\nContexto adicional: ${text}`;
-      const current = userContext.get(phone) || {};
-      userContext.set(phone, { ...current, awaitingContext: false, pendingRequest: null });
+    // --- Fluxo de coaching multi-turno: usuário está respondendo uma pergunta de contexto ---
+    if (ctx?.coachingState) {
+      const state = ctx.coachingState;
+      // Registra a resposta do usuário à última pergunta
+      const qa = [...(state.qa || []), { q: state.lastQuestion, a: text }];
 
-      const girlProfileCtx = await getGirlProfile(phone);
-      const girlContextCtx = buildGirlContext(girlProfileCtx);
-      const monthlyCountCtx = await getMonthlyCount(phone);
-      const tierCtx = resolveTier(trial, todayCount, monthlyCountCtx);
+      const stopTypingCheck = await startTyping(message);
+      const precisaMais = await precisaDeMaisContexto(state.originalRequest, qa);
+      stopTypingCheck();
 
-      await message.reply(getMensagemEspera());
-      const stopTypingCtx = await startTyping(message);
-      try {
-        const result = await analisarTextoComClaude(situacaoCompleta, '', girlContextCtx, tierCtx, phone, false, trial.isPremium);
-        stopTypingCtx();
-        saveUserContext(phone, situacaoCompleta, 'text');
-        await enviarResposta(message, result.text, result.intent);
-        await contadorRestante(message, trial, todayCount);
-        await upsellPicoPremium(message, trial, todayCount);
-      } catch (err) {
-        stopTypingCtx();
-        console.error('[Coaching] Erro na análise com contexto:', err.message);
-        await message.reply('Deu ruim aqui, tenta de novo 😅');
+      if (precisaMais) {
+        // Ainda precisa de mais contexto — faz mais uma pergunta
+        const proximaPergunta = await gerarPerguntaContexto(state.originalRequest, qa);
+        const current = userContext.get(phone) || {};
+        userContext.set(phone, { ...current, coachingState: { ...state, qa, lastQuestion: proximaPergunta } });
+        const stopTypingQ = await startTyping(message);
+        await new Promise(r => setTimeout(r, 300));
+        stopTypingQ();
+        await client.sendMessage(message.from, proximaPergunta);
+      } else {
+        // Tem contexto suficiente — gera análise personalizada com tudo que coletou
+        const current = userContext.get(phone) || {};
+        userContext.set(phone, { ...current, coachingState: null });
+
+        const situacaoCompleta = montarContextoCoaching(state.originalRequest, qa);
+        const girlProfileCtx = await getGirlProfile(phone);
+        const girlContextCtx = buildGirlContext(girlProfileCtx);
+        const monthlyCountCtx = await getMonthlyCount(phone);
+        const tierCtx = resolveTier(trial, todayCount, monthlyCountCtx);
+
+        await message.reply(getMensagemEspera());
+        const stopTypingFinal = await startTyping(message);
+        try {
+          const result = await analisarTextoComClaude(situacaoCompleta, '', girlContextCtx, tierCtx, phone, false, trial.isPremium);
+          stopTypingFinal();
+          saveUserContext(phone, situacaoCompleta, 'text');
+          await enviarResposta(message, result.text, result.intent);
+          await contadorRestante(message, trial, todayCount);
+          await upsellPicoPremium(message, trial, todayCount);
+        } catch (err) {
+          stopTypingFinal();
+          console.error('[Coaching] Erro na análise final:', err.message);
+          await message.reply('Deu ruim aqui, tenta de novo 😅');
+        }
       }
       return;
     }
@@ -1750,17 +1802,17 @@ client.on('message', async (message) => {
     const tier = resolveTier(trial, todayCount, monthlyCount);
     console.log(`[Tier] ${phone} — daily:${todayCount} monthly:${monthlyCount} → tier:${tier} recentSuccess:${recentSuccess}`);
 
-    // --- Coaching: pede contexto se a situação for vaga ---
+    // --- Coaching: inicia conversa de contexto se situação for vaga ---
     const temHistorico = (ctx?.history?.length || 0) > 0;
     const temPerfil = !!(girlProfile?.girl_context || girlProfile?.current_situation);
     if (situacaoEhVaga(text, temHistorico, temPerfil)) {
       const stopTypingCtxQ = await startTyping(message);
-      const pergunta = await gerarPerguntaContexto(text);
+      const primeiraPergunta = await gerarPerguntaContexto(text, []);
       stopTypingCtxQ();
       const current = userContext.get(phone) || {};
-      userContext.set(phone, { ...current, awaitingContext: true, pendingRequest: text });
-      console.log(`[Coaching] Pedindo contexto para ${phone}`);
-      await client.sendMessage(message.from, pergunta);
+      userContext.set(phone, { ...current, coachingState: { originalRequest: text, qa: [], lastQuestion: primeiraPergunta } });
+      console.log(`[Coaching] Iniciando contexto para ${phone}`);
+      await client.sendMessage(message.from, primeiraPergunta);
       return;
     }
 
