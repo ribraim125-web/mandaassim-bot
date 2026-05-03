@@ -535,18 +535,15 @@ async function enviarResposta(message, sugestoes, intent = '') {
     await client.sendMessage(message.from, partes.join('\n\n'));
   }
 
-  // Bloco 2 — opções: tudo numa mensagem só, fácil de ler e copiar
+  // Bloco 2 — cada opção como mensagem separada (fácil de copiar com long press)
   if (opcoes.length >= 2) {
-    const linhas = ['*Escolhe uma* 👇'];
+    await client.sendMessage(message.from, '*Escolhe uma* 👇');
     for (const { emoji, msg } of opcoes) {
-      linhas.push('');
-      linhas.push(`${emoji}  "${msg}"`);
+      await client.sendMessage(message.from, `${emoji}  "${msg}"`);
     }
     if (porque) {
-      linhas.push('');
-      linhas.push(`_${porque}_`);
+      await client.sendMessage(message.from, `_${porque}_`);
     }
-    await client.sendMessage(message.from, linhas.join('\n'));
   } else {
     // Fallback
     await message.reply(sugestoes.trim().replace(/\n{3,}/g, '\n\n'));
