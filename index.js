@@ -8,6 +8,17 @@ const { criarCobrancaPix, determinarPlano, PRECO_PRO } = require('./src/mercadop
 const { trackSubscriptionEvent } = require('./src/lib/subscriptionTracking');
 const { createWebhookApp } = require('./src/webhook');
 const { startWorker } = require('./src/followup/followupWorker');
+const { startMindsetWorker } = require('./src/followup/mindsetWorker');
+const {
+  shouldSendInvite,
+  hasPendingInviteResponse,
+  markInviteSent,
+  activateOptIn,
+  deactivateOptIn,
+  markInviteDeclined,
+  updateFrequency,
+  getOptIn,
+} = require('./src/lib/mindsetCapsules');
 const { cancelPendingFollowups, cancelPredateReminders } = require('./src/followup/followupCanceller');
 const { logApiRequest } = require('./src/lib/tracking');
 const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
@@ -38,6 +49,13 @@ const {
   analisarPreDateComHaiku,
   getMonthlyPreDateCount,
 } = require('./src/lib/predateCoach');
+const {
+  INTERVIEW_QUESTIONS_DEBRIEF,
+  analisarDebriefComHaiku,
+  temDebriefPendente,
+  getMonthlyDebriefCount,
+  getLastDebriefInsight,
+} = require('./src/lib/postdateDebrief');
 
 // ---------------------------------------------------------------------------
 // Configuração
@@ -73,6 +91,19 @@ const TRANSITION_COACH_TEST_PHONE = process.env.TRANSITION_COACH_TEST_PHONE || '
 // Valor: 'false' | 'test' | 'beta' (10% premium/pro) | 'all'
 const PREDATE_COACH_MODE = (process.env.ENABLE_PREDATE_COACH || 'false').toLowerCase();
 const PREDATE_COACH_TEST_PHONE = process.env.PREDATE_COACH_TEST_PHONE || '';
+
+// Feature flag: Debrief Pós-Date (Camada 5 — Premium 1/mês, Pro ilimitado)
+// Valor: 'false' | 'test' | 'beta' (10% premium/pro) | 'all'
+const POSTDATE_DEBRIEF_MODE = (process.env.ENABLE_POSTDATE_DEBRIEF || 'false').toLowerCase();
+const POSTDATE_DEBRIEF_TEST_PHONE = process.env.POSTDATE_DEBRIEF_TEST_PHONE || '';
+
+// Feature flag: Cápsulas de Mindset Opt-In (Camada 6 — EXCLUSIVO Pro)
+// Valor: 'false' | 'test' | 'all'
+const MINDSET_CAPSULES_MODE = (process.env.ENABLE_MINDSET_CAPSULES || 'false').toLowerCase();
+const MINDSET_CAPSULES_TEST_PHONE = process.env.MINDSET_CAPSULES_TEST_PHONE || '';
+
+// Cache in-memory para evitar checar convite de mindset em cada mensagem
+const mindsetInviteChecked = new Set();
 
 const MENSAGEM_RENOVACAO =
   `Seu acesso ilimitado expira em *3 dias*.\n\n` +
@@ -153,6 +184,38 @@ const PREDATE_COACH_UPSELL_PREMIUM_LIMIT =
   `Você já usou sua sessão pré-date do mês.\n\n` +
   `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
   `Digita *pro* se quiser.`;
+
+// ── Mensagens da feature de Debrief Pós-Date ─────────────────────────────────
+
+const POSTDATE_DEBRIEF_UPSELL_FREE =
+  `Debrief de encontro é do *Wingman Premium* 🔍\n\n` +
+  `Você me conta como foi — eu analiso o que rolou, o que funcionou, o que errou e qual o próximo passo certo.\n\n` +
+  `Sem rodeios. Honestidade total.\n\n` +
+  `Disponível no *Wingman Premium* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
+  `Digita *mensal* ou *anual* 👇`;
+
+const POSTDATE_DEBRIEF_UPSELL_PREMIUM_LIMIT =
+  `Você já fez seu debrief do mês.\n\n` +
+  `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
+  `Digita *pro* se quiser.`;
+
+// ── Mensagens da feature de Mindset Opt-In ───────────────────────────────────
+
+const MINDSET_INVITE_MESSAGE =
+  `Tenho um material extra que mando 3x por semana de manhã — pequenas reflexões sobre paquera, postura, como lidar com rejeição, identidade. Não é palestra, são recados curtos.\n\n` +
+  `Quer ativar? Responde *sim* ou *não*.`;
+
+const MINDSET_ACTIVATED_MESSAGE =
+  `Ativado ✅\n\nVou mandar 3 por semana — segunda, quarta e sexta de manhã.\n\n` +
+  `Pra mudar frequência, digita:\n` +
+  `• *mindset 1x* — 1 por semana\n` +
+  `• *mindset 3x* — 3 por semana (padrão)\n` +
+  `• *mindset 5x* — dias úteis\n` +
+  `• *mindset diário* — todo dia\n\n` +
+  `Pra pausar: *cancelar mindset*`;
+
+const MINDSET_DECLINED_MESSAGE =
+  `Ok, sem problema. Se quiser ativar depois: *ativar mindset*.`;
 
 // ---------------------------------------------------------------------------
 // OpenRouter — modelos por tier de uso mensal
@@ -1384,6 +1447,9 @@ const FEEDBACK_NEGATIVO = /^(não funcionou|nao funcionou|não rolou|nao rolou|n
 const RECONQUISTA_KEYWORDS = /reconquist|quero ela de volta|ela sumiu há|ela parou de responder|ela me deixou|ela foi embora|terminamos|ela terminou|quero reconquistar/i;
 const TRANSITION_COACH_KEYWORDS = /\b(como marco encontro|como chamo (ela|a) pra sair|como chamar (ela|a) pra sair|quero chamar (ela|a) pra sair|t[aá] na hora de marcar|como marco um encontro|ajuda (pra|para) chamar pra sair|quero marcar (um )?encontro|quando (devo|posso) chamar pra sair|como chamo pra sair)\b/i;
 const PREDATE_COACH_KEYWORDS = /\b(tenho encontro|vou (ao|no|para o|pra o) encontro|marquei (um )?encontro|preparar (o )?encontro|encontro amanhã|encontro hoje|encontro (nessa?|na|nesse?) (sexta|s[aá]bado|domingo|segunda|ter[cç]a|quarta|quinta|fim de semana|fds)|encontro marcado|encontro essa semana|vou (me )?encontrar (ela|com ela)|encontro com ela)\b/i;
+const POSTDATE_DEBRIEF_KEYWORDS = /\b(como foi (o )?encontro|o encontro foi|debrief|analisar encontro|analisa (o )?encontro|encontro ontem|encontro hoje|foi o encontro|rolou o encontro|voltei do encontro|tive o encontro|encontro aconteceu)\b/i;
+// Padrões detectados automaticamente de relato pós-encontro (Trigger C)
+const POSTDATE_AUTO_TRIGGER_PATTERNS = /\b(o encontro foi (bem|mal|ok|ótimo|horrível|incrível|razo[aá]vel)|ela (pareceu|ficou|estava) (animada|fria|distante|legal|estranha|indiferente)|encontro foi (ontem|hoje de manhã|essa tarde|essa noite)|voltei do encontro|saímos (ontem|hoje)|rolou (o|um) encontro|(o encontro|a date) (acabou|terminou))\b/i;
 
 // ---------------------------------------------------------------------------
 // Feature flag: decide se print analysis está habilitado para o phone
@@ -1444,6 +1510,29 @@ function isPreDateCoachEnabled(phone) {
       // Seed diferente dos outros features
       return (Math.abs(hash ^ 0xbeefdead) % 100) < 10;
     }
+    default: return false;
+  }
+}
+
+function isPostdateDebriefEnabled(phone) {
+  switch (POSTDATE_DEBRIEF_MODE) {
+    case 'all':  return true;
+    case 'test': return phone === POSTDATE_DEBRIEF_TEST_PHONE;
+    case 'beta': {
+      if (!phone) return false;
+      let hash = 0;
+      for (const c of phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+      // Seed diferente dos outros features
+      return (Math.abs(hash ^ 0xf00dcafe) % 100) < 10;
+    }
+    default: return false;
+  }
+}
+
+function isMindsetCapsulesEnabled(phone) {
+  switch (MINDSET_CAPSULES_MODE) {
+    case 'all':  return true;
+    case 'test': return phone === MINDSET_CAPSULES_TEST_PHONE;
     default: return false;
   }
 }
@@ -1830,6 +1919,56 @@ client.on('message', async (message) => {
       return;
     }
 
+    // ── Comandos de Mindset Opt-In ────────────────────────────────────────────
+    if (isMindsetCapsulesEnabled(phone)) {
+      if (/^(ativar mindset|mindset ativar)$/i.test(cmd)) {
+        const trialForMindset = await getTrialInfo(phone);
+        if (!trialForMindset.isPro) {
+          await message.reply(`Cápsulas de mindset são exclusivas do *Wingman Pro* 🔥\n\nDigita *pro* pra fazer upgrade.`);
+        } else {
+          await activateOptIn(phone);
+          await message.reply(MINDSET_ACTIVATED_MESSAGE);
+        }
+        return;
+      }
+
+      if (/^(cancelar mindset|pausar mindset|mindset cancelar|mindset pausar)$/i.test(cmd)) {
+        await deactivateOptIn(phone);
+        await message.reply(`Mindset pausado ✅\n\nPra ativar de novo: *ativar mindset*.`);
+        return;
+      }
+
+      const freqMatch = cmd.match(/^mindset\s+(1x|3x|5x|di[aá]rio)$/i);
+      if (freqMatch) {
+        const freqMap = { '1x': 1, '3x': 3, '5x': 5, 'diário': 7, 'diario': 7 };
+        const freq = freqMap[freqMatch[1].toLowerCase()] || 3;
+        await updateFrequency(phone, freq);
+        const freqLabel = { 1: '1x por semana', 3: '3x por semana', 5: 'dias úteis', 7: 'todo dia' }[freq];
+        await message.reply(`Frequência atualizada: ${freqLabel} ✅`);
+        return;
+      }
+
+      if (/^mindset$/i.test(cmd)) {
+        const trialForMindset = await getTrialInfo(phone);
+        if (!trialForMindset.isPro) {
+          await message.reply(`Cápsulas de mindset são exclusivas do *Wingman Pro* 🔥\n\nDigita *pro* pra fazer upgrade.`);
+        } else {
+          const optIn = await getOptIn(phone);
+          if (!optIn || !optIn.enabled) {
+            await message.reply(`Mindset inativo.\n\nDigita *ativar mindset* pra começar.`);
+          } else {
+            const freqLabel = { 1: '1x por semana', 3: '3x por semana', 5: 'dias úteis', 7: 'todo dia' }[optIn.frequency] || '3x por semana';
+            await message.reply(
+              `✅ *Mindset ativo* — ${freqLabel} às ${optIn.schedule_hour}h\n\n` +
+              `Pra mudar: *mindset 1x*, *mindset 3x*, *mindset 5x* ou *mindset diário*\n` +
+              `Pra pausar: *cancelar mindset*`
+            );
+          }
+        }
+        return;
+      }
+    }
+
   }
 
   // ---------------------------------------------------------------------------
@@ -1914,6 +2053,19 @@ client.on('message', async (message) => {
   // ---------------------------------------------------------------------------
   // Processamento normal
   // ---------------------------------------------------------------------------
+
+  // ── Convite de mindset: envia uma vez após 14 dias Pro (fire-and-forget) ───
+  if (trial.isPro && isMindsetCapsulesEnabled(phone) && !mindsetInviteChecked.has(phone)) {
+    mindsetInviteChecked.add(phone);
+    shouldSendInvite(phone).then(async (yes) => {
+      if (!yes) return;
+      await client.sendMessage(message.from, MINDSET_INVITE_MESSAGE);
+      await markInviteSent(phone);
+      const ctx = userContext.get(phone) || {};
+      userContext.set(phone, { ...ctx, pendingMindsetOptIn: true });
+      console.log(`[Mindset] Convite enviado para ${phone}`);
+    }).catch(() => {});
+  }
 
   if (message.type === 'chat') {
     const text = message.body.trim();
@@ -2013,6 +2165,33 @@ client.on('message', async (message) => {
       userContext.set(phone, { ...currentCtx2, pendingImageClassification: null });
     }
 
+    // ── Resposta ao convite de mindset (SIM / NÃO) ───────────────────────────
+    const mindsetCtx = getUserContext(phone);
+    const pendingMindset = mindsetCtx?.pendingMindsetOptIn
+      || (isMindsetCapsulesEnabled(phone) && await hasPendingInviteResponse(phone).catch(() => false));
+
+    if (pendingMindset && isMindsetCapsulesEnabled(phone)) {
+      const isYes = /^(sim|s|ativar|quero|yes|ativo)$/i.test(text.trim());
+      const isNo  = /^(n[aã]o|n|nao|agora n[aã]o|agora nao|depois|talvez)$/i.test(text.trim());
+      if (isYes) {
+        const currentCtxM = userContext.get(phone) || {};
+        userContext.set(phone, { ...currentCtxM, pendingMindsetOptIn: false });
+        await activateOptIn(phone);
+        await message.reply(MINDSET_ACTIVATED_MESSAGE);
+        return;
+      }
+      if (isNo) {
+        const currentCtxM = userContext.get(phone) || {};
+        userContext.set(phone, { ...currentCtxM, pendingMindsetOptIn: false });
+        await markInviteDeclined(phone);
+        await message.reply(MINDSET_DECLINED_MESSAGE);
+        return;
+      }
+      // Se não for SIM/NÃO, limpa o estado pendente e segue o fluxo normal
+      const currentCtxM = userContext.get(phone) || {};
+      userContext.set(phone, { ...currentCtxM, pendingMindsetOptIn: false });
+    }
+
     // ── Coach de Transição: continua entrevista em andamento ─────────────────
     const tcCtx = getUserContext(phone);
     if (tcCtx?.transitionCoachState) {
@@ -2072,10 +2251,16 @@ client.on('message', async (message) => {
         const girlProfilePD = await getGirlProfile(phone);
         const girlContextPD = buildGirlContext(girlProfilePD);
 
+        // Loop de aprendizado: busca insight do último debrief (Camada 5 → Camada 4)
+        const lastDebriefCtx = await getLastDebriefInsight(phone).catch(() => null);
+        const girlContextWithDebrief = lastDebriefCtx
+          ? `${girlContextPD}\n\nCONTEXTO DO ÚLTIMO ENCONTRO DELE:\n${lastDebriefCtx}`
+          : girlContextPD;
+
         await message.reply('Preparando seu plano... ⏳');
         const stopTypingPD = await startTyping(message);
         try {
-          const { messages: pdMsgs, dateParsed } = await analisarPreDateComHaiku(updatedAnswers, girlContextPD, phone);
+          const { messages: pdMsgs, dateParsed } = await analisarPreDateComHaiku(updatedAnswers, girlContextWithDebrief, phone);
           stopTypingPD();
           for (const m of pdMsgs) await client.sendMessage(message.from, m);
           if (dateParsed) {
@@ -2086,6 +2271,40 @@ client.on('message', async (message) => {
           }
         } catch (_) {
           stopTypingPD();
+          await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');
+        }
+      }
+      return;
+    }
+
+    // ── Debrief Pós-Date: continua entrevista em andamento ──────────────────
+    const dbCtx = getUserContext(phone);
+    if (dbCtx?.postdateDebriefState) {
+      const dbState = dbCtx.postdateDebriefState;
+      const { questionIndex, answers } = dbState;
+      const updatedAnswers = { ...answers, [questionIndex]: text };
+
+      if (questionIndex < INTERVIEW_QUESTIONS_DEBRIEF.length - 1) {
+        const nextIndex = questionIndex + 1;
+        const currentCtxDB = userContext.get(phone) || {};
+        userContext.set(phone, {
+          ...currentCtxDB,
+          postdateDebriefState: { questionIndex: nextIndex, answers: updatedAnswers },
+        });
+        await client.sendMessage(message.from, INTERVIEW_QUESTIONS_DEBRIEF[nextIndex]);
+      } else {
+        // Todas as 6 perguntas respondidas — analisa
+        const currentCtxDB = userContext.get(phone) || {};
+        userContext.set(phone, { ...currentCtxDB, postdateDebriefState: null });
+
+        await message.reply('Analisando o encontro... ⏳');
+        const stopTypingDB = await startTyping(message);
+        try {
+          const { messages: dbMsgs } = await analisarDebriefComHaiku(updatedAnswers, phone);
+          stopTypingDB();
+          for (const m of dbMsgs) await client.sendMessage(message.from, m);
+        } catch (_) {
+          stopTypingDB();
           await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');
         }
       }
@@ -2253,6 +2472,78 @@ client.on('message', async (message) => {
         `Bora te preparar. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_PREDATE[0]}`
       );
       return;
+    }
+
+    // ── Trigger B/C: Debrief Pós-Date ────────────────────────────────────────
+    if (isPostdateDebriefEnabled(phone) &&
+        (POSTDATE_DEBRIEF_KEYWORDS.test(text) || POSTDATE_AUTO_TRIGGER_PATTERNS.test(text) ||
+         /^debrief( encontro)?$/i.test(text))) {
+      if (!trial.isPremium) {
+        await client.sendMessage(message.from, POSTDATE_DEBRIEF_UPSELL_FREE);
+        trackSubscriptionEvent({
+          phone,
+          eventType:  'upgrade_offered',
+          planFrom:   trial.inTrial ? 'trial' : 'free',
+          planTo:     'premium',
+          triggerCtx: 'postdate_debrief',
+        });
+        return;
+      }
+      // Premium: 1 sessão/mês. Pro: ilimitado.
+      if (!trial.isPro) {
+        const dbCount = await getMonthlyDebriefCount(phone);
+        if (dbCount >= 1) {
+          await client.sendMessage(message.from, POSTDATE_DEBRIEF_UPSELL_PREMIUM_LIMIT);
+          return;
+        }
+      }
+      const currentCtxDBTrig = userContext.get(phone) || {};
+      userContext.set(phone, {
+        ...currentCtxDBTrig,
+        postdateDebriefState: { questionIndex: 0, answers: {} },
+      });
+      await client.sendMessage(message.from,
+        `Bora analisar como foi. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
+      );
+      return;
+    }
+
+    // ── Trigger A: Debrief proativo (resposta ao follow-up do worker) ─────────
+    if (isPostdateDebriefEnabled(phone)) {
+      const hasPendingDebrief = await temDebriefPendente(phone);
+      if (hasPendingDebrief) {
+        if (!trial.isPremium) {
+          await client.sendMessage(message.from, POSTDATE_DEBRIEF_UPSELL_FREE);
+          return;
+        }
+        if (!trial.isPro) {
+          const dbCount = await getMonthlyDebriefCount(phone);
+          if (dbCount >= 1) {
+            // Debrief já feito esse mês — deixa seguir o fluxo normal
+          } else {
+            const currentCtxDBA = userContext.get(phone) || {};
+            userContext.set(phone, {
+              ...currentCtxDBA,
+              postdateDebriefState: { questionIndex: 0, answers: {} },
+            });
+            await client.sendMessage(message.from,
+              `Bora analisar como foi. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
+            );
+            return;
+          }
+        } else {
+          // Pro: sempre inicia o debrief
+          const currentCtxDBA = userContext.get(phone) || {};
+          userContext.set(phone, {
+            ...currentCtxDBA,
+            postdateDebriefState: { questionIndex: 0, answers: {} },
+          });
+          await client.sendMessage(message.from,
+            `Bora analisar como foi. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
+          );
+          return;
+        }
+      }
     }
 
     // Pedido de outra/mais — reutiliza contexto anterior
@@ -2791,6 +3082,7 @@ server.on('error', (err) => {
 client.on('ready', () => {
   console.log('[Bot] Conectado e pronto para receber mensagens!');
   startWorker(client);
+  startMindsetWorker(client);
   setTimeout(verificarExpiracoes, 15000);
   setInterval(verificarExpiracoes, 6 * 60 * 60 * 1000);
 });
