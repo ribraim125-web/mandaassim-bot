@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const path = require('path');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 const { createClient } = require('@supabase/supabase-js');
+const { determinarPlano } = require('./mercadopago');
+const { trackSubscriptionEvent } = require('./lib/subscriptionTracking');
 
 // Rate limiting simples (sem dependência externa)
 const requestHits = new Map(); // ip+scope -> { count, resetAt }
@@ -54,6 +56,14 @@ const CONFIRMACAO_PREMIUM =
   `✅ *Pagamento confirmado!*\n\n` +
   `Bem-vindo ao *MandaAssim Premium* 🚀\n\n` +
   `Você agora tem mensagens *ilimitadas*. Manda o próximo print ou descreve a situação!`;
+
+const CONFIRMACAO_PRO =
+  `✅ *Wingman Pro ativado!* 🔥\n\n` +
+  `Você agora tem acesso a tudo:\n` +
+  `• Mensagens ilimitadas\n` +
+  `• Análise de print de conversa (5/dia)\n` +
+  `• *Análise de Perfil* — manda print do perfil dela que eu gero a primeira mensagem certa (10/dia)\n\n` +
+  `Testa agora: manda um print do perfil dela no Tinder ou Bumble 👇`;
 
 const CONFIRMACAO_24H =
   `✅ *24h ativado!*\n\n` +
@@ -128,10 +138,13 @@ function createWebhookApp(waClient) {
         return;
       }
 
-      // Calcula validade com base no valor pago
+      // Determina plano e validade com base no valor pago
       const amount = result.transaction_amount ?? 0;
-      const days = amount >= 100 ? 365 : amount <= 9.99 ? 1 : 30;
-      const confirmacaoMsg = days === 1 ? CONFIRMACAO_24H : CONFIRMACAO_PREMIUM;
+      const { plan: newPlan, days } = determinarPlano(amount);
+      const confirmacaoMsg =
+        days === 1       ? CONFIRMACAO_24H :
+        newPlan === 'pro' ? CONFIRMACAO_PRO :
+        CONFIRMACAO_PREMIUM;
 
       const supabase = getSupabase();
 
@@ -163,9 +176,16 @@ function createWebhookApp(waClient) {
         // Ativa direto pelo telefone extraído do external_ref
         await supabase
           .from('users')
-          .update({ plan: 'premium', plan_expires_at: expiresAtIso, renewal_notified: false, winback_unlock_at: null })
+          .update({ plan: newPlan, plan_expires_at: expiresAtIso, renewal_notified: false, winback_unlock_at: null })
           .eq('phone', phoneFromRef);
-        console.log(`[Webhook] ✅ Usuário ${phoneFromRef} promovido para Premium (sem registro)!`);
+        console.log(`[Webhook] ✅ Usuário ${phoneFromRef} promovido para ${newPlan} (sem registro, ${days}d)!`);
+        trackSubscriptionEvent({
+          phone: phoneFromRef,
+          eventType: 'plan_activated',
+          planTo: newPlan,
+          amountBrl: amount,
+          metadata: { mp_payment_id: paymentId, days },
+        });
         const chatIdFallback = userRowFallback?.wa_chat_id || `${phoneFromRef}@c.us`;
         try {
           await waClient.sendMessage(chatIdFallback, confirmacaoMsg);
@@ -199,6 +219,9 @@ function createWebhookApp(waClient) {
       else expiresAt.setDate(expiresAt.getDate() + days);
       const expiresAtIso = expiresAt.toISOString();
 
+      // Busca plano anterior para tracking
+      const planAnterior = userRow?.plan || 'free';
+
       // Atualiza pagamento e usuário no banco
       await Promise.all([
         supabase
@@ -207,11 +230,21 @@ function createWebhookApp(waClient) {
           .eq('external_ref', externalRef),
         supabase
           .from('users')
-          .update({ plan: 'premium', plan_expires_at: expiresAtIso, renewal_notified: false, winback_unlock_at: null })
+          .update({ plan: newPlan, plan_expires_at: expiresAtIso, renewal_notified: false, winback_unlock_at: null })
           .eq('phone', phone),
       ]);
 
-      console.log(`[Webhook] ✅ Usuário ${phone} promovido para Premium (${days}d)!`);
+      console.log(`[Webhook] ✅ Usuário ${phone} promovido para ${newPlan} (${days}d)!`);
+
+      // Tracking de conversão
+      trackSubscriptionEvent({
+        phone,
+        eventType: 'plan_activated',
+        planFrom: planAnterior,
+        planTo: newPlan,
+        amountBrl: amount,
+        metadata: { mp_payment_id: paymentId, days, external_ref: externalRef },
+      });
 
       // Notifica o usuário no WhatsApp usando o chat ID real (salvo quando o usuário mandou a primeira mensagem)
       const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
@@ -241,6 +274,47 @@ function createWebhookApp(waClient) {
     const { data: user } = await supabase.from('users').select('*').eq('phone', phone).maybeSingle();
     const { data: payments } = await supabase.from('payments').select('*').eq('phone', phone).order('created_at', { ascending: false });
     res.json({ user, payments });
+  });
+
+  // Ativa Pro manualmente (para testes e soft-launch)
+  // POST /admin/pro  body: { phone }  header: x-admin-key
+  app.post('/admin/pro', async (req, res) => {
+    if (!validarAdminKey(req)) return res.status(401).json({ error: 'não autorizado' });
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+
+    const supabase = getSupabase();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const { data: userRow, error } = await supabase
+      .from('users')
+      .update({ plan: 'pro', plan_expires_at: expiresAt.toISOString(), renewal_notified: false })
+      .eq('phone', phone)
+      .select('wa_chat_id, plan')
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    trackSubscriptionEvent({
+      phone,
+      eventType: 'plan_activated',
+      planFrom: userRow?.plan || 'unknown',
+      planTo: 'pro',
+      triggerCtx: 'manual',
+      metadata: { activated_by: 'admin', expires_at: expiresAt.toISOString() },
+    });
+
+    console.log(`[Admin] ✅ Wingman Pro ativado manualmente para ${phone}`);
+
+    const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
+    try {
+      await waClient.sendMessage(chatId, CONFIRMACAO_PRO);
+    } catch (e) {
+      console.warn('[Admin] Não conseguiu notificar no WhatsApp:', e.message);
+    }
+
+    res.json({ ok: true, phone, expires_at: expiresAt.toISOString() });
   });
 
   // Ativa premium manualmente
@@ -301,8 +375,9 @@ function createWebhookApp(waClient) {
     const now = new Date();
     const totalUsers = usersData.length;
     const premium = usersData.filter(u => u.plan === 'premium' && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
-    const trial = usersData.filter(u => u.plan !== 'premium' && new Date(u.created_at) >= trialCutoff).length;
-    const free = usersData.filter(u => u.plan !== 'premium' && new Date(u.created_at) < trialCutoff).length;
+    const pro     = usersData.filter(u => u.plan === 'pro'     && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
+    const trial = usersData.filter(u => !['premium','pro'].includes(u.plan) && new Date(u.created_at) >= trialCutoff).length;
+    const free  = usersData.filter(u => !['premium','pro'].includes(u.plan) && new Date(u.created_at) < trialCutoff).length;
     const newToday = usersData.filter(u => new Date(u.created_at) >= todayStart).length;
     const newWeek = usersData.filter(u => new Date(u.created_at) >= weekAgo).length;
 
@@ -319,18 +394,19 @@ function createWebhookApp(waClient) {
 
     // Métricas avançadas
     const churnCount = usersData.filter(u =>
-      u.plan === 'premium' && u.plan_expires_at && new Date(u.plan_expires_at) <= now
+      ['premium','pro'].includes(u.plan) && u.plan_expires_at && new Date(u.plan_expires_at) <= now
     ).length;
     const freePostTrial = usersData.filter(u =>
-      u.plan !== 'premium' && new Date(u.created_at) < trialCutoff
+      !['premium','pro'].includes(u.plan) && new Date(u.created_at) < trialCutoff
     ).length;
-    const conversionRate = (premium + freePostTrial) > 0
-      ? +((premium / (premium + freePostTrial)) * 100).toFixed(1) : 0;
-    const churnRate = (premium + churnCount) > 0
-      ? +((churnCount / (premium + churnCount)) * 100).toFixed(1) : 0;
+    const totalPaid = premium + pro;
+    const conversionRate = (totalPaid + freePostTrial) > 0
+      ? +((totalPaid / (totalPaid + freePostTrial)) * 100).toFixed(1) : 0;
+    const churnRate = (totalPaid + churnCount) > 0
+      ? +((churnCount / (totalPaid + churnCount)) * 100).toFixed(1) : 0;
     const avgMsgsPerUserDay = activeToday > 0 ? +(msgsToday / activeToday).toFixed(1) : 0;
     const avgMsgsPerUser = totalUsers > 0 ? +(msgsTotal / totalUsers).toFixed(1) : 0;
-    const mrr = +(premium * 29.9).toFixed(2);
+    const mrr = +(premium * 29.9 + pro * 79.9).toFixed(2);
 
     // Gráfico últimos 7 dias
     const dailyMap = {};
@@ -353,7 +429,7 @@ function createWebhookApp(waClient) {
       .map(r => ({ phone: r.phone, count: r.message_count }));
 
     res.json({
-      totalUsers, premium, trial, free, newToday, newWeek,
+      totalUsers, premium, pro, trial, free, newToday, newWeek,
       activeToday, msgsToday, msgsWeek, msgsTotal,
       churnCount, churnRate, conversionRate,
       avgMsgsPerUserDay, avgMsgsPerUser, mrr,
@@ -397,7 +473,7 @@ function createWebhookApp(waClient) {
       .filter(u => !ADMIN_PHONES.includes(u.phone))
       .map(u => ({
         ...u,
-        is_trial: u.plan !== 'premium' && new Date(u.created_at) >= trialCutoff,
+        is_trial: !['premium','pro'].includes(u.plan) && new Date(u.created_at) >= trialCutoff,
         msgs_today: todayMap[u.phone] || 0,
         msgs_total: totalMap[u.phone] || 0,
       }));

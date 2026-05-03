@@ -2,6 +2,18 @@ const { MercadoPagoConfig, Payment } = require('mercadopago');
 const { createClient } = require('@supabase/supabase-js');
 
 const PRECO_PREMIUM = 29.90;
+const PRECO_PRO     = 79.90;
+
+/**
+ * Determina plano e dias de validade com base no valor pago.
+ * Centralizado aqui para webhook e index.js usarem a mesma lógica.
+ */
+function determinarPlano(amount) {
+  if (amount <= 9.99)                    return { plan: 'premium', days: 1   }; // 24h
+  if (Math.abs(amount - PRECO_PRO) < 2) return { plan: 'pro',     days: 30  }; // Pro mensal
+  if (amount >= 100)                     return { plan: 'premium', days: 365 }; // anual
+  return                                        { plan: 'premium', days: 30  }; // mensal básico
+}
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -66,4 +78,4 @@ async function criarCobrancaPix(phone, amount = PRECO_PREMIUM) {
   };
 }
 
-module.exports = { criarCobrancaPix };
+module.exports = { criarCobrancaPix, determinarPlano, PRECO_PRO };

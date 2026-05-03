@@ -4,7 +4,8 @@ const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
 const OpenAI = require('openai');
 const Anthropic = require('@anthropic-ai/sdk');
-const { criarCobrancaPix } = require('./src/mercadopago');
+const { criarCobrancaPix, determinarPlano, PRECO_PRO } = require('./src/mercadopago');
+const { trackSubscriptionEvent } = require('./src/lib/subscriptionTracking');
 const { createWebhookApp } = require('./src/webhook');
 const { startWorker } = require('./src/followup/followupWorker');
 const { cancelPendingFollowups } = require('./src/followup/followupCanceller');
@@ -36,6 +37,7 @@ const PRECO_24H = 4.99;
 const PRECO_MENSAL = 29.90;
 const PRECO_ANUAL = 299.00;
 const PRECO_WINBACK = 19.90;
+const PRECO_PRO_LANCAMENTO = 55.93; // 30% off — só pra base atual no lançamento
 
 // Feature flag: análise de prints de conversa via Haiku 4.5 vision (Camada 1)
 // Valor: 'false' | 'test' | 'beta' (10% premium) | 'all'
@@ -91,9 +93,12 @@ const PRINT_LIMIT_REACHED_TRIAL =
   `Deu 1 análise de print por hoje — esse é o limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`;
 
 const PROFILE_UPSELL_MESSAGE =
-  `Análise de perfil é uma feature do *Wingman Pro* 🔍\n\n` +
-  `Com ela: manda o print do perfil dela no Tinder, Bumble ou Instagram e eu leio a personalidade, os hooks do perfil e gero a primeira mensagem personalizada — daquelas que ela percebe que você realmente olhou.\n\n` +
-  `_O Wingman Pro está chegando. Fique de olho._`;
+  `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\n` +
+  `Você manda o print do perfil dela no Tinder, Bumble ou Instagram — eu leio o que ela revela sobre si mesma e gero a primeira mensagem certa. Daquelas que ela percebe que você realmente olhou.\n\n` +
+  `+ Análise de conversa (5/dia)\n` +
+  `+ Análise de perfil (10/dia)\n` +
+  `+ Mensagens ilimitadas\n\n` +
+  `Quer fazer upgrade? Digita *pro* 👇`;
 
 const PROFILE_LIMIT_REACHED_PRO =
   `Chegou no limite de 10 análises de perfil hoje.\n\nAmanhã cedo tem mais 10.`;
@@ -1453,6 +1458,34 @@ async function upsellSonnetFree(message, sonnetInfo, trial) {
 // Pagamento Pix
 // ---------------------------------------------------------------------------
 
+async function enviarCobrancaPixPro(message, phone) {
+  try {
+    const { qrCodeBase64, qrCodeText } = await criarCobrancaPix(phone, PRECO_PRO);
+
+    await message.reply(
+      `*Wingman Pro — R$79,90/mês* 🔥\n\n` +
+      `Inclui:\n` +
+      `• Mensagens ilimitadas\n` +
+      `• Análise de print de conversa (5/dia)\n` +
+      `• *Análise de Perfil* no Tinder, Bumble, Instagram (10/dia)\n\n` +
+      `⚠️ Pix aparecerá no nome *Rafael Cabral Ibraim* — é o responsável pelo MandaAssim. Seguro pagar normalmente ✅`
+    );
+
+    const media = new MessageMedia('image/png', qrCodeBase64, 'pix-pro.png');
+    await client.sendMessage(message.from, media);
+    await client.sendMessage(message.from, qrCodeText);
+    await client.sendMessage(message.from,
+      `✅ Após o pagamento, você recebe confirmação aqui em menos de 1 minuto.\n\n` +
+      `_Se demorar, digita *paguei* que eu verifico._`
+    );
+
+    console.log(`[Pix Pro] QR Code enviado para ${phone}`);
+  } catch (err) {
+    console.error('[Pix Pro] Erro:', err.message);
+    await message.reply('Tive um problema ao gerar o Pix 😕\nTente novamente em instantes.');
+  }
+}
+
 async function enviarCobrancaPix(message, phone, amount = undefined) {
   try {
     const { qrCodeBase64, qrCodeText } = await criarCobrancaPix(phone, amount);
@@ -1564,12 +1597,16 @@ client.on('message', async (message) => {
       const used = countRow?.message_count ?? 0;
 
       let statusText;
-      if (trial.isPremium) {
+      if (trial.isPro) {
+        const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
+        statusText = `🔥 *Wingman Pro* — mensagens ilimitadas + Análise de Perfil\n` +
+          (validade ? `_Válido até ${validade}_` : '');
+      } else if (trial.isPremium) {
         if (trial.expiresAt) {
           const validade = new Date(trial.expiresAt).toLocaleDateString('pt-BR');
-          statusText = `🌟 *Premium* — mensagens ilimitadas\n_Válido até ${validade}_`;
+          statusText = `🌟 *Wingman Premium* — mensagens ilimitadas\n_Válido até ${validade}_`;
         } else {
-          statusText = '🌟 *Premium* — mensagens ilimitadas';
+          statusText = '🌟 *Wingman Premium* — mensagens ilimitadas';
         }
       } else if (trial.inTrial) {
         statusText = `🎉 *Trial ativo* — ilimitado por mais *${trial.trialDaysLeft} dia(s)*\n_Usado hoje: ${used} análises_`;
@@ -1602,6 +1639,24 @@ client.on('message', async (message) => {
 
     if (cmd === 'anual') {
       await enviarCobrancaPix(message, phone, PRECO_ANUAL);
+      return;
+    }
+
+    if (cmd === 'pro' || cmd === 'wingman pro' || cmd === 'upgrade') {
+      const trial = await getTrialInfo(phone);
+      if (trial.isPro) {
+        await message.reply('🔥 Você já é *Wingman Pro*! Pode usar todas as features à vontade.');
+        return;
+      }
+      // Gera Pix Pro (R$79,90 padrão)
+      await enviarCobrancaPixPro(message, phone);
+      trackSubscriptionEvent({
+        phone,
+        eventType:  'upgrade_offered',
+        planFrom:   trial.isPremium ? 'premium' : (trial.inTrial ? 'trial' : 'free'),
+        planTo:     'pro',
+        triggerCtx: 'command_pro',
+      });
       return;
     }
 
@@ -1658,17 +1713,19 @@ client.on('message', async (message) => {
 
           if (result.status === 'approved') {
             const amount = result.transaction_amount ?? 0;
-            const days = amount >= 100 ? 365 : amount <= 9.99 ? 1 : 30;
+            const { plan: newPlan, days } = determinarPlano(amount);
             const expiresAt = new Date();
             if (days === 1) expiresAt.setHours(expiresAt.getHours() + 24);
             else expiresAt.setDate(expiresAt.getDate() + days);
             await Promise.all([
-              supabase.from('users').update({ plan: 'premium', plan_expires_at: expiresAt.toISOString(), renewal_notified: false, winback_unlock_at: null }).eq('phone', phone),
+              supabase.from('users').update({ plan: newPlan, plan_expires_at: expiresAt.toISOString(), renewal_notified: false, winback_unlock_at: null }).eq('phone', phone),
               supabase.from('payments').update({ status: 'approved' }).eq('mp_payment_id', pagamento.mp_payment_id),
             ]);
-            console.log(`[Paguei] ✅ Premium ativado via consulta MP para ${phone} (${days}d)`);
+            console.log(`[Paguei] ✅ ${newPlan} ativado via consulta MP para ${phone} (${days}d)`);
             const confirmMsg = days === 1
               ? '✅ *24h ativado!*\n\nAcesso ilimitado pelas próximas *24 horas* 🚀\n\nAproveita — manda o print agora!'
+              : newPlan === 'pro'
+              ? `✅ *Wingman Pro ativado!* 🔥\n\nAgora você tem Análise de Perfil + tudo mais. Manda o print do perfil dela pra testar 👇`
               : '✅ *Pagamento confirmado!*\n\nBem-vindo ao *MandaAssim Premium* 🚀\n\nVocê agora tem mensagens *ilimitadas*. Manda o próximo print ou descreve a situação!';
             await message.reply(confirmMsg);
           } else {
@@ -2171,6 +2228,13 @@ client.on('message', async (message) => {
           const needsPlanCheck = PROFILE_ANALYSIS_MODE !== 'test';
           if (needsPlanCheck && !trial.isPro) {
             await client.sendMessage(message.from, PROFILE_UPSELL_MESSAGE);
+            trackSubscriptionEvent({
+              phone,
+              eventType:  'upgrade_offered',
+              planFrom:   trial.isPremium ? 'premium' : (trial.inTrial ? 'trial' : 'free'),
+              planTo:     'pro',
+              triggerCtx: 'profile_analysis',
+            });
             return;
           }
 
