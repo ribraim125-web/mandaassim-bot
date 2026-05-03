@@ -535,11 +535,13 @@ async function enviarResposta(message, sugestoes, intent = '') {
     await client.sendMessage(message.from, partes.join('\n\n'));
   }
 
-  // Bloco 2 — cada opção como mensagem separada (fácil de copiar com long press)
+  // Bloco 2 — label + mensagem separados: label diz o estilo, mensagem é só o texto puro pra copiar
   if (opcoes.length >= 2) {
+    const labels = { '🔥': '🔥 *Romântica*', '😏': '😏 *Ousada*', '⚡': '⚡ *Direta*', '1️⃣': '1️⃣', '2️⃣': '2️⃣', '3️⃣': '3️⃣' };
     await client.sendMessage(message.from, '*Escolhe uma* 👇');
     for (const { emoji, msg } of opcoes) {
-      await client.sendMessage(message.from, `${emoji}  "${msg}"`);
+      await client.sendMessage(message.from, labels[emoji] || emoji); // ex: "🔥 *Romântica*"
+      await client.sendMessage(message.from, msg);                    // texto puro, sem aspas
     }
     if (porque) {
       await client.sendMessage(message.from, `_${porque}_`);
