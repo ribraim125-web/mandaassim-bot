@@ -9,6 +9,7 @@ const { createWebhookApp } = require('./src/webhook');
 const { startWorker } = require('./src/followup/followupWorker');
 const { cancelPendingFollowups } = require('./src/followup/followupCanceller');
 const { logApiRequest } = require('./src/lib/tracking');
+const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
 const {
   scheduleInactiveFollowup,
   scheduleLimitDrop10,
@@ -1425,12 +1426,22 @@ client.on('message', async (message) => {
   // Cancela qualquer follow up pendente quando usuário manda mensagem
   cancelPendingFollowups(phone).catch(() => {});
 
+  // Detecta slug de aquisição na mensagem (ex: "mandaassim_instagram_reel_001")
+  const acquisitionSlug = parseAcquisitionSlug(message.type === 'chat' ? message.body : null);
+
   // Boas-vindas para novos usuários (não conta no limite)
   const isNewUser = await upsertUser(phone, contactName, message.from);
   if (isNewUser) {
+    saveAttribution(phone, acquisitionSlug).catch(() => {}); // fire-and-forget, nunca bloqueia
     await message.reply(WELCOME_MESSAGE);
     console.log(`[Boas-vindas] Enviada para: ${phone}`);
     scheduleInactiveFollowup(phone).catch(() => {});
+    return;
+  }
+
+  // Slug detectado em usuário já existente — descarta silenciosamente sem sobrescrever
+  if (acquisitionSlug) {
+    console.log(`[Aquisição] ${phone} enviou slug mas já é usuário existente — ignorado`);
     return;
   }
 
