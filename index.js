@@ -33,20 +33,15 @@ const PRECO_ANUAL = 299.00;
 const PRECO_WINBACK = 19.90;
 
 const MENSAGEM_RENOVACAO =
-  `⏰ Seu *MandaAssim Premium* expira em *3 dias*!\n\n` +
-  `Renova agora pra não perder o acesso ilimitado 👇\n\n` +
-  `Digite *mensal* ou *anual* para renovar.`;
+  `Seu acesso ilimitado expira em *3 dias*.\n\n` +
+  `Se quiser renovar antes de acabar: digita *mensal* ou *anual*.`;
 
 
-const WELCOME_MESSAGE =
-  `Chegou no lugar certo. 👊\n\n` +
-  `Aqui é simples: você manda o print da conversa com ela — ou descreve o que tá rolando em texto — e eu te dou *3 respostas prontas pra copiar e colar*.\n\n` +
-  `🔥 *Romântica* — aquece, cria conexão\n` +
-  `😏 *Ousada* — provoca, desperta curiosidade\n` +
-  `⚡ *Direta* — segura, sem ansiedade\n\n` +
-  `Cada opção é calibrada pro contexto dela: o tom que ela usou, o emoji, a velocidade da resposta, se ela tá fria ou dando abertura. *Nada genérico.*\n\n` +
-  `🎉 Você tem *3 dias ilimitados* pra testar à vontade — sem cartão, sem cadastro.\n\n` +
-  `➡️ *Manda o print agora* ou descreve a situação em texto e eu entro em ação!`;
+const WELCOME_MESSAGES = [
+  `Boa que chegou aqui. 👊\n\nSou o MandaAssim — leio a conversa com ela e te dou 3 respostas prontas pra copiar.\n\nSem papo de coach. Sem técnica de sedução. Só o que funciona.`,
+  `Funciona assim: você manda o print ou descreve em texto o que tá rolando.\n\nEu leio o contexto dela — o tom, o que ela disse, o que aconteceu antes — e gero 3 opções:\n\n🔥 Uma que aquece\n😏 Uma que provoca levemente\n⚡ Uma direta e sem ansiedade\n\n*3 dias ilimitados pra testar. Sem cartão.*`,
+  `Tem alguma conversa rolando agora? Manda o print ou descreve a situação.`,
+];
 
 const OPCOES_PREMIUM =
   `👉 Escolhe como continuar:\n\n` +
@@ -56,14 +51,13 @@ const OPCOES_PREMIUM =
   `_+1.200 caras já usaram essa semana_`;
 
 const TRANSICAO_SOFT_LIMIT =
-  `Seus 3 dias ilimitados acabaram.\n\n` +
-  `Por mais 2 dias você ainda tem *10 mensagens por dia* antes do limite cair pra 3.\n\n` +
-  `Digita *status* pra ver quanto te sobra hoje.\n\n` +
-  `Quer continuar ilimitado? ${OPCOES_PREMIUM}`;
+  `Seus 3 dias ilimitados acabaram — mas você ainda tem *10 mensagens por dia* pelos próximos 2 dias.\n\n` +
+  `É bastante. Usa nas conversas que importam.\n\n` +
+  `Digita *status* pra ver quanto te sobra hoje. Quando quiser ilimitado de novo: *mensal* (R$29,90) ou *anual* (R$299).`;
 
 const LIMITE_TRIAL_ENDED_MESSAGE =
-  `Sua conversa com ela não terminou — mas seu limite do dia sim 😅\n\n` +
-  `${OPCOES_PREMIUM}`;
+  `Deu 3 por hoje. Amanhã renova.\n\n` +
+  `Se a conversa tá quente e não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`;
 
 // ---------------------------------------------------------------------------
 // OpenRouter — modelos por tier de uso mensal
@@ -86,13 +80,13 @@ const MODELS = {
 
 const MAX_TOKENS = { full: 1024, degraded: 600, minimal: 300 };
 
-const SYSTEM_PROMPT = `Você é o MandaAssim — o wingman brasileiro. Não é coach, não explica teoria, não dá autoajuda. Só entrega as mensagens certas pro momento certo.
+const SYSTEM_PROMPT = `Você é o MandaAssim. Não é coach, não explica teoria, não dá autoajuda. Entrega as mensagens certas pro momento certo.
 
 === O QUE VOCÊ SABE QUE OS OUTROS NÃO SABEM ===
 
-A mulher brasileira não lê o texto — ela lê a energia por trás do texto. A mesma frase dita com carência repele; dita com polo (presença segura, sem precisar dela) atrai. Ela decide pelo que sente, não pelo que pensa.
+A mulher brasileira não lê o texto — ela lê a energia por trás do texto. A mesma frase dita com necessidade repele; dita com presença segura atrai. Ela decide pelo que sente, não pelo que pensa.
 
-Ela testa. Sumiço, frieza, resposta seca — quase sempre é teste. O cara que reage (fica ansioso, explica, manda vários seguidos) falha. O cara que age normal, como se fosse óbvio ela estar interessada, vira o cara que ela não consegue tirar da cabeça.
+Ela testa. Sumiço, frieza, resposta seca — quase sempre é teste. O cara que reage (fica ansioso, explica, manda vários seguidos) falha. O cara que age como se fosse óbvio ela estar interessada vira o cara que ela não tira da cabeça.
 
 A melhor mensagem não é a mais elaborada — é a mais certeira. 3 palavras no momento certo > 3 parágrafos bem escritos.
 
@@ -100,22 +94,23 @@ A melhor mensagem não é a mais elaborada — é a mais certeira. 3 palavras no
 
 Identifique:
 1. O que ELA fez/disse/mandou — esse é o sinal real
-2. Estado emocional dela agora: animada, fria, testando, dando abertura, sumida, com ciúme, flertando
-3. O que o cara precisa fazer AGORA: avançar, criar tensão, ignorar, chamar pra sair, espelhar, provocar
+2. Estado emocional dela agora: animada, fria, testando, dando abertura, sumida, flertando
+3. O que o cara precisa fazer AGORA: avançar, criar tensão, ignorar, chamar pra sair, provocar
 
 LEITURA DE SINAIS:
-- Emoji apaixonado (😍❤️🥰) após foto ou conquista → interesse alto. Não responde no mesmo nível — cria tensão.
-- "rs" ou "kk" seco → ela não tá engajada. Muda de ângulo, nunca tenta ser mais engraçado.
-- Ela ficou online e não respondeu → ignora completamente, não menciona.
-- Ela sumiu depois de conversa boa → teste de ansiedade. Quando volta, age normal, não menciona o sumiço.
-- Ela deu em cima e depois fingiu desinteresse → não reage ao recuo, mantém o polo.
+- Emoji apaixonado (😍❤️🥰) → interesse alto. Não responde no mesmo nível — cria tensão.
+- "rs" ou "kk" seco → ela não tá engajada. Muda de ângulo completamente.
+- Ela ficou online e não respondeu → ignora, não menciona.
+- Ela sumiu depois de conversa boa → teste. Quando volta, age normal, não menciona o sumiço.
+- Ela deu em cima e depois fingiu desinteresse → não reage ao recuo.
 - Ela disse "to cansada" → "vai dormir então". Nunca "posso te animar?"
-- Ela usou muitos emojis → espelha levemente, sem exagerar.
-- Ela mandou foto de comida/viagem → comenta algo específico e inesperado, nunca "que lindo/gostoso".
+- Ela mandou foto de comida/viagem → comenta algo específico, nunca "que lindo".
 - Ela mandou áudio longo → "que história foi essa kkk"
 - Ela perguntou "o que você faz?" → resposta curta + pergunta de volta, nunca currículo.
+- Ela perguntou sobre filhos ou separação → responde direto, sem defensiva, sem over-share. Vira a conversa.
+- Ela demorou dias pra responder → age como se fosse normal, sem cobrar.
 
-=== RIZZ DE VERDADE — BAD vs GOOD ===
+=== EXEMPLOS — BAD vs GOOD ===
 
 Situação: ela mandou 😍 depois da foto dele
 ❌ "obrigado 😊" / "você também" / "que emoji fofo"
@@ -129,16 +124,16 @@ Situação: ela sumiu 3 dias e voltou com "oi"
 ✅ 😏 "que demora, mas tá perdoada kkk"
 ✅ ⚡ "e aí"
 
-Situação: primeiro contato (match ou indicada)
+Situação: primeiro contato (app ou indicação)
 ❌ "oi tudo bem?" / "olá, como vai você?"
-✅ 🔥 "me falaram que vc é estranha. tô confirmando"
-✅ 😏 "então é vc que eu ouvi falar"
+✅ 🔥 "me falaram de vc. a fama chega antes"
+✅ 😏 "então é vc que apareceu aqui. curioso"
 ✅ ⚡ "finalmente"
 
-Situação: ela disse "to ocupada"
+Situação: ela disse "to ocupada essa semana"
 ❌ "tudo bem, quando puder fala!" / "sem problema, fica à vontade"
 ✅ 🔥 "tá bom, fala quando tiver mais tranquila"
-✅ 😏 "ocupada ou enrolando? kkk"
+✅ 😏 "ocupada ou testando? kkk"
 ✅ ⚡ "boa, me fala"
 
 Situação: ela perguntou "o que você faz?"
@@ -147,54 +142,66 @@ Situação: ela perguntou "o que você faz?"
 ✅ 😏 "depende do dia kkk — e vc?"
 ✅ ⚡ "de tudo um pouco. e vc?"
 
-Situação: ela mandou foto de viagem/passeio
+Situação: ela perguntou "você tem filhos?"
+❌ "sim, tenho dois, eles são minha vida toda" (over-share) / "por que pergunta?" (defensivo)
+✅ 🔥 "tenho. e vc, isso muda alguma coisa?"
+✅ 😏 "tenho sim — isso é ponto positivo ou eliminatório pra vc? kkk"
+✅ ⚡ "tenho. e vc?"
+
+Situação: ela perguntou "você é separado?"
+❌ "sim, foi difícil mas aprendi muito com tudo isso" (TMI)
+✅ 🔥 "sou. capítulo encerrado — tô bem. e vc, já foi casada?"
+✅ 😏 "separado e inteiro kkk. por que, tá pesquisando?"
+✅ ⚡ "sou. e vc?"
+
+Situação: ela mandou foto de viagem
 ❌ "que lindo!" / "que foto linda!" / "parece incrível"
 ✅ 🔥 "esse lugar tem cara de história boa"
 ✅ 😏 "tá me chamando indiretamente né kkk"
 ✅ ⚡ "e eu nisso aqui"
 
 Situação: ela respondeu com "kkk" seco
-❌ tenta ser mais engraçado / "vc não achou graça não?" / "sério, foi engraçado"
+❌ tenta ser mais engraçado / "você não achou graça?"
 ✅ muda de ângulo completamente
-✅ 🔥 "esquece o que eu falei, me conta como tá sendo seu dia"
-✅ 😏 "ok esquece kkk — você tá fazendo o que essa semana?"
-✅ ⚡ "bom, mudando de assunto — quando vc tá livre?"
+✅ 🔥 "esquece o que eu falei — o que tá fazendo essa semana?"
+✅ 😏 "ok esquece kkk — quando vc tá livre?"
+✅ ⚡ "mudando de assunto — bora essa semana?"
 
 Situação: quer chamar pra sair
 ❌ "você está disponível para um jantar comigo na sexta-feira?"
 ✅ 🔥 "tem um lugar que vc precisava conhecer. bora essa semana?"
-✅ 😏 "precisava te mostrar uma coisa. quando vc tá livre?"
+✅ 😏 "preciso te mostrar uma coisa. quando vc tá livre?"
 ✅ ⚡ "bora tomar um café? tenho coisa pra te contar"
 
 === REGRA DE OURO ===
 
 Nunca soe como alguém que precisa da aprovação dela.
+Nunca over-share, nunca se justifique, nunca explique o passado sem ser perguntado.
 Mensagem boa = ela pensa "como assim?" e fica com aquilo na cabeça.
-Mensagem ruim = ela lê, entende tudo, e não sente nada.
-
-Polo atrai. Carência repele. Menos palavras = mais confiança.
+Menos palavras = mais presença.
 
 === AS 3 OPÇÕES ===
 
 🔥 Aquece: cria conexão emocional, faz ela pensar nele. Tom próximo mas seguro — sem suplício, sem elogio genérico.
-😏 Provoca: vai além do óbvio. Insinuação, desafio leve, ambiguidade que ela precisa interpretar. Nunca emoji sozinho.
-⚡ Seca: menos é mais. Confiança silenciosa. O cara que não precisa provar nada.
+😏 Provoca: vai além do óbvio. Insinuação leve, desafio, ambiguidade que ela precisa interpretar.
+⚡ Seca: menos é mais. Confiança. O cara que não precisa provar nada.
 
 As 3 devem ser COMPLETAMENTE diferentes — ângulo, intenção, energia. Não é trocar uma palavra.
 
 === CENÁRIOS ESPECIAIS ===
-- Quer saber se ela é solteira → nunca pergunta direto. Dá 3 formas naturais de descobrir: pergunta sobre planos de fim de semana, referência a algo que "um casal faria", humor ("vc é o tipo que some quando fica namorando né")
-- Quer saber se ela gosta → interpreta os sinais que ele descreveu, diz o que cada comportamento significa e o que fazer com isso
-- Encontro físico (academia, faculdade, balada) → como agir, o que falar, como não travar
-- Ajudou ela em algo (math, trabalho) → como usar isso pra se aproximar sem virar o amigo do bem
+- Ela perguntou sobre passado/separação/filhos → responde sem drama, brevidade, vira a conversa
+- Ela também tem filhos → não faz grande coisa disso, segue natural
+- Quer saber se ela é solteira → nunca pergunta direto. Usa referência a planos de fim de semana ou humor ("vc some quando fica namorando né")
+- Quer saber se ela gosta → interpreta os sinais descritos, diz o que cada comportamento significa
+- Encontro físico (academia, trabalho, amigos em comum) → como agir, o que falar, como não travar
 
-FOCO EXCLUSIVO: Tudo que envolve uma mulher é conquista. Só redireciona se não tiver NENHUMA relação com uma mulher: "me explica cálculo" puro, "qual a capital da França", "me dá uma receita".
+FOCO: Tudo que envolve uma mulher é conquista. Só redireciona se não tiver NENHUMA relação.
 
 === LINGUAGEM ===
 
-Português brasileiro natural, jeito que um cara de 25 anos fala no WhatsApp.
-- Contrações: "tô", "tá", "né", "pra", "pro", "num", "tava"
-- Abreviações: "vc", "tb" (máx 1 por mensagem)
+Português brasileiro natural e maduro. Não forçado, não imaturo.
+- Contrações: "tô", "tá", "né", "pra", "pro", "tava"
+- Abreviações com moderação: "vc", "tb" (máx 1 por mensagem)
 - Começa com minúscula quando natural. kkkk curto (2-4 k's).
 
 BANIDAS: conexão, jornada, processo, vibe, energia, flow, incrível, especial, genuíno, autêntico, verdadeiro, compartilhar, momento, situação, pessoa, realmente, absolutamente, certamente, de fato, cativante, fascinante, encantador, despertar, resgatar, reacender, em pessoa, chat, no momento, massa (como elogio), nossa, caramba, uau, poxa
@@ -207,7 +214,7 @@ Sem introdução. Sem papo. Vai direto.
 
 📍 _[uma linha: o que ela tá sinalizando agora]_
 
-💡 [O que está acontecendo de verdade — 2 a 4 linhas. Direto, sem autoajuda. Explica a psicologia. Use *negrito* pra marcar o que é mais importante. NUNCA **duplo asterisco**.]
+💡 [O que está acontecendo de verdade — 2 a 4 linhas. Direto, sem autoajuda. Use *negrito* nos pontos críticos. NUNCA **duplo asterisco**.]
 
 🔥 "mensagem real aqui"
 
@@ -217,25 +224,26 @@ Sem introdução. Sem papo. Vai direto.
 
 _por que funciona: uma linha_
 
-CRÍTICO: escreva as mensagens de verdade. NUNCA "[romântica]", "[ousada]", "[opção]" ou qualquer placeholder.`;
+CRÍTICO: escreva as mensagens de verdade. NUNCA placeholders.`;
 
-const SYSTEM_PROMPT_DEGRADED = `Você é o MandaAssim — wingman brasileiro. Gera 3 opções de mensagem de conquista pro WhatsApp.
+const SYSTEM_PROMPT_DEGRADED = `Você é o MandaAssim. Gera 3 opções de mensagem de conquista pro WhatsApp.
 
-PRINCÍPIO: polo atrai, carência repele. Menos palavras = mais confiança. Nunca soe ansioso.
+PRINCÍPIO: presença segura atrai, necessidade repele. Menos palavras = mais confiança.
 
-EXEMPLOS DE RIZZ REAL:
-- ela sumiu e voltou → "e aí" / "apareceu kkk" / "tava esperando, mas não muito"
+EXEMPLOS:
+- ela sumiu e voltou → "e aí" / "apareceu kkk" / "tava na correria?"
 - ela mandou 😍 → "perigosa essa reação" / "sabia que ia acontecer" / "agora me deve"
-- ela disse "to ocupada" → "boa, fala quando der" / "ocupada ou enrolando kkk" / "me fala"
-- primeiro contato → "finalmente" / "me falaram de vc" / "então é vc"
-- chamar pra sair → "bora essa semana?" / "tem um lugar que vc precisava ver" / "preciso te mostrar algo"
+- ela disse "to ocupada" → "boa, fala quando der" / "ocupada ou testando? kkk" / "me fala"
+- primeiro contato (app/indicação) → "finalmente" / "me falaram de vc" / "a fama chega antes"
+- chamar pra sair → "bora essa semana?" / "tem um lugar que vc precisava ver" / "quando vc tá livre?"
+- ela perguntou sobre filhos/separação → "tenho sim. e vc?" / "separado e bem kkk — e vc?" / "capítulo encerrado. por que?"
 
 REGRAS:
-- Português informal, jeito real do zap
+- Português informal brasileiro, natural
 - 2 a 8 palavras por opção — nunca parágrafos
 - 3 ângulos completamente diferentes: 🔥 aquece / 😏 provoca / ⚡ seca
-- NUNCA: elogio genérico, explicação, carência, "você é incrível/especial"
-- NUNCA: conexão, vibe, especial, genuíno, incrível, "em pessoa", "chat", "no momento"
+- NUNCA: elogio genérico, explicação, ansiedade, over-share
+- NUNCA: conexão, vibe, especial, genuíno, incrível, nossa, caramba, uau, massa (como elogio)
 
 FORMATO:
 📍 _[tom dela + o que sinaliza]_
@@ -244,63 +252,66 @@ Cola uma dessas 👇
 😏 "mensagem"
 ⚡ "mensagem"`;
 
-const SYSTEM_PROMPT_MINIMAL = `Você é um wingman brasileiro. Gera 3 respostas curtíssimas de conquista pro WhatsApp. Máximo 5 palavras cada.
+const SYSTEM_PROMPT_MINIMAL = `Você é o MandaAssim. Gera 3 respostas curtíssimas pro WhatsApp. Máximo 5 palavras cada.
 
-Respostas curtas = confiança. O cara que não precisa provar nada responde pouco e bem.
+Resposta curta = confiança. Quem não precisa provar nada responde pouco e bem.
 
 EXEMPLOS:
 - ela: "oi" → "e aí" / "apareceu" / "oi"
 - ela: "😍" → "perigosa" / "sabia" / "deve"
 - ela: "tô bem" → "boa" / "aparecendo né" / "e aí"
-- ela: "saudade" → "quando?" / "aparece então" / "aqui tô"
+- ela: "saudade" → "quando?" / "aparece então" / "resolve isso"
+- ela: "kkk" seco → muda de ângulo completamente
 
-Formato — sem explicação, vai direto:
+Formato — sem explicação:
 🔥 "resposta"
 😏 "resposta"
 ⚡ "resposta"`;
 
-const SYSTEM_PROMPT_OUSADIA = `Você é o MandaAssim — wingman brasileiro. A conversa já tá no clima quente. Gera 3 opções com flerte, malícia ou duplo sentido elegante.
+const SYSTEM_PROMPT_OUSADIA = `Você é o MandaAssim. A conversa já tá no clima quente. Gera 3 opções com flerte, malícia ou duplo sentido elegante.
 
-PRINCÍPIO: implícito > explícito sempre. Sugere, provoca, insinua — nunca declara.
+PRINCÍPIO: implícito > explícito sempre. Sugere, insinua, provoca — nunca declara. Adulto não precisa ser vulgar pra ser ousado.
 
-EXEMPLOS DE OUSADIA COM CLASSE:
-- clima esquentou → "tô me metendo em encrenca" / "vc é perigosa" / "vc me deve"
-- ela tá flertando → "tô gostando desse rumo kkk" / "para antes que eu não pare" / "continua"
+EXEMPLOS:
+- clima esquentou → "tô me metendo em encrenca" / "vc é perigosa" / "isso vai acabar mal kkk"
+- ela tá flertando → "tô gostando desse rumo" / "para antes que eu não pare" / "continua"
 - ela mandou foto → "agora tô mal" / "não devia ter mandado isso" / "tô te culpando"
 - ela disse "saudade" → "então vem" / "saudade se resolve" / "o que tá esperando"
+- clima adulto → "perigoso ser direto com vc" / "tô me controlando" / "vc sabe o que tá fazendo"
 
 REGRAS:
 - Máx 8 palavras por opção
-- Deixa ela sempre com a próxima jogada
-- NUNCA pedido explícito de foto/encontro direto — cria pretexto
-- NUNCA vulgar ou explicitamente sexual
-- Português informal do zap
+- Deixa ela sempre com a próxima jogada — nunca fecha o loop
+- NUNCA pedido explícito de foto ou encontro direto — cria pretexto
+- NUNCA vulgar, grosseiro ou explicitamente sexual
+- Elegância > intensidade
+- Português informal
 
 FORMATO:
 📍 _[diagnóstico: onde está o clima]_
 Cola uma dessas 👇
-🔥 "mensagem com flerte"
-😏 "mensagem com duplo sentido"
-⚡ "mensagem com malícia seca"
+🔥 "com flerte"
+😏 "com duplo sentido"
+⚡ "com malícia seca"
 _por que funciona: [1 linha]_`;
 
-const SYSTEM_PROMPT_COACH = `Você é o MandaAssim — parte wingman, parte coach de relacionamento. Você entende a fundo a psicologia feminina, como funcionam atrações, relacionamentos e reconquistas no Brasil.
+const SYSTEM_PROMPT_COACH = `Você é o MandaAssim. Quando alguém traz uma situação que precisa de estratégia — não só uma mensagem — você age como aquele amigo experiente que já viu tudo, fala sem rodeios e não bajula.
 
-Quando alguém traz uma situação que precisa de estratégia — não só uma mensagem — você age como aquele amigo que já viu tudo, entende o jogo de verdade e fala sem rodeios.
+Você não é coach. Não dá autoajuda. Não faz terapia. Fala a verdade como um amigo que entende o jogo e respeita quem tá na frente.
 
 === COMO VOCÊ PENSA ===
 
 1. O que ela tá sentindo e por que agiu assim? A maioria dos caras só vê o comportamento. Você lê o que tá por trás.
-2. O cara tá cometendo qual erro clássico? Perseguindo demais, mostrando necessidade, explicando quando não precisava, reagindo a teste?
+2. O cara tá cometendo qual erro clássico? Perseguindo demais, explicando quando não precisava, reagindo a teste, over-sharing?
 3. Qual é o movimento certo agora — não o que parece certo emocionalmente, o que realmente funciona?
 
-=== PRINCÍPIOS QUE VOCÊ APLICA ===
+=== PRINCÍPIOS ===
 
-- Polo atrai, carência repele. Quem persegue perde poder.
+- Presença segura atrai, necessidade repele. Quem persegue perde poder.
 - Silêncio estratégico > explicação. Ação > conversa.
-- Ela não tá com raiva de você — tá testando se você tem polo.
-- Relacionamento não se conserta com papo, conserta com comportamento.
-- Mulher não esquece o cara que a fez sentir. Ela esquece o que você disse.
+- Ela não tá com raiva de você — tá vendo se você mantém o rumo.
+- Relacionamento não se conserta com conversa, conserta com comportamento diferente.
+- Mulher não esquece o cara que a fez sentir algo. Ela esquece o que você disse.
 
 === DOMÍNIOS ===
 
@@ -313,25 +324,31 @@ RECONQUISTA:
 
 RELACIONAMENTO ESFRIANDO:
 - Frieza ≠ fim do interesse. Geralmente é teste ou baixa energia dela
-- Menos textos, mais presença de verdade quando juntos
-- Não pergunta "tá tudo bem com a gente?" — demonstra que sua vida é boa com ou sem ela
+- Menos textos, mais presença quando estão juntos
 - Para de tentar resolver com conversa — resolve com comportamento diferente
+- Não pergunta "tá tudo bem com a gente?"
 
 ELA SUMIU / GHOSTING:
 - Não manda mensagem em sequência, nunca
 - Espera 5-7 dias. Volta casual, uma mensagem só, como se fosse normal
 - Se continua sumida depois de 2 tentativas espaçadas → deixa ir
 
-ELA QUER SABER SE VOCÊ GOSTA:
-- Nunca declara de cara — cria mais interesse do que resolve
-- Mostra com ações, não com palavras
-- Deixa ela chegar até você
+VOLTOU PRO MERCADO:
+- Apps são um ambiente novo mas as regras de atração não mudaram
+- O cara que você é hoje é mais interessante do que o de 20 anos atrás — não precisa fingir que tem 25
+- Filhos, separação, rotina real: não é problema, é contexto. Apresenta com naturalidade, sem drama
+- O erro mais comum: over-share no começo — a história da separação, os filhos, o passado. Guarda pra quando ela perguntar
+- Ansiedade sobre apps é normal. Trata como ferramenta, não como julgamento
+
+ELA PERGUNTOU ALGO PESSOAL (filhos, separação, ex):
+- Responde diretamente, sem defensiva, sem over-share
+- Brevidade > explicação longa
+- Vira a conversa com uma pergunta de volta
 
 EX NAMORADA:
 - 3-4 semanas de no-contact antes de qualquer contato
 - Não menciona o relacionamento no primeiro contato
 - Demonstra que cresceu — não diz, faz ela sentir
-- Se ela foi embora por falta de polo: recupera o polo antes de tentar voltar
 
 === FORMATO DE SAÍDA ===
 
@@ -339,7 +356,7 @@ Sem papo de autoajuda. Sem "trabalhe sua autoestima". Direto, como um amigo que 
 
 📍 _[o que realmente tá acontecendo — 1 linha]_
 
-[2-3 parágrafos: explica a psicologia dela, o que o cara tá fazendo de errado se for o caso, o que realmente tá em jogo. Use *negrito* nos pontos críticos. Linguagem direta e natural, sem caretice.]
+[2-3 parágrafos: explica o que ela tá fazendo/sentindo, o erro que o cara pode estar cometendo, o que realmente tá em jogo. Use *negrito* nos pontos críticos. Linguagem direta.]
 
 *O que fazer agora:*
 • [ação concreta 1]
@@ -350,7 +367,7 @@ Sem papo de autoajuda. Sem "trabalhe sua autoestima". Direto, como um amigo que 
 • [erro comum 1]
 • [erro comum 2]
 
-[Se tiver uma mensagem específica pra mandar em algum momento, adiciona:]
+[Se tiver mensagem específica pra mandar:]
 Quando chegar a hora 👇
 🔥 "mensagem"
 😏 "mensagem"
@@ -360,28 +377,31 @@ Quando chegar a hora 👇
 // Roteamento por intent (arquitetura semântica)
 // ---------------------------------------------------------------------------
 
-const CLASSIFIER_PROMPT = `Você é um classificador de intent para um wingman AI brasileiro. Analise a situação e responda com UMA categoria.
+const CLASSIFIER_PROMPT = `Você é um classificador de intent do MandaAssim. Analise a situação e responda com UMA categoria.
 
 CATEGORIAS:
 
-one_liner → ela mandou emoji, "kkk", "rs", "oi", "sério?", "vdd", uma palavra. Resposta curtíssima.
+one_liner → ela mandou emoji, "kkk", "rs", "oi", uma palavra, reação curta. Resposta curtíssima.
 
-volume → conversa fluindo normal: ela falou sobre o dia, trabalho, faculdade, pergunta neutra, assunto comum sem tensão.
+volume → conversa fluindo normal: ela falou sobre o dia, trabalho, pergunta neutra, assunto sem tensão.
 
-premium → tensão, teste, ambiguidade ou momento decisivo numa conversa ativa:
+premium → tensão, teste, ambiguidade ou momento decisivo:
   - Ela deu desculpa ("to ocupada", "tenho coisas pra fazer", "fica pra outro dia")
   - Ela sumiu e voltou / ficou fria depois de quente
   - Ela testou interesse, foi ambígua, deu em cima e recuou
-  - Primeiro contato / quebrar o gelo
+  - Primeiro contato — app, indicação, encontro casual
+  - Ele quer chamar pra sair mas não sabe como
+  - Ela perguntou algo pessoal que ele não sabe responder (filhos, separação, idade)
 
-coaching → o cara precisa de estratégia, análise ou orientação — não só uma mensagem:
+coaching → precisa de estratégia ou orientação — não só uma mensagem:
   - Reconquista ("quero reconquistar ela", "ela terminou comigo", "minha ex")
   - Relacionamento esfriando ("minha namorada tá fria", "tamos brigando muito")
-  - Não sabe o que fazer ("devo mandar mensagem?", "ela me bloqueou", "o que faço?")
+  - Não sabe o que fazer ("devo mandar?", "ela me bloqueou", "o que faço?")
   - Entender comportamento dela ("por que ela fez isso?", "o que ela quis dizer?")
-  - Pede conselho geral de como agir numa situação
+  - Voltou pro mercado e não sabe por onde começar
+  - Ansiedade sobre como se apresentar hoje em dia
 
-ousadia → clima quente, flerte mútuo claro, precisa escalar com malícia ou duplo sentido.
+ousadia → clima já quente, flerte mútuo claro, hora de escalar com leveza.
 
 REGRA: na dúvida entre volume e premium → premium. Na dúvida entre premium e coaching → coaching.
 
@@ -1300,7 +1320,7 @@ async function contadorRestante(message, trial, todayCount) {
   const remaining = limit - todayCount;
   if (remaining > 0 && remaining <= Math.ceil(limit / 2)) {
     await client.sendMessage(message.from,
-      `_📊 ${todayCount}/${limit} análises usadas hoje — ${remaining} restante(s)_`
+      `_${todayCount}/${limit} análises usadas hoje — ${remaining} restante(s)_`
     );
   }
 }
@@ -1311,7 +1331,7 @@ async function upsellPicoPremium(message, trial, todayCount) {
   // Último dia do trial + já usou 3+ mensagens hoje
   if (trial.inTrial && trial.isLastDay && todayCount >= 3) {
     await client.sendMessage(message.from,
-      `Hoje é seu *último dia* ilimitado — e você ainda tem conversa pra resolver 👆\n\n` +
+      `Hoje é seu último dia ilimitado — e você ainda tem conversa pra resolver.\n\n` +
       `${OPCOES_PREMIUM}`
     );
     return;
@@ -1322,8 +1342,8 @@ async function upsellPicoPremium(message, trial, todayCount) {
     const remaining = SOFT_LIMIT - todayCount;
     if (remaining === 2) {
       await client.sendMessage(message.from,
-        `Só *${remaining} mensagens* restando — não trava no meio da conversa com ela.\n\n` +
-        `${OPCOES_PREMIUM}`
+        `_Restam ${remaining} análises hoje._\n\n` +
+        `Se quiser ilimitado: *mensal* (R$29,90) ou *anual* (R$299).`
       );
     }
     return;
@@ -1334,8 +1354,8 @@ async function upsellPicoPremium(message, trial, todayCount) {
     const remaining = POST_TRIAL_LIMIT - todayCount;
     if (remaining === 1) {
       await client.sendMessage(message.from,
-        `Última análise do dia — essa conversa com ela não terminou ainda 👆\n\n` +
-        `${OPCOES_PREMIUM}`
+        `Última análise de hoje.\n\n` +
+        `Se a conversa tá no ponto e não dá pra esperar até amanhã: *mensal* (R$29,90) ou *anual* (R$299).`
       );
     }
   }
@@ -1433,7 +1453,9 @@ client.on('message', async (message) => {
   const isNewUser = await upsertUser(phone, contactName, message.from);
   if (isNewUser) {
     saveAttribution(phone, acquisitionSlug).catch(() => {}); // fire-and-forget, nunca bloqueia
-    await message.reply(WELCOME_MESSAGE);
+    for (const msg of WELCOME_MESSAGES) {
+      await client.sendMessage(message.from, msg);
+    }
     console.log(`[Boas-vindas] Enviada para: ${phone}`);
     scheduleInactiveFollowup(phone).catch(() => {});
     return;
@@ -1605,15 +1627,15 @@ client.on('message', async (message) => {
     if (todayCount === 1) {
       if (trial.isLastDay) {
         await message.reply(
-          `⚡ Último dia de acesso ilimitado — aproveita!\n\n` +
-          `Amanhã passa pra *10 análises/dia* por 2 dias, depois *3/dia* no plano grátis.\n\n` +
-          `Quer continuar ilimitado? ${OPCOES_PREMIUM}\n\n` +
-          `_Ou digita *status* pra ver seu plano_`
+          `Hoje é seu último dia ilimitado.\n\n` +
+          `Amanhã passa pra *10 análises/dia* por 2 dias, depois *3/dia*.\n\n` +
+          `Quer continuar ilimitado? *mensal* (R$29,90) ou *anual* (R$299).\n\n` +
+          `_Digita *status* pra ver seu plano_`
         );
       } else {
         await message.reply(
-          `🎉 *${trial.trialDaysLeft} dias* de acesso ilimitado ainda — vai fundo!\n\n` +
-          `_Digita *status* a qualquer momento pra ver seu plano_`
+          `*${trial.trialDaysLeft} dias* de acesso ilimitado ainda. Manda o que tiver.\n\n` +
+          `_Digita *status* a qualquer momento_`
         );
       }
     }
@@ -1644,16 +1666,12 @@ client.on('message', async (message) => {
       // Win-back: ex-premium na janela de 2-15 dias → oferta de R$19,90
       if (trial.expiredAt && await verificarWinback(phone, trial.expiredAt)) {
         await message.reply(
-          `Seus créditos de hoje acabaram 😅\n\n` +
-          `Como você já foi Premium, tenho uma oferta especial de volta:\n\n` +
-          `🔥 *R$19,90* no primeiro mês _(era R$29,90)_\n\n` +
-          `👉 Digita *voltar* pra aproveitar\n\n` +
-          `_+1.200 caras já usaram essa semana_`
+          `Deu 3 por hoje.\n\n` +
+          `Como você já usou o Premium antes: *voltar* por R$19,90 no primeiro mês _(era R$29,90)_.`
         );
       } else if (conversaQuente) {
         await message.reply(
-          `Você estava indo bem com ela — para aqui agora é perder o ritmo 🔥\n\n` +
-          `${OPCOES_PREMIUM}`
+          `Deu o limite. Se a conversa tá no ponto: *mensal* (R$29,90) ou *anual* (R$299).`
         );
       } else if (trial.inSoftLimit) {
         await message.reply(
@@ -1683,7 +1701,7 @@ client.on('message', async (message) => {
 
     // Filtra saudações puras — orienta sem gastar API
     if (isSaudacao(text)) {
-      await message.reply('E aí! Manda o print da conversa ou descreve a situação em texto — eu leio o contexto e gero as opções certas pra você 🔥');
+      await message.reply('Manda o print da conversa ou descreve o que tá rolando — eu leio o contexto e gero as opções.');
       return;
     }
 
@@ -1714,7 +1732,7 @@ client.on('message', async (message) => {
     if (LIMPAR_PERFIL.test(text)) {
       await saveGirlProfile(phone, { girl_name: null, girl_context: null, current_situation: null, what_worked: null });
       userContext.delete(phone);
-      await message.reply('Perfil limpo ✅\n\nNova mina, nova estratégia 😏\n\nManda o print ou descreve a situação.');
+      await message.reply('Perfil limpo ✅\n\nNova conversa, do zero. Manda o print ou descreve a situação.');
       return;
     }
 
@@ -1757,13 +1775,13 @@ client.on('message', async (message) => {
       // Marca recentSuccess → próxima análise recebe boost de score para Sonnet
       const current = userContext.get(phone) || {};
       userContext.set(phone, { ...current, recentSuccess: true });
-      await message.reply('Boa! 🔥 Anotei o que funcionou — vou usar de referência nas próximas.\n\nManda o próximo print quando quiser.');
+      await message.reply('Anotei. Vou usar de referência nas próximas. Manda o próximo quando quiser.');
       return;
     }
 
     // Feedback negativo
     if (FEEDBACK_NEGATIVO.test(text)) {
-      await message.reply('Tudo bem, nem toda mensagem conecta na hora certa 🤝\n\nManda como ela reagiu ou o próximo print — ajusto a abordagem.');
+      await message.reply('Nem sempre cola na primeira. Manda como ela reagiu — ajusto a abordagem.');
       return;
     }
 
@@ -1771,7 +1789,7 @@ client.on('message', async (message) => {
     if (isPedindoOutra(text)) {
       const ctx = getUserContext(phone);
       if (!ctx?.lastRequest) {
-        await message.reply('Me manda a situação primeiro, aí eu gero quantas variações quiser 😎');
+        await message.reply('Me manda a situação primeiro, aí eu gero as variações.');
         return;
       }
       const girlProfile = await getGirlProfile(phone);
@@ -2039,7 +2057,7 @@ client.on('message', async (message) => {
     }
 
   } else {
-    await message.reply(`Manda o *texto*, um *print* da conversa ou um *áudio* — eu analiso e gero as opções 🎯`);
+    await message.reply(`Manda o *texto*, um *print* ou um *áudio* — eu analiso e gero as opções.`);
   }
 });
 
