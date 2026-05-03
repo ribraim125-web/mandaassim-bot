@@ -22,7 +22,16 @@ const {
   scheduleLimitExhausted10,
   scheduleLimitDrop3,
   scheduleLimitExhausted3,
+  scheduleTransitionCoachOutcome,
 } = require('./src/followup/followupScheduler');
+const {
+  INTERVIEW_QUESTIONS,
+  analisarTransicaoComHaiku,
+  temOutcomePendente,
+  registrarOutcome,
+  classificarOutcome,
+  getMonthlySessionCount,
+} = require('./src/lib/transitionCoach');
 
 // ---------------------------------------------------------------------------
 // Configuração
@@ -48,6 +57,11 @@ const PRINT_ANALYSIS_TEST_PHONE = process.env.PRINT_ANALYSIS_TEST_PHONE || '';
 // Valor: 'false' | 'test' | 'beta' (10% pro) | 'all'
 const PROFILE_ANALYSIS_MODE = (process.env.ENABLE_PROFILE_ANALYSIS || 'false').toLowerCase();
 const PROFILE_ANALYSIS_TEST_PHONE = process.env.PROFILE_ANALYSIS_TEST_PHONE || '';
+
+// Feature flag: Coach de Transição (Camada 3 — Premium 2/mês, Pro ilimitado)
+// Valor: 'false' | 'test' | 'beta' (10% premium/pro) | 'all'
+const TRANSITION_COACH_MODE = (process.env.ENABLE_TRANSITION_COACH || 'false').toLowerCase();
+const TRANSITION_COACH_TEST_PHONE = process.env.TRANSITION_COACH_TEST_PHONE || '';
 
 const MENSAGEM_RENOVACAO =
   `Seu acesso ilimitado expira em *3 dias*.\n\n` +
@@ -102,6 +116,19 @@ const PROFILE_UPSELL_MESSAGE =
 
 const PROFILE_LIMIT_REACHED_PRO =
   `Chegou no limite de 10 análises de perfil hoje.\n\nAmanhã cedo tem mais 10.`;
+
+// ── Mensagens da feature de Coach de Transição ───────────────────────────────
+
+const TRANSITION_COACH_UPSELL_FREE =
+  `Marcar o primeiro encontro é o momento mais crítico — e a maioria erra aqui.\n\n` +
+  `Com o *Coach de Transição* eu te guio pra hora certa, com a mensagem certa.\n\n` +
+  `Disponível no *Wingman Premium* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
+  `Digita *mensal* ou *anual* 👇`;
+
+const TRANSITION_COACH_UPSELL_PREMIUM_LIMIT =
+  `Você já usou as 2 sessões do Coach de Transição esse mês.\n\n` +
+  `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
+  `Digita *pro* se quiser.`;
 
 // ---------------------------------------------------------------------------
 // OpenRouter — modelos por tier de uso mensal
@@ -1331,6 +1358,7 @@ const LIMPAR_PERFIL = /^(limpar perfil|apagar perfil|nova mina|nova menina|outra
 const FEEDBACK_POSITIVO = /^(funcionou|deu certo|ela respondeu|foi bem|colou|deu boa|respondeu bem|ela topou|ela gostou|foi ótimo|mandou bem)$/i;
 const FEEDBACK_NEGATIVO = /^(não funcionou|nao funcionou|não rolou|nao rolou|não respondeu|nao respondeu|foi mal|não colou|nao colou|ignorou|ela ignorou)$/i;
 const RECONQUISTA_KEYWORDS = /reconquist|quero ela de volta|ela sumiu há|ela parou de responder|ela me deixou|ela foi embora|terminamos|ela terminou|quero reconquistar/i;
+const TRANSITION_COACH_KEYWORDS = /\b(como marco encontro|como chamo (ela|a) pra sair|como chamar (ela|a) pra sair|quero chamar (ela|a) pra sair|t[aá] na hora de marcar|como marco um encontro|ajuda (pra|para) chamar pra sair|quero marcar (um )?encontro|quando (devo|posso) chamar pra sair|como chamo pra sair)\b/i;
 
 // ---------------------------------------------------------------------------
 // Feature flag: decide se print analysis está habilitado para o phone
@@ -1360,6 +1388,21 @@ function isProfileAnalysisEnabled(phone) {
       for (const c of phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
       // Seed diferente do print para não ativar os mesmos 10%
       return (Math.abs(hash ^ 0xdeadbeef) % 100) < 10;
+    }
+    default: return false;
+  }
+}
+
+function isTransitionCoachEnabled(phone) {
+  switch (TRANSITION_COACH_MODE) {
+    case 'all':  return true;
+    case 'test': return phone === TRANSITION_COACH_TEST_PHONE;
+    case 'beta': {
+      if (!phone) return false;
+      let hash = 0;
+      for (const c of phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+      // Seed diferente do print e profile
+      return (Math.abs(hash ^ 0xcafebabe) % 100) < 10;
     }
     default: return false;
   }
@@ -1864,9 +1907,13 @@ client.on('message', async (message) => {
               } else {
                 await message.reply('Lendo a conversa... ⏳');
                 try {
-                  const { messages: pm } = await analisarPrintConversaComHaiku(imgData, imgMime, phone);
+                  const { messages: pm, structuredResult: printResultAmbig } = await analisarPrintConversaComHaiku(imgData, imgMime, phone);
                   incrementPrintCount(phone); setPrintLastTime(phone);
                   saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
+                  if (printResultAmbig) {
+                    const ctxAfterAmbigPrint = userContext.get(phone) || {};
+                    userContext.set(phone, { ...ctxAfterAmbigPrint, lastPrintResult: printResultAmbig });
+                  }
                   for (const m of pm) await client.sendMessage(message.from, m);
                 } catch (_) {
                   await client.sendMessage(message.from, 'Não consegui ler a conversa. Manda o print de novo 😅');
@@ -1924,6 +1971,42 @@ client.on('message', async (message) => {
       // Se não for resposta de desambiguação — limpa o estado e segue o fluxo normal
       const currentCtx2 = userContext.get(phone) || {};
       userContext.set(phone, { ...currentCtx2, pendingImageClassification: null });
+    }
+
+    // ── Coach de Transição: continua entrevista em andamento ─────────────────
+    const tcCtx = getUserContext(phone);
+    if (tcCtx?.transitionCoachState) {
+      const tcState = tcCtx.transitionCoachState;
+      const { questionIndex, answers, printContext } = tcState;
+      const updatedAnswers = { ...answers, [questionIndex]: text };
+
+      if (questionIndex < INTERVIEW_QUESTIONS.length - 1) {
+        // Ainda tem perguntas — avança para a próxima
+        const nextIndex = questionIndex + 1;
+        const currentCtxTC = userContext.get(phone) || {};
+        userContext.set(phone, {
+          ...currentCtxTC,
+          transitionCoachState: { questionIndex: nextIndex, answers: updatedAnswers, printContext },
+        });
+        await client.sendMessage(message.from, INTERVIEW_QUESTIONS[nextIndex]);
+      } else {
+        // Todas as perguntas respondidas — analisa
+        const currentCtxTC = userContext.get(phone) || {};
+        userContext.set(phone, { ...currentCtxTC, transitionCoachState: null });
+
+        await message.reply('Analisando sua situação... ⏳');
+        const stopTypingTC = await startTyping(message);
+        try {
+          const { messages: tcMsgs } = await analisarTransicaoComHaiku(updatedAnswers, printContext, phone);
+          stopTypingTC();
+          for (const m of tcMsgs) await client.sendMessage(message.from, m);
+          scheduleTransitionCoachOutcome(phone).catch(() => {});
+        } catch (_) {
+          stopTypingTC();
+          await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');
+        }
+      }
+      return;
     }
 
     // Filtra saudações puras — orienta sem gastar API
@@ -2009,6 +2092,43 @@ client.on('message', async (message) => {
     // Feedback negativo
     if (FEEDBACK_NEGATIVO.test(text)) {
       await message.reply('Nem sempre cola na primeira. Manda como ela reagiu — ajusto a abordagem.');
+      return;
+    }
+
+    // ── Trigger A: Coach de Transição ────────────────────────────────────────
+    if (isTransitionCoachEnabled(phone) && TRANSITION_COACH_KEYWORDS.test(text)) {
+      // Plano livre: upsell
+      if (!trial.isPremium) {
+        await client.sendMessage(message.from, TRANSITION_COACH_UPSELL_FREE);
+        trackSubscriptionEvent({
+          phone,
+          eventType:  'upgrade_offered',
+          planFrom:   trial.inTrial ? 'trial' : 'free',
+          planTo:     'premium',
+          triggerCtx: 'transition_coach',
+        });
+        return;
+      }
+      // Premium com limite mensal de 2/mês (Pro: ilimitado)
+      if (!trial.isPro) {
+        const tcSessionCount = await getMonthlySessionCount(phone);
+        if (tcSessionCount >= 2) {
+          await client.sendMessage(message.from, TRANSITION_COACH_UPSELL_PREMIUM_LIMIT);
+          return;
+        }
+      }
+      // Pega contexto de print recente (se houver) para enriquecer a análise
+      const tcTrigCtx = getUserContext(phone);
+      const printCtxForTC = tcTrigCtx?.lastPrintResult || null;
+      // Inicia entrevista
+      const currentCtxForTC = userContext.get(phone) || {};
+      userContext.set(phone, {
+        ...currentCtxForTC,
+        transitionCoachState: { questionIndex: 0, answers: {}, printContext: printCtxForTC },
+      });
+      await client.sendMessage(message.from,
+        `Bora. Preciso de algumas informações rápidas pra te dar a análise certa 👇\n\n${INTERVIEW_QUESTIONS[0]}`
+      );
       return;
     }
 
@@ -2117,6 +2237,27 @@ client.on('message', async (message) => {
         }
       }
       return;
+    }
+
+    // ── Outcome de Coach de Transição: captura resposta ao follow-up ─────────
+    if (isTransitionCoachEnabled(phone)) {
+      const hasPendingOutcome = await temOutcomePendente(phone);
+      if (hasPendingOutcome) {
+        const outcome = await classificarOutcome(text);
+        if (outcome) {
+          await registrarOutcome(phone, outcome);
+          const outcomeAck = {
+            accepted_and_happened: `Foi bem. Boa pra você 👊\nSe tiver outra conversa rolando, manda aqui.`,
+            accepted_but_postponed: `Tá crescendo. Segura a ansiedade quando ela confirmar a data — aparece normal. Se precisar de ajuda nessa fase, manda.`,
+            accepted_but_canceled: `Acontece. Não comenta sobre o cancelamento. Age normal quando ela retomar contato.`,
+            rejected: `Tudo bem. Pelo menos você tentou. Se quiser entender o que pode ter influenciado, manda a conversa aqui.`,
+            never_responded: `Ainda sem resposta? Espera mais 5-7 dias antes do próximo contato. Se precisar de ajuda, manda.`,
+            user_didnt_send: `Ainda dá tempo. Se travar na hora de mandar, me conta o que tá segurando — eu ajusto a mensagem.`,
+          }[outcome] || `Anotado. Se quiser mais ajuda, manda aqui.`;
+          await client.sendMessage(message.from, outcomeAck);
+          return;
+        }
+      }
     }
 
     const toneHint = ctx?.tonePreference ? `\nPreferência do usuário: ele tende a preferir tom "${ctx.tonePreference}" — leve isso em conta sem ignorar as outras opções.` : '';
@@ -2347,13 +2488,17 @@ client.on('message', async (message) => {
           await message.reply('Lendo a conversa... ⏳');
           const stopTypingPrint = await startTyping(message);
           try {
-            const { messages: printMsgs } = await analisarPrintConversaComHaiku(media.data, media.mimetype, phone);
+            const { messages: printMsgs, structuredResult: printResultMain } = await analisarPrintConversaComHaiku(media.data, media.mimetype, phone);
             stopTypingPrint();
 
             incrementPrintCount(phone);
             setPrintLastTime(phone);
 
             saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
+            if (printResultMain) {
+              const ctxAfterPrint = userContext.get(phone) || {};
+              userContext.set(phone, { ...ctxAfterPrint, lastPrintResult: printResultMain });
+            }
 
             for (const msg of printMsgs) {
               await client.sendMessage(message.from, msg);

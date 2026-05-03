@@ -29,7 +29,15 @@ const MESSAGES = {
   ],
 };
 
+// Mensagem especial de outcome do Coach de Transição (não tem variações — é pessoal)
+const TRANSITION_COACH_OUTCOME_MESSAGE =
+  `Ei, lembra que te ajudei a chamar ela pra sair semana passada?\n\n` +
+  `Como foi? Ela topou? Me conta aqui — pode ser curto, só quero saber o resultado 👇`;
+
 function getMessage(triggerType) {
+  if (triggerType === 'transition_coach_outcome') {
+    return TRANSITION_COACH_OUTCOME_MESSAGE;
+  }
   const options = MESSAGES[triggerType];
   if (!options) return null;
   return options[Math.floor(Math.random() * options.length)];

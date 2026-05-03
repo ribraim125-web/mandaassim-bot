@@ -192,6 +192,15 @@ function formatarRespostaPrint(result) {
     msgs.push(`Quer uma _mais segura_ ou uma _mais ousada_? Só falar 😏`);
   }
 
+  // ── Msg extra (Forma B): sugestão proativa quando conversa está hot ──────
+  const isHot = result.conversation_temperature === 'hot';
+  const isHighInterest = result.match_interest_level === 'high' || result.match_interest_level === 'very_high';
+  if (isHot && isHighInterest) {
+    msgs.push(
+      `Pela temperatura da conversa, tá maduro pra você chamar pra sair. Quer ajuda com isso? Digita *como marco encontro* 👇`
+    );
+  }
+
   return msgs;
 }
 
