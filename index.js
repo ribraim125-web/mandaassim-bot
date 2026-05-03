@@ -8,6 +8,7 @@ const { criarCobrancaPix } = require('./src/mercadopago');
 const { createWebhookApp } = require('./src/webhook');
 const { startWorker } = require('./src/followup/followupWorker');
 const { cancelPendingFollowups } = require('./src/followup/followupCanceller');
+const { logApiRequest } = require('./src/lib/tracking');
 const {
   scheduleInactiveFollowup,
   scheduleLimitDrop10,
@@ -566,7 +567,7 @@ Sequência natural de reconquista:
 3. Posição de valor: mostrar que sua vida tá ótima, sem forçar
 4. Escalada só depois que ela reagir positivamente — não antes`;
 
-async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '', girlContext = '') {
+async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '', girlContext = '', phone = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
   const instrucao = instrucaoExtra || `${prefixo}CONTEXTO: o usuário está tentando conquistar uma mulher e enviou essa imagem para pedir ajuda. SEMPRE trate a imagem como algo relacionado a ela — stories, post, perfil, foto que ela compartilhou, ou print da conversa com ela.
 
@@ -589,21 +590,45 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
     /FOCO EXCLUSIVO[\s\S]*?Não explique, não se desculpe, não tente ajudar de outro jeito\. Só redireciona\./,
     'FOCO EXCLUSIVO: Você existe para ajudar homens a conquistar mulheres. Qualquer imagem enviada é sempre tratada como algo relacionado à mulher que ele quer conquistar.'
   );
-  const response = await openrouter.chat.completions.create({
-    model: MODELS.full,
-    max_tokens: MAX_TOKENS.full,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT_IMAGE + girlContext },
-      {
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Data}` } },
-          { type: 'text', text: instrucao },
-        ],
-      },
-    ],
-  });
-  return response.choices[0]?.message?.content || 'Não consegui analisar a imagem. Tente enviar novamente.';
+  const t0 = Date.now();
+  let responseText = null;
+  let trackingError = null;
+  let usage = null;
+  try {
+    const response = await openrouter.chat.completions.create({
+      model: MODELS.full,
+      max_tokens: MAX_TOKENS.full,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT_IMAGE + girlContext },
+        {
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Data}` } },
+            { type: 'text', text: instrucao },
+          ],
+        },
+      ],
+    });
+    responseText = response.choices[0]?.message?.content || 'Não consegui analisar a imagem. Tente enviar novamente.';
+    usage = response.usage;
+  } catch (err) {
+    trackingError = err.message;
+    throw err;
+  } finally {
+    logApiRequest({
+      phone,
+      intent: 'image',
+      targetModel: MODELS.full,
+      modelActuallyUsed: MODELS.full,
+      tierAtRequest: 'full',
+      inputTokens: usage?.prompt_tokens || null,
+      outputTokens: usage?.completion_tokens || null,
+      latencyMs: Date.now() - t0,
+      responseLengthChars: responseText ? responseText.length : null,
+      error: trackingError,
+    });
+  }
+  return responseText;
 }
 
 // Limites diários de uso do Haiku por plano
@@ -640,9 +665,15 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   const userContent = `${prefixo}${historicoStr}\n\nSituação atual: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
 
   const modelos = [config.model, INTENT_FALLBACKS[config.model]].filter(Boolean);
-  for (const model of modelos) {
+  for (let i = 0; i < modelos.length; i++) {
+    const model = modelos[i];
+    const isFallback = i > 0;
+    const t0 = Date.now();
+    let text = null;
+    let trackingError = null;
+    let inputTokens = null, outputTokens = null, cacheReadTokens = null, cacheWriteTokens = null;
+
     try {
-      let text;
       if (model.startsWith('anthropic/') && process.env.ANTHROPIC_API_KEY) {
         // Chama a API da Anthropic diretamente com prompt caching no system prompt
         const modelId = model.replace('anthropic/', '');
@@ -654,9 +685,13 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
           messages: [{ role: 'user', content: userContent }],
         });
         text = msg.content[0]?.text || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
-        const cached = msg.usage?.cache_read_input_tokens || 0;
-        const written = msg.usage?.cache_creation_input_tokens || 0;
-        console.log(`[Anthropic] ${modelId} | cache_read:${cached} cache_write:${written} out:${msg.usage?.output_tokens}`);
+        inputTokens      = msg.usage?.input_tokens               || null;
+        outputTokens     = msg.usage?.output_tokens              || null;
+        cacheReadTokens  = msg.usage?.cache_read_input_tokens    || null;
+        cacheWriteTokens = msg.usage?.cache_creation_input_tokens || null;
+        const cached = cacheReadTokens  || 0;
+        const written = cacheWriteTokens || 0;
+        console.log(`[Anthropic] ${modelId} | cache_read:${cached} cache_write:${written} out:${outputTokens}`);
         incrementHaikuCount(phone);
       } else {
         const response = await openrouter.chat.completions.create({
@@ -669,12 +704,50 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
           ],
         });
         text = response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
+        inputTokens  = response.usage?.prompt_tokens     || null;
+        outputTokens = response.usage?.completion_tokens || null;
       }
-      return { text, intent };
     } catch (err) {
+      trackingError = err.message;
       console.error(`[Roteamento] Falha em ${model}:`, err.message);
+      logApiRequest({
+        phone,
+        intent,
+        rawIntent,
+        intentClassifierModel: 'google/gemini-2.0-flash-001',
+        targetModel: config.model,
+        modelActuallyUsed: model,
+        tierAtRequest: usageTier,
+        fallbackTriggered: isFallback,
+        fallbackReason: isFallback ? 'model_error' : null,
+        latencyMs: Date.now() - t0,
+        userMessageLengthChars: situacao.length,
+        error: trackingError,
+      });
       if (model === modelos[modelos.length - 1]) throw err;
+      continue;
     }
+
+    logApiRequest({
+      phone,
+      intent,
+      rawIntent,
+      intentClassifierModel: 'google/gemini-2.0-flash-001',
+      targetModel: config.model,
+      modelActuallyUsed: model,
+      tierAtRequest: usageTier,
+      fallbackTriggered: isFallback,
+      fallbackReason: isFallback ? 'model_error' : null,
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+      latencyMs: Date.now() - t0,
+      responseLengthChars: text ? text.length : null,
+      userMessageLengthChars: situacao.length,
+    });
+
+    return { text, intent };
   }
 }
 
@@ -1698,7 +1771,7 @@ client.on('message', async (message) => {
       const stopTyping1 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
-          ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext) }
+          ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext, phone) }
           : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier, phone, false, trial.isPremium);
         stopTyping1();
         await enviarResposta(message, result.text, result.intent);
@@ -1726,7 +1799,7 @@ client.on('message', async (message) => {
       const stopTyping2 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
-          ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext) }
+          ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext, phone) }
           : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier, phone, false, trial.isPremium);
         stopTyping2();
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
@@ -1854,7 +1927,7 @@ client.on('message', async (message) => {
       await message.reply('Vendo o stories dela... ⏳');
       const stopTypingStory = await startTyping(message);
       try {
-        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, STORY_PROMPT, '', girlContextImg);
+        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, STORY_PROMPT, '', girlContextImg, phone);
         stopTypingStory();
         saveUserContext(phone, media, 'image');
         await enviarResposta(message, sugestoes);
@@ -1871,7 +1944,7 @@ client.on('message', async (message) => {
       await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
       const stopTypingPerfil = await startTyping(message);
       try {
-        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, PROFILE_OPENER_PROMPT, '', girlContextImg);
+        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, PROFILE_OPENER_PROMPT, '', girlContextImg, phone);
         stopTypingPerfil();
         saveUserContext(phone, media, 'image');
         await enviarResposta(message, sugestoes);
@@ -1888,7 +1961,7 @@ client.on('message', async (message) => {
       
       const stopTypingImg = await startTyping(message);
       try {
-        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg);
+        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg, phone);
         stopTypingImg();
         saveUserContext(phone, media, 'image');
         await enviarResposta(message, sugestoes);
