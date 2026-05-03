@@ -8,7 +8,7 @@ const { criarCobrancaPix, determinarPlano, PRECO_PRO } = require('./src/mercadop
 const { trackSubscriptionEvent } = require('./src/lib/subscriptionTracking');
 const { createWebhookApp } = require('./src/webhook');
 const { startWorker } = require('./src/followup/followupWorker');
-const { cancelPendingFollowups } = require('./src/followup/followupCanceller');
+const { cancelPendingFollowups, cancelPredateReminders } = require('./src/followup/followupCanceller');
 const { logApiRequest } = require('./src/lib/tracking');
 const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
 const { analisarPrintConversaComHaiku } = require('./src/lib/printAnalysis');
@@ -23,6 +23,7 @@ const {
   scheduleLimitDrop3,
   scheduleLimitExhausted3,
   scheduleTransitionCoachOutcome,
+  schedulePredateReminders,
 } = require('./src/followup/followupScheduler');
 const {
   INTERVIEW_QUESTIONS,
@@ -32,6 +33,11 @@ const {
   classificarOutcome,
   getMonthlySessionCount,
 } = require('./src/lib/transitionCoach');
+const {
+  INTERVIEW_QUESTIONS_PREDATE,
+  analisarPreDateComHaiku,
+  getMonthlyPreDateCount,
+} = require('./src/lib/predateCoach');
 
 // ---------------------------------------------------------------------------
 // Configuração
@@ -62,6 +68,11 @@ const PROFILE_ANALYSIS_TEST_PHONE = process.env.PROFILE_ANALYSIS_TEST_PHONE || '
 // Valor: 'false' | 'test' | 'beta' (10% premium/pro) | 'all'
 const TRANSITION_COACH_MODE = (process.env.ENABLE_TRANSITION_COACH || 'false').toLowerCase();
 const TRANSITION_COACH_TEST_PHONE = process.env.TRANSITION_COACH_TEST_PHONE || '';
+
+// Feature flag: Coach Pré-Date (Camada 4 — Premium 1/mês teaser, Pro ilimitado)
+// Valor: 'false' | 'test' | 'beta' (10% premium/pro) | 'all'
+const PREDATE_COACH_MODE = (process.env.ENABLE_PREDATE_COACH || 'false').toLowerCase();
+const PREDATE_COACH_TEST_PHONE = process.env.PREDATE_COACH_TEST_PHONE || '';
 
 const MENSAGEM_RENOVACAO =
   `Seu acesso ilimitado expira em *3 dias*.\n\n` +
@@ -127,6 +138,19 @@ const TRANSITION_COACH_UPSELL_FREE =
 
 const TRANSITION_COACH_UPSELL_PREMIUM_LIMIT =
   `Você já usou as 2 sessões do Coach de Transição esse mês.\n\n` +
+  `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
+  `Digita *pro* se quiser.`;
+
+// ── Mensagens da feature de Coach Pré-Date ───────────────────────────────────
+
+const PREDATE_COACH_UPSELL_FREE =
+  `Preparação para encontro é do *Wingman Premium* 🗓️\n\n` +
+  `Você me conta quando e onde — eu te dou o checklist completo: roupa, conversa, chegada, o que evitar, mensagem depois.\n\n` +
+  `Disponível no *Wingman Premium* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
+  `Digita *mensal* ou *anual* 👇`;
+
+const PREDATE_COACH_UPSELL_PREMIUM_LIMIT =
+  `Você já usou sua sessão pré-date do mês.\n\n` +
   `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
   `Digita *pro* se quiser.`;
 
@@ -1359,6 +1383,7 @@ const FEEDBACK_POSITIVO = /^(funcionou|deu certo|ela respondeu|foi bem|colou|deu
 const FEEDBACK_NEGATIVO = /^(não funcionou|nao funcionou|não rolou|nao rolou|não respondeu|nao respondeu|foi mal|não colou|nao colou|ignorou|ela ignorou)$/i;
 const RECONQUISTA_KEYWORDS = /reconquist|quero ela de volta|ela sumiu há|ela parou de responder|ela me deixou|ela foi embora|terminamos|ela terminou|quero reconquistar/i;
 const TRANSITION_COACH_KEYWORDS = /\b(como marco encontro|como chamo (ela|a) pra sair|como chamar (ela|a) pra sair|quero chamar (ela|a) pra sair|t[aá] na hora de marcar|como marco um encontro|ajuda (pra|para) chamar pra sair|quero marcar (um )?encontro|quando (devo|posso) chamar pra sair|como chamo pra sair)\b/i;
+const PREDATE_COACH_KEYWORDS = /\b(tenho encontro|vou (ao|no|para o|pra o) encontro|marquei (um )?encontro|preparar (o )?encontro|encontro amanhã|encontro hoje|encontro (nessa?|na|nesse?) (sexta|s[aá]bado|domingo|segunda|ter[cç]a|quarta|quinta|fim de semana|fds)|encontro marcado|encontro essa semana|vou (me )?encontrar (ela|com ela)|encontro com ela)\b/i;
 
 // ---------------------------------------------------------------------------
 // Feature flag: decide se print analysis está habilitado para o phone
@@ -1403,6 +1428,21 @@ function isTransitionCoachEnabled(phone) {
       for (const c of phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
       // Seed diferente do print e profile
       return (Math.abs(hash ^ 0xcafebabe) % 100) < 10;
+    }
+    default: return false;
+  }
+}
+
+function isPreDateCoachEnabled(phone) {
+  switch (PREDATE_COACH_MODE) {
+    case 'all':  return true;
+    case 'test': return phone === PREDATE_COACH_TEST_PHONE;
+    case 'beta': {
+      if (!phone) return false;
+      let hash = 0;
+      for (const c of phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+      // Seed diferente dos outros features
+      return (Math.abs(hash ^ 0xbeefdead) % 100) < 10;
     }
     default: return false;
   }
@@ -2009,6 +2049,56 @@ client.on('message', async (message) => {
       return;
     }
 
+    // ── Coach Pré-Date: continua entrevista em andamento ─────────────────────
+    const pdCtx = getUserContext(phone);
+    if (pdCtx?.predateCoachState) {
+      const pdState = pdCtx.predateCoachState;
+      const { questionIndex, answers } = pdState;
+      const updatedAnswers = { ...answers, [questionIndex]: text };
+
+      if (questionIndex < INTERVIEW_QUESTIONS_PREDATE.length - 1) {
+        const nextIndex = questionIndex + 1;
+        const currentCtxPD = userContext.get(phone) || {};
+        userContext.set(phone, {
+          ...currentCtxPD,
+          predateCoachState: { questionIndex: nextIndex, answers: updatedAnswers },
+        });
+        await client.sendMessage(message.from, INTERVIEW_QUESTIONS_PREDATE[nextIndex]);
+      } else {
+        // Todas as 4 perguntas respondidas — analisa
+        const currentCtxPD = userContext.get(phone) || {};
+        userContext.set(phone, { ...currentCtxPD, predateCoachState: null });
+
+        const girlProfilePD = await getGirlProfile(phone);
+        const girlContextPD = buildGirlContext(girlProfilePD);
+
+        await message.reply('Preparando seu plano... ⏳');
+        const stopTypingPD = await startTyping(message);
+        try {
+          const { messages: pdMsgs, dateParsed } = await analisarPreDateComHaiku(updatedAnswers, girlContextPD, phone);
+          stopTypingPD();
+          for (const m of pdMsgs) await client.sendMessage(message.from, m);
+          if (dateParsed) {
+            schedulePredateReminders(phone, dateParsed).catch(() => {});
+            await client.sendMessage(message.from,
+              `_Vou te mandar lembretes no dia anterior e 2h antes do encontro. Manda *PARAR* se não quiser receber._`
+            );
+          }
+        } catch (_) {
+          stopTypingPD();
+          await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');
+        }
+      }
+      return;
+    }
+
+    // ── Opt-out de lembretes de pré-date ─────────────────────────────────────
+    if (/^parar( lembretes?)?$/i.test(text.trim())) {
+      await cancelPredateReminders(phone);
+      await message.reply('Lembretes cancelados ✅\n\nSe precisar de algo, é só mandar aqui.');
+      return;
+    }
+
     // Filtra saudações puras — orienta sem gastar API
     if (isSaudacao(text)) {
       await message.reply('Manda o print da conversa ou descreve o que tá rolando — eu leio o contexto e gero as opções.');
@@ -2132,6 +2222,39 @@ client.on('message', async (message) => {
       return;
     }
 
+    // ── Trigger A/C: Coach Pré-Date ──────────────────────────────────────────
+    if (isPreDateCoachEnabled(phone) &&
+        (PREDATE_COACH_KEYWORDS.test(text) || /^preparar encontro$/i.test(text))) {
+      if (!trial.isPremium) {
+        await client.sendMessage(message.from, PREDATE_COACH_UPSELL_FREE);
+        trackSubscriptionEvent({
+          phone,
+          eventType:  'upgrade_offered',
+          planFrom:   trial.inTrial ? 'trial' : 'free',
+          planTo:     'premium',
+          triggerCtx: 'predate_coach',
+        });
+        return;
+      }
+      // Premium: 1 sessão/mês como teaser. Pro: ilimitado.
+      if (!trial.isPro) {
+        const pdCount = await getMonthlyPreDateCount(phone);
+        if (pdCount >= 1) {
+          await client.sendMessage(message.from, PREDATE_COACH_UPSELL_PREMIUM_LIMIT);
+          return;
+        }
+      }
+      const currentCtxPDTrig = userContext.get(phone) || {};
+      userContext.set(phone, {
+        ...currentCtxPDTrig,
+        predateCoachState: { questionIndex: 0, answers: {} },
+      });
+      await client.sendMessage(message.from,
+        `Bora te preparar. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_PREDATE[0]}`
+      );
+      return;
+    }
+
     // Pedido de outra/mais — reutiliza contexto anterior
     if (isPedindoOutra(text)) {
       const ctx = getUserContext(phone);
@@ -2246,9 +2369,12 @@ client.on('message', async (message) => {
         const outcome = await classificarOutcome(text);
         if (outcome) {
           await registrarOutcome(phone, outcome);
+          const pdHint = isPreDateCoachEnabled(phone)
+            ? `\n\n_Quando chegar perto do encontro: digita *preparar encontro* pra minha ajuda com o dia._`
+            : '';
           const outcomeAck = {
             accepted_and_happened: `Foi bem. Boa pra você 👊\nSe tiver outra conversa rolando, manda aqui.`,
-            accepted_but_postponed: `Tá crescendo. Segura a ansiedade quando ela confirmar a data — aparece normal. Se precisar de ajuda nessa fase, manda.`,
+            accepted_but_postponed: `Tá crescendo. Segura a ansiedade quando ela confirmar a data — aparece normal.${pdHint}`,
             accepted_but_canceled: `Acontece. Não comenta sobre o cancelamento. Age normal quando ela retomar contato.`,
             rejected: `Tudo bem. Pelo menos você tentou. Se quiser entender o que pode ter influenciado, manda a conversa aqui.`,
             never_responded: `Ainda sem resposta? Espera mais 5-7 dias antes do próximo contato. Se precisar de ajuda, manda.`,

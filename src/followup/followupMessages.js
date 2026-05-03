@@ -27,6 +27,21 @@ const MESSAGES = {
     `Por hoje acabou. Renova amanhã.\n\nQuer ilimitado? ${OPCOES}.`,
     `3 por hoje, acabou. Se precisar continuar agora: ${OPCOES}.`,
   ],
+
+  predate_reminder_day_before: [
+    `Amanhã é o encontro 🗓️\n\nConfirma o local no Maps, define a roupa hoje à noite (casual-arrumado), barba e perfume sutil.\n\nSai com 15 min de folga, chega 5 min antes — não 30 min. Você tá pronto 💪\n\n_Manda PARAR se não quiser mais lembretes._`,
+    `Amanhã é o dia. Confirma o endereço, cuida dos detalhes: roupa, barba, perfume sutil. Não precisa ser perfeito — só presente.\n\n_Manda PARAR pra cancelar lembretes._`,
+  ],
+
+  predate_reminder_2h_before: [
+    `Daqui a pouco é o encontro 👊\n\nSem pressa — sai com calma, chega 5 min antes. Guarda o celular quando ela chegar, foca nela.\n\nVai bem.`,
+    `Chegando a hora. Você não precisa ser perfeito, precisa ser você. Guarda o celular quando ela aparecer, foca no momento.\n\nVai nessa 💪`,
+  ],
+
+  predate_debrief: [
+    `E aí, como foi o encontro? Me conta — pode ser curto 👇`,
+    `Como foi? Ela foi simpática, rolou química, esfriou? Me conta aqui.`,
+  ],
 };
 
 // Mensagem especial de outcome do Coach de Transição (não tem variações — é pessoal)

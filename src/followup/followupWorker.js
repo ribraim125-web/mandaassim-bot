@@ -2,6 +2,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '../../.env') }
 const { createClient } = require('@supabase/supabase-js');
 const { getMessage } = require('./followupMessages');
 const { marcarOutcomeSolicitado } = require('../lib/transitionCoach');
+const { atualizarDebriefEnviado } = require('../lib/predateCoach');
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -74,8 +75,23 @@ async function processFollowups() {
         continue;
       }
 
-      const message = getMessage(followup.trigger_type);
+      let message = getMessage(followup.trigger_type);
       if (!message) continue;
+
+      // Personaliza lembrete do dia anterior com a dica salva na sessão
+      if (followup.trigger_type === 'predate_reminder_day_before') {
+        const { data: session } = await supabase
+          .from('predate_sessions')
+          .select('assessment_result')
+          .eq('phone', followup.user_phone)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const tip = session?.assessment_result?.day_before_tip;
+        if (tip) {
+          message = `🗓️ *Amanhã é o encontro*\n\n${tip}\n\nBora 💪\n\n_Manda PARAR pra cancelar lembretes._`;
+        }
+      }
 
       // Usa wa_chat_id salvo no banco para evitar erro de LID
       const { data: userRow } = await supabase
@@ -97,6 +113,11 @@ async function processFollowups() {
       // Marca outcome_requested_at na sessão do coach de transição
       if (followup.trigger_type === 'transition_coach_outcome') {
         marcarOutcomeSolicitado(followup.user_phone).catch(() => {});
+      }
+
+      // Marca debrief enviado na sessão de pré-date
+      if (followup.trigger_type === 'predate_debrief') {
+        atualizarDebriefEnviado(followup.user_phone).catch(() => {});
       }
 
       // Delay humano entre mensagens (3-7s)

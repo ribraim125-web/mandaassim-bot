@@ -64,6 +64,43 @@ async function scheduleTransitionCoachOutcome(userPhone) {
   await scheduleFollowup(userPhone, 'transition_coach_outcome', hours(168) + jitter(120));
 }
 
+/**
+ * Agenda os 3 lembretes do Coach Pré-Date com base na data/hora do encontro.
+ * Silencioso se a data já passou ou é muito próxima.
+ * @param {string} userPhone
+ * @param {Date} encontroDate — data/hora do encontro
+ */
+async function schedulePredateReminders(userPhone, encontroDate) {
+  const now = Date.now();
+  const encounterMs = encontroDate.getTime();
+  const msUntilEncounter = encounterMs - now;
+
+  if (msUntilEncounter <= 0) return; // encontro no passado — não agenda
+
+  // 1 dia antes (ou a partir de agora se for amanhã ou depois de amanhã)
+  const dayBeforeDelay = msUntilEncounter - hours(24);
+  if (dayBeforeDelay > minutes(10)) {
+    await scheduleFollowup(userPhone, 'predate_reminder_day_before', dayBeforeDelay);
+  }
+
+  // 2h antes
+  const twoHBeforeDelay = msUntilEncounter - hours(2);
+  if (twoHBeforeDelay > minutes(10)) {
+    await scheduleFollowup(userPhone, 'predate_reminder_2h_before', twoHBeforeDelay);
+  }
+
+  // Debrief: 10h após o encontro (normalmente no dia seguinte de manhã)
+  const debriefDate = new Date(encounterMs + hours(10));
+  const debriefHour = debriefDate.getHours();
+  // Garante que caia em horário humano (8h–21h BRT)
+  if (debriefHour < 8)  { debriefDate.setHours(9,  0, 0, 0); }
+  if (debriefHour > 21) { debriefDate.setDate(debriefDate.getDate() + 1); debriefDate.setHours(9, 0, 0, 0); }
+  const debriefDelay = debriefDate.getTime() - now;
+  if (debriefDelay > minutes(10)) {
+    await scheduleFollowup(userPhone, 'predate_debrief', debriefDelay);
+  }
+}
+
 module.exports = {
   scheduleInactiveFollowup,
   scheduleLimitDrop10,
@@ -71,4 +108,5 @@ module.exports = {
   scheduleLimitDrop3,
   scheduleLimitExhausted3,
   scheduleTransitionCoachOutcome,
+  schedulePredateReminders,
 };
