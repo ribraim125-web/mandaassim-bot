@@ -10,6 +10,8 @@ const { startWorker } = require('./src/followup/followupWorker');
 const { cancelPendingFollowups } = require('./src/followup/followupCanceller');
 const { logApiRequest } = require('./src/lib/tracking');
 const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
+const { analisarPrintConversaComHaiku } = require('./src/lib/printAnalysis');
+const { checkPrintLimit, incrementPrintCount, setPrintLastTime } = require('./src/lib/printLimits');
 const {
   scheduleInactiveFollowup,
   scheduleLimitDrop10,
@@ -31,6 +33,12 @@ const PRECO_24H = 4.99;
 const PRECO_MENSAL = 29.90;
 const PRECO_ANUAL = 299.00;
 const PRECO_WINBACK = 19.90;
+
+// Feature flag: análise de prints via Haiku 4.5 vision
+// Valor: 'false' (desativado), 'test' (só meu user), 'beta' (10% premium), 'all' (todos)
+const PRINT_ANALYSIS_MODE = (process.env.ENABLE_PRINT_ANALYSIS || 'false').toLowerCase();
+// ID de teste do dono (phone sem @c.us) — usado no modo 'test'
+const PRINT_ANALYSIS_TEST_PHONE = process.env.PRINT_ANALYSIS_TEST_PHONE || '';
 
 const MENSAGEM_RENOVACAO =
   `Seu acesso ilimitado expira em *3 dias*.\n\n` +
@@ -58,6 +66,22 @@ const TRANSICAO_SOFT_LIMIT =
 const LIMITE_TRIAL_ENDED_MESSAGE =
   `Deu 3 por hoje. Amanhã renova.\n\n` +
   `Se a conversa tá quente e não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`;
+
+// ── Mensagens da feature de print analysis ──────────────────────────────────
+
+const PRINT_UPSELL_MESSAGE =
+  `Análise de print é uma feature do *Wingman Premium* 🔍\n\n` +
+  `Com ela: manda qualquer conversa do Tinder, WhatsApp ou Bumble e eu leio o que tá rolando — interesse dela, temperatura da conversa, erros, próxima mensagem certa.\n\n` +
+  `${`👉 Escolhe como continuar:\n\n` +
+    `⚡ *24h ilimitado* — R$4,99 → digita *24h*\n` +
+    `📅 *Mensal* — R$29,90/mês → digita *mensal*\n` +
+    `📆 *Anual* — R$299/ano _(economiza R$60)_ → digita *anual*`}`;
+
+const PRINT_LIMIT_REACHED_PREMIUM =
+  `Chegou no limite de 5 análises de print hoje.\n\nAmanhã cedo tem mais 5. Usa texto enquanto isso — descreve o que ela mandou que eu analiso.`;
+
+const PRINT_LIMIT_REACHED_TRIAL =
+  `Deu 1 análise de print por hoje — esse é o limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`;
 
 // ---------------------------------------------------------------------------
 // OpenRouter — modelos por tier de uso mensal
@@ -1281,6 +1305,25 @@ const FEEDBACK_NEGATIVO = /^(não funcionou|nao funcionou|não rolou|nao rolou|n
 const RECONQUISTA_KEYWORDS = /reconquist|quero ela de volta|ela sumiu há|ela parou de responder|ela me deixou|ela foi embora|terminamos|ela terminou|quero reconquistar/i;
 
 // ---------------------------------------------------------------------------
+// Feature flag: decide se print analysis está habilitado para o phone
+// ---------------------------------------------------------------------------
+
+function isPrintAnalysisEnabled(phone) {
+  switch (PRINT_ANALYSIS_MODE) {
+    case 'all':   return true;
+    case 'test':  return phone === PRINT_ANALYSIS_TEST_PHONE;
+    case 'beta': {
+      // Distribui por hash do phone — 10% da base premium (determinístico)
+      if (!phone) return false;
+      let hash = 0;
+      for (const c of phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+      return (Math.abs(hash) % 100) < 10;
+    }
+    default:      return false; // 'false' ou qualquer valor desconhecido
+  }
+}
+
+// ---------------------------------------------------------------------------
 // WhatsApp Client
 // ---------------------------------------------------------------------------
 
@@ -1985,14 +2028,90 @@ client.on('message', async (message) => {
         await message.reply('Não consegui analisar o perfil, tenta mandar de novo 😅');
       }
     } else {
-      // Modo conversa: analisa o print normalmente
+      // Modo conversa: analisa o print
       console.log(`[Imagem] ${phone} enviou um print.`);
-      
+
+      // ── Print Analysis (Haiku 4.5 vision) — se feature flag habilitada ──
+      if (isPrintAnalysisEnabled(phone)) {
+        // Verifica acesso: premium ativo ou trial
+        if (!trial.isPremium && !trial.inTrial) {
+          await client.sendMessage(message.from, PRINT_UPSELL_MESSAGE);
+          return;
+        }
+
+        // Verifica limite diário + cooldown
+        const limitCheck = checkPrintLimit(phone, trial.isPremium, trial.inTrial);
+        if (!limitCheck.allowed) {
+          if (limitCheck.reason === 'cooldown') {
+            await client.sendMessage(message.from,
+              `Aguarda ${limitCheck.remaining}s antes de mandar outro print 😅`
+            );
+          } else if (limitCheck.reason === 'limit_reached') {
+            const msg = trial.isPremium ? PRINT_LIMIT_REACHED_PREMIUM : PRINT_LIMIT_REACHED_TRIAL;
+            await client.sendMessage(message.from, msg);
+          }
+          return;
+        }
+
+        // Verifica tamanho (base64: cada char ≈ 0.75 bytes)
+        const estimatedBytes = (media.data || '').length * 0.75;
+        if (estimatedBytes > 10 * 1024 * 1024) {
+          await client.sendMessage(message.from,
+            `Esse print tá muito pesado. Tira um screenshot menor (as últimas 5-10 mensagens) e manda de novo.`
+          );
+          return;
+        }
+
+        await message.reply('Lendo a conversa... ⏳');
+        const stopTypingPrint = await startTyping(message);
+        try {
+          const { messages: printMsgs } = await analisarPrintConversaComHaiku(media.data, media.mimetype, phone);
+          stopTypingPrint();
+
+          // Registra uso antes de enviar (evita duplo envio em retry)
+          incrementPrintCount(phone);
+          setPrintLastTime(phone);
+
+          saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
+
+          for (const msg of printMsgs) {
+            await client.sendMessage(message.from, msg);
+          }
+
+          // Contador de prints restantes (só para trial)
+          if (trial.inTrial) {
+            // trial: 1/dia, já usou — não mostra contador
+          } else if (trial.isPremium) {
+            const { remaining } = checkPrintLimit(phone, true, false);
+            if (remaining <= 2) {
+              await client.sendMessage(message.from,
+                `_${5 - remaining}/5 análises de print usadas hoje_`
+              );
+            }
+          }
+
+        } catch (err) {
+          stopTypingPrint();
+          console.error('[PrintAnalysis] Erro:', err.message);
+          if (err.message?.includes('muito grande')) {
+            await client.sendMessage(message.from,
+              `Esse print tá muito pesado. Tira um screenshot menor e manda de novo.`
+            );
+          } else {
+            await client.sendMessage(message.from,
+              `Hmm, não consegui ler bem essa imagem. Tenta um print mais nítido da conversa, mostrando as últimas 5-10 mensagens.\n\nPode ser do Tinder, WhatsApp, Bumble, Instagram — qualquer um.`
+            );
+          }
+        }
+        return;
+      }
+
+      // ── Fallback: comportamento original (Gemini Flash) ──
       const stopTypingImg = await startTyping(message);
       try {
         const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg, phone);
         stopTypingImg();
-        saveUserContext(phone, media, 'image');
+        saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
         await enviarResposta(message, sugestoes);
         await contadorRestante(message, trial, todayCount);
         await upsellPicoPremium(message, trial, todayCount);
