@@ -195,7 +195,7 @@ Português brasileiro natural, jeito que um cara de 25 anos fala no WhatsApp.
 - Abreviações: "vc", "tb" (máx 1 por mensagem)
 - Começa com minúscula quando natural. kkkk curto (2-4 k's).
 
-BANIDAS: conexão, jornada, processo, vibe, energia, flow, incrível, especial, genuíno, autêntico, verdadeiro, compartilhar, momento, situação, pessoa, realmente, absolutamente, certamente, de fato, cativante, fascinante, encantador, despertar, resgatar, reacender, em pessoa, chat, no momento
+BANIDAS: conexão, jornada, processo, vibe, energia, flow, incrível, especial, genuíno, autêntico, verdadeiro, compartilhar, momento, situação, pessoa, realmente, absolutamente, certamente, de fato, cativante, fascinante, encantador, despertar, resgatar, reacender, em pessoa, chat, no momento, massa (como elogio), nossa, caramba, uau, poxa
 
 TAMANHO: 2 a 8 palavras por opção. Máx 10. Nunca parágrafos nas mensagens.
 
@@ -962,10 +962,12 @@ async function gerarPerguntaContexto(situacao) {
       messages: [
         {
           role: 'system',
-          content: `Você é o MandaAssim — wingman brasileiro casual. Precisa entender melhor a situação antes de dar conselho.
-Faça APENAS UMA pergunta direta e natural, como um amigo faria no WhatsApp.
-Foco: entender o estágio da conversa (se conheceram agora, ficaram, tão se falando há quanto tempo), e o que exatamente aconteceu.
-Seja objetivo. Máx 2 frases curtas.`,
+          content: `Você é o MandaAssim — wingman brasileiro. Precisa entender melhor a situação antes de dar conselho.
+Faça APENAS UMA pergunta direta e natural, como um amigo mandaria no WhatsApp.
+Foco: entender o estágio (se conheceram agora, ficaram, tempo que tão se falando) e o que exatamente aconteceu.
+Seja curto e direto. Máx 2 frases.
+NUNCA use: "massa", "incrível", "caramba", "nossa", "poxa", "uau", elogios antes da pergunta.
+Vai direto na pergunta — sem saudação, sem comentário sobre a situação.`,
         },
         {
           role: 'user',
@@ -1750,11 +1752,13 @@ client.on('message', async (message) => {
     const temHistorico = (ctx?.history?.length || 0) > 0;
     const temPerfil = !!(girlProfile?.girl_context || girlProfile?.current_situation);
     if (situacaoEhVaga(text, temHistorico, temPerfil)) {
+      const stopTypingCtxQ = await startTyping(message);
       const pergunta = await gerarPerguntaContexto(text);
+      stopTypingCtxQ();
       const current = userContext.get(phone) || {};
       userContext.set(phone, { ...current, awaitingContext: true, pendingRequest: text });
       console.log(`[Coaching] Pedindo contexto para ${phone}`);
-      await message.reply(pergunta);
+      await client.sendMessage(message.from, pergunta);
       return;
     }
 
