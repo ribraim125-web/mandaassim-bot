@@ -12,6 +12,9 @@ const { logApiRequest } = require('./src/lib/tracking');
 const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
 const { analisarPrintConversaComHaiku } = require('./src/lib/printAnalysis');
 const { checkPrintLimit, incrementPrintCount, setPrintLastTime } = require('./src/lib/printLimits');
+const { analisarPerfilComHaiku } = require('./src/lib/profileAnalysis');
+const { checkProfileLimit, incrementProfileCount, setProfileLastTime } = require('./src/lib/profileLimits');
+const { classificarTipoImagem } = require('./src/lib/imageClassifier');
 const {
   scheduleInactiveFollowup,
   scheduleLimitDrop10,
@@ -34,11 +37,15 @@ const PRECO_MENSAL = 29.90;
 const PRECO_ANUAL = 299.00;
 const PRECO_WINBACK = 19.90;
 
-// Feature flag: análise de prints via Haiku 4.5 vision
-// Valor: 'false' (desativado), 'test' (só meu user), 'beta' (10% premium), 'all' (todos)
+// Feature flag: análise de prints de conversa via Haiku 4.5 vision (Camada 1)
+// Valor: 'false' | 'test' | 'beta' (10% premium) | 'all'
 const PRINT_ANALYSIS_MODE = (process.env.ENABLE_PRINT_ANALYSIS || 'false').toLowerCase();
-// ID de teste do dono (phone sem @c.us) — usado no modo 'test'
 const PRINT_ANALYSIS_TEST_PHONE = process.env.PRINT_ANALYSIS_TEST_PHONE || '';
+
+// Feature flag: análise de perfis via Haiku 4.5 vision (Camada 2 — Wingman Pro)
+// Valor: 'false' | 'test' | 'beta' (10% pro) | 'all'
+const PROFILE_ANALYSIS_MODE = (process.env.ENABLE_PROFILE_ANALYSIS || 'false').toLowerCase();
+const PROFILE_ANALYSIS_TEST_PHONE = process.env.PROFILE_ANALYSIS_TEST_PHONE || '';
 
 const MENSAGEM_RENOVACAO =
   `Seu acesso ilimitado expira em *3 dias*.\n\n` +
@@ -82,6 +89,14 @@ const PRINT_LIMIT_REACHED_PREMIUM =
 
 const PRINT_LIMIT_REACHED_TRIAL =
   `Deu 1 análise de print por hoje — esse é o limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`;
+
+const PROFILE_UPSELL_MESSAGE =
+  `Análise de perfil é uma feature do *Wingman Pro* 🔍\n\n` +
+  `Com ela: manda o print do perfil dela no Tinder, Bumble ou Instagram e eu leio a personalidade, os hooks do perfil e gero a primeira mensagem personalizada — daquelas que ela percebe que você realmente olhou.\n\n` +
+  `_O Wingman Pro está chegando. Fique de olho._`;
+
+const PROFILE_LIMIT_REACHED_PRO =
+  `Chegou no limite de 10 análises de perfil hoje.\n\nAmanhã cedo tem mais 10.`;
 
 // ---------------------------------------------------------------------------
 // OpenRouter — modelos por tier de uso mensal
@@ -840,15 +855,23 @@ async function getTrialInfo(phone) {
     .eq('phone', phone)
     .maybeSingle();
 
-  if (!data) return { isPremium: false, inTrial: false, trialDaysLeft: 0, isLastDay: false };
+  if (!data) return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false };
+
+  // Pro ativo? (Wingman Pro — plano futuro, R$79,90/mês)
+  if (data.plan === 'pro') {
+    if (!data.plan_expires_at || new Date(data.plan_expires_at) > new Date()) {
+      return { isPremium: true, isPro: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at };
+    }
+    return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at };
+  }
 
   // Premium ativo?
   if (data.plan === 'premium') {
     if (!data.plan_expires_at || new Date(data.plan_expires_at) > new Date()) {
-      return { isPremium: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at };
+      return { isPremium: true, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at };
     }
     // Premium expirado — retorna a data para lógica de win-back
-    return { isPremium: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at };
+    return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at };
   }
 
   // Calcula dias desde o cadastro (baseado em created_at — imutável no banco)
@@ -866,7 +889,7 @@ async function getTrialInfo(phone) {
   if (inSoftLimit) dailyLimit = SOFT_LIMIT;
   else if (!inTrial) dailyLimit = POST_TRIAL_LIMIT;
 
-  return { isPremium: false, inTrial, inSoftLimit, trialDaysLeft, isLastDay, dailyLimit };
+  return { isPremium: false, isPro: false, inTrial, inSoftLimit, trialDaysLeft, isLastDay, dailyLimit };
 }
 
 /**
@@ -1313,13 +1336,27 @@ function isPrintAnalysisEnabled(phone) {
     case 'all':   return true;
     case 'test':  return phone === PRINT_ANALYSIS_TEST_PHONE;
     case 'beta': {
-      // Distribui por hash do phone — 10% da base premium (determinístico)
       if (!phone) return false;
       let hash = 0;
       for (const c of phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
       return (Math.abs(hash) % 100) < 10;
     }
-    default:      return false; // 'false' ou qualquer valor desconhecido
+    default: return false;
+  }
+}
+
+function isProfileAnalysisEnabled(phone) {
+  switch (PROFILE_ANALYSIS_MODE) {
+    case 'all':  return true;
+    case 'test': return phone === PROFILE_ANALYSIS_TEST_PHONE;
+    case 'beta': {
+      if (!phone) return false;
+      let hash = 0;
+      for (const c of phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+      // Seed diferente do print para não ativar os mesmos 10%
+      return (Math.abs(hash ^ 0xdeadbeef) % 100) < 10;
+    }
+    default: return false;
   }
 }
 
@@ -1742,6 +1779,96 @@ client.on('message', async (message) => {
     const text = message.body.trim();
     console.log(`[Texto] ${phone}: "${text}"`);
 
+    // ── Resposta de desambiguação de imagem ("conversa" / "perfil") ──────────
+    const ctxAmbig = getUserContext(phone);
+    if (ctxAmbig?.pendingImageClassification) {
+      const lower = text.toLowerCase().trim();
+      const isConversaResp = /^conversa[s]?$|^print$|^chat$/.test(lower);
+      const isPerfilResp   = /^perfil[s]?$|^foto$|^tinder$|^bumble$|^instagram$/.test(lower);
+
+      if (isConversaResp || isPerfilResp) {
+        const { data: imgData, mimetype: imgMime } = ctxAmbig.pendingImageClassification;
+        // Limpa o estado pendente antes de processar
+        const currentCtx = userContext.get(phone) || {};
+        userContext.set(phone, { ...currentCtx, pendingImageClassification: null });
+
+        if (isConversaResp) {
+          // Redireciona para análise de conversa
+          if (isPrintAnalysisEnabled(phone)) {
+            if (!trial.isPremium && !trial.inTrial) {
+              await client.sendMessage(message.from, PRINT_UPSELL_MESSAGE);
+            } else {
+              const lc = checkPrintLimit(phone, trial.isPremium, trial.inTrial);
+              if (!lc.allowed) {
+                const msg = lc.reason === 'cooldown'
+                  ? `Aguarda ${lc.remaining}s 😅`
+                  : (trial.isPremium ? PRINT_LIMIT_REACHED_PREMIUM : PRINT_LIMIT_REACHED_TRIAL);
+                await client.sendMessage(message.from, msg);
+              } else {
+                await message.reply('Lendo a conversa... ⏳');
+                try {
+                  const { messages: pm } = await analisarPrintConversaComHaiku(imgData, imgMime, phone);
+                  incrementPrintCount(phone); setPrintLastTime(phone);
+                  saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
+                  for (const m of pm) await client.sendMessage(message.from, m);
+                } catch (_) {
+                  await client.sendMessage(message.from, 'Não consegui ler a conversa. Manda o print de novo 😅');
+                }
+              }
+            }
+          } else {
+            await message.reply('Analisando a conversa... ⏳');
+            try {
+              const sugestoes = await analisarPrintComClaude(imgData, imgMime, '', '', '', phone);
+              saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
+              await enviarResposta(message, sugestoes);
+            } catch (_) {
+              await message.reply('Não consegui analisar. Manda o print de novo.');
+            }
+          }
+        } else {
+          // Redireciona para análise de perfil
+          if (isProfileAnalysisEnabled(phone)) {
+            const needsPlanCheck = PROFILE_ANALYSIS_MODE !== 'test';
+            if (needsPlanCheck && !trial.isPro) {
+              await client.sendMessage(message.from, PROFILE_UPSELL_MESSAGE);
+            } else {
+              const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
+              if (!pl.allowed) {
+                const msg = pl.reason === 'cooldown'
+                  ? `Aguarda ${pl.remaining}s 😅`
+                  : PROFILE_LIMIT_REACHED_PRO;
+                await client.sendMessage(message.from, msg);
+              } else {
+                await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
+                try {
+                  const { messages: pm } = await analisarPerfilComHaiku(imgData, imgMime, phone);
+                  incrementProfileCount(phone); setProfileLastTime(phone);
+                  saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
+                  for (const m of pm) await client.sendMessage(message.from, m);
+                } catch (_) {
+                  await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
+                }
+              }
+            }
+          } else {
+            await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
+            try {
+              const sugestoes = await analisarPrintComClaude(imgData, imgMime, PROFILE_OPENER_PROMPT, '', '', phone);
+              saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
+              await enviarResposta(message, sugestoes);
+            } catch (_) {
+              await client.sendMessage(message.from, 'Não consegui analisar o perfil. Manda de novo 😅');
+            }
+          }
+        }
+        return;
+      }
+      // Se não for resposta de desambiguação — limpa o estado e segue o fluxo normal
+      const currentCtx2 = userContext.get(phone) || {};
+      userContext.set(phone, { ...currentCtx2, pendingImageClassification: null });
+    }
+
     // Filtra saudações puras — orienta sem gastar API
     if (isSaudacao(text)) {
       await message.reply('Manda o print da conversa ou descreve o que tá rolando — eu leio o contexto e gero as opções.');
@@ -1986,7 +2113,6 @@ client.on('message', async (message) => {
     }
 
     const caption = message.body?.trim() || '';
-    const isPerfilMode = PROFILE_OPENER_KEYWORDS.test(caption);
     const isStoryMode = STORY_KEYWORDS.test(caption);
     const ctxImg = getUserContext(phone);
     const toneHintImg = ctxImg?.tonePreference ? `\nPreferência do usuário: ele tende a preferir tom "${ctxImg.tonePreference}".` : '';
@@ -1994,14 +2120,14 @@ client.on('message', async (message) => {
     const girlContextImg = buildGirlContext(girlProfileImg);
 
     if (isStoryMode) {
-      // Modo stories: gera reação ao stories dela
+      // ── Stories: reação ao stories dela (caption-based, sem mudança) ──────
       console.log(`[Stories] ${phone} enviou foto de stories (caption: "${caption}")`);
       await message.reply('Vendo o stories dela... ⏳');
       const stopTypingStory = await startTyping(message);
       try {
         const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, STORY_PROMPT, '', girlContextImg, phone);
         stopTypingStory();
-        saveUserContext(phone, media, 'image');
+        saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
         await enviarResposta(message, sugestoes);
         await contadorRestante(message, trial, todayCount);
         await upsellPicoPremium(message, trial, todayCount);
@@ -2010,115 +2136,204 @@ client.on('message', async (message) => {
         console.error('[Stories] Erro:', err.message);
         await message.reply('Não consegui analisar o stories, tenta mandar de novo 😅');
       }
-    } else if (isPerfilMode) {
-      // Modo perfil: gera abertura de conversa baseada na foto dela
-      console.log(`[Perfil] ${phone} enviou foto de perfil (caption: "${caption}")`);
-      await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
-      const stopTypingPerfil = await startTyping(message);
-      try {
-        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, PROFILE_OPENER_PROMPT, '', girlContextImg, phone);
-        stopTypingPerfil();
-        saveUserContext(phone, media, 'image');
-        await enviarResposta(message, sugestoes);
-        await contadorRestante(message, trial, todayCount);
-        await upsellPicoPremium(message, trial, todayCount);
-      } catch (err) {
-        stopTypingPerfil();
-        console.error('[Perfil] Erro:', err.message);
-        await message.reply('Não consegui analisar o perfil, tenta mandar de novo 😅');
-      }
+
     } else {
-      // Modo conversa: analisa o print
-      console.log(`[Imagem] ${phone} enviou um print.`);
+      // ── Camada de classificação automática (quando alguma flag está ativa) ─
+      const usaClassificador = isPrintAnalysisEnabled(phone) || isProfileAnalysisEnabled(phone);
 
-      // ── Print Analysis (Haiku 4.5 vision) — se feature flag habilitada ──
-      if (isPrintAnalysisEnabled(phone)) {
-        // Verifica acesso: premium ativo ou trial
-        if (!trial.isPremium && !trial.inTrial) {
-          await client.sendMessage(message.from, PRINT_UPSELL_MESSAGE);
-          return;
-        }
+      let imageType;
+      if (usaClassificador) {
+        imageType = await classificarTipoImagem(media.data, media.mimetype);
+        console.log(`[ImageClassifier] ${phone} → ${imageType}`);
+      } else {
+        // Fallback: detecção por caption (comportamento anterior)
+        imageType = PROFILE_OPENER_KEYWORDS.test(caption) ? 'profile' : 'conversation';
+      }
 
-        // Verifica limite diário + cooldown
-        const limitCheck = checkPrintLimit(phone, trial.isPremium, trial.inTrial);
-        if (!limitCheck.allowed) {
-          if (limitCheck.reason === 'cooldown') {
-            await client.sendMessage(message.from,
-              `Aguarda ${limitCheck.remaining}s antes de mandar outro print 😅`
-            );
-          } else if (limitCheck.reason === 'limit_reached') {
-            const msg = trial.isPremium ? PRINT_LIMIT_REACHED_PREMIUM : PRINT_LIMIT_REACHED_TRIAL;
-            await client.sendMessage(message.from, msg);
-          }
-          return;
-        }
+      // ── Imagem ambígua: pergunta ao usuário ─────────────────────────────
+      if (imageType === 'ambiguous') {
+        await client.sendMessage(message.from,
+          `Isso é uma *conversa* ou o *perfil* dela? Me fala pra eu analisar certo 📱\n\n_Responde: "conversa" ou "perfil"_`
+        );
+        // Salva contexto para quando ele responder
+        const current = userContext.get(phone) || {};
+        userContext.set(phone, {
+          ...current,
+          pendingImageClassification: { data: media.data, mimetype: media.mimetype },
+        });
+        return;
+      }
 
-        // Verifica tamanho (base64: cada char ≈ 0.75 bytes)
-        const estimatedBytes = (media.data || '').length * 0.75;
-        if (estimatedBytes > 10 * 1024 * 1024) {
-          await client.sendMessage(message.from,
-            `Esse print tá muito pesado. Tira um screenshot menor (as últimas 5-10 mensagens) e manda de novo.`
-          );
-          return;
-        }
-
-        await message.reply('Lendo a conversa... ⏳');
-        const stopTypingPrint = await startTyping(message);
-        try {
-          const { messages: printMsgs } = await analisarPrintConversaComHaiku(media.data, media.mimetype, phone);
-          stopTypingPrint();
-
-          // Registra uso antes de enviar (evita duplo envio em retry)
-          incrementPrintCount(phone);
-          setPrintLastTime(phone);
-
-          saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
-
-          for (const msg of printMsgs) {
-            await client.sendMessage(message.from, msg);
+      // ── Perfil: Camada 2 ────────────────────────────────────────────────
+      if (imageType === 'profile') {
+        if (isProfileAnalysisEnabled(phone)) {
+          // Novo pipeline: Haiku 4.5 vision, Wingman Pro
+          const needsPlanCheck = PROFILE_ANALYSIS_MODE !== 'test';
+          if (needsPlanCheck && !trial.isPro) {
+            await client.sendMessage(message.from, PROFILE_UPSELL_MESSAGE);
+            return;
           }
 
-          // Contador de prints restantes (só para trial)
-          if (trial.inTrial) {
-            // trial: 1/dia, já usou — não mostra contador
-          } else if (trial.isPremium) {
-            const { remaining } = checkPrintLimit(phone, true, false);
-            if (remaining <= 2) {
+          const profileLimit = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
+          if (!profileLimit.allowed) {
+            if (profileLimit.reason === 'cooldown') {
               await client.sendMessage(message.from,
-                `_${5 - remaining}/5 análises de print usadas hoje_`
+                `Aguarda ${profileLimit.remaining}s antes de analisar outro perfil 😅`
+              );
+            } else if (profileLimit.reason === 'limit_reached') {
+              await client.sendMessage(message.from, PROFILE_LIMIT_REACHED_PRO);
+            }
+            return;
+          }
+
+          const estimatedBytes = (media.data || '').length * 0.75;
+          if (estimatedBytes > 10 * 1024 * 1024) {
+            await client.sendMessage(message.from,
+              `Esse print tá muito pesado. Tira um screenshot menor e manda de novo.`
+            );
+            return;
+          }
+
+          await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
+          const stopTypingProfile = await startTyping(message);
+          try {
+            const { messages: profileMsgs } = await analisarPerfilComHaiku(media.data, media.mimetype, phone);
+            stopTypingProfile();
+
+            incrementProfileCount(phone);
+            setProfileLastTime(phone);
+
+            saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
+
+            for (const msg of profileMsgs) {
+              await client.sendMessage(message.from, msg);
+            }
+
+            // Contador restante para Pro
+            const { remaining: proRemaining } = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
+            if (proRemaining <= 3) {
+              await client.sendMessage(message.from,
+                `_${10 - proRemaining}/10 análises de perfil usadas hoje_`
+              );
+            }
+
+          } catch (err) {
+            stopTypingProfile();
+            console.error('[ProfileAnalysis] Erro:', err.message);
+            if (err.message?.includes('muito grande')) {
+              await client.sendMessage(message.from, `Esse print tá muito pesado. Tira um screenshot menor.`);
+            } else {
+              await client.sendMessage(message.from,
+                `Não consegui ler esse perfil direito 😅\n\nManda um print mais claro — com nome, bio e pelo menos uma foto.`
               );
             }
           }
 
-        } catch (err) {
-          stopTypingPrint();
-          console.error('[PrintAnalysis] Erro:', err.message);
-          if (err.message?.includes('muito grande')) {
-            await client.sendMessage(message.from,
-              `Esse print tá muito pesado. Tira um screenshot menor e manda de novo.`
-            );
-          } else {
-            await client.sendMessage(message.from,
-              `Hmm, não consegui ler bem essa imagem. Tenta um print mais nítido da conversa, mostrando as últimas 5-10 mensagens.\n\nPode ser do Tinder, WhatsApp, Bumble, Instagram — qualquer um.`
-            );
+        } else {
+          // Fallback: pipeline antigo (PROFILE_OPENER_PROMPT via Gemini Flash)
+          console.log(`[Perfil] ${phone} enviou foto de perfil (caption: "${caption}")`);
+          await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
+          const stopTypingPerfilOld = await startTyping(message);
+          try {
+            const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, PROFILE_OPENER_PROMPT, '', girlContextImg, phone);
+            stopTypingPerfilOld();
+            saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
+            await enviarResposta(message, sugestoes);
+            await contadorRestante(message, trial, todayCount);
+            await upsellPicoPremium(message, trial, todayCount);
+          } catch (err) {
+            stopTypingPerfilOld();
+            console.error('[Perfil] Erro:', err.message);
+            await message.reply('Não consegui analisar o perfil, tenta mandar de novo 😅');
           }
         }
-        return;
-      }
 
-      // ── Fallback: comportamento original (Gemini Flash) ──
-      const stopTypingImg = await startTyping(message);
-      try {
-        const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg, phone);
-        stopTypingImg();
-        saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
-        await enviarResposta(message, sugestoes);
-        await contadorRestante(message, trial, todayCount);
-        await upsellPicoPremium(message, trial, todayCount);
-      } catch (err) {
-        stopTypingImg();
-        console.error('[Claude] Erro ao analisar imagem:', err.message);
-        await message.reply('Não consegui ler esse print, tenta mandar de novo');
+      } else {
+        // ── Conversa: Camada 1 ──────────────────────────────────────────────
+        console.log(`[Imagem] ${phone} enviou um print de conversa.`);
+
+        if (isPrintAnalysisEnabled(phone)) {
+          // Novo pipeline: Haiku 4.5 vision, Wingman Premium/Trial
+          if (!trial.isPremium && !trial.inTrial) {
+            await client.sendMessage(message.from, PRINT_UPSELL_MESSAGE);
+            return;
+          }
+
+          const limitCheck = checkPrintLimit(phone, trial.isPremium, trial.inTrial);
+          if (!limitCheck.allowed) {
+            if (limitCheck.reason === 'cooldown') {
+              await client.sendMessage(message.from,
+                `Aguarda ${limitCheck.remaining}s antes de mandar outro print 😅`
+              );
+            } else if (limitCheck.reason === 'limit_reached') {
+              const msg = trial.isPremium ? PRINT_LIMIT_REACHED_PREMIUM : PRINT_LIMIT_REACHED_TRIAL;
+              await client.sendMessage(message.from, msg);
+            }
+            return;
+          }
+
+          const estimatedBytes = (media.data || '').length * 0.75;
+          if (estimatedBytes > 10 * 1024 * 1024) {
+            await client.sendMessage(message.from,
+              `Esse print tá muito pesado. Tira um screenshot menor (as últimas 5-10 mensagens) e manda de novo.`
+            );
+            return;
+          }
+
+          await message.reply('Lendo a conversa... ⏳');
+          const stopTypingPrint = await startTyping(message);
+          try {
+            const { messages: printMsgs } = await analisarPrintConversaComHaiku(media.data, media.mimetype, phone);
+            stopTypingPrint();
+
+            incrementPrintCount(phone);
+            setPrintLastTime(phone);
+
+            saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
+
+            for (const msg of printMsgs) {
+              await client.sendMessage(message.from, msg);
+            }
+
+            if (trial.isPremium) {
+              const { remaining } = checkPrintLimit(phone, true, false);
+              if (remaining <= 2) {
+                await client.sendMessage(message.from,
+                  `_${5 - remaining}/5 análises de print usadas hoje_`
+                );
+              }
+            }
+
+          } catch (err) {
+            stopTypingPrint();
+            console.error('[PrintAnalysis] Erro:', err.message);
+            if (err.message?.includes('muito grande')) {
+              await client.sendMessage(message.from,
+                `Esse print tá muito pesado. Tira um screenshot menor e manda de novo.`
+              );
+            } else {
+              await client.sendMessage(message.from,
+                `Hmm, não consegui ler bem essa imagem. Tenta um print mais nítido da conversa, mostrando as últimas 5-10 mensagens.\n\nPode ser do Tinder, WhatsApp, Bumble, Instagram — qualquer um.`
+              );
+            }
+          }
+
+        } else {
+          // Fallback: Gemini Flash
+          const stopTypingImg = await startTyping(message);
+          try {
+            const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, '', toneHintImg, girlContextImg, phone);
+            stopTypingImg();
+            saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
+            await enviarResposta(message, sugestoes);
+            await contadorRestante(message, trial, todayCount);
+            await upsellPicoPremium(message, trial, todayCount);
+          } catch (err) {
+            stopTypingImg();
+            console.error('[Claude] Erro ao analisar imagem:', err.message);
+            await message.reply('Não consegui ler esse print, tenta mandar de novo');
+          }
+        }
       }
     }
 
