@@ -1191,7 +1191,7 @@ _[uma linha: por que essa abordagem funciona pra esse perfil específico]_`;
 
 async function transcreverAudio(base64Data, mimetype) {
   const response = await openrouter.chat.completions.create({
-    model: 'google/gemini-2.0-flash',
+    model: 'google/gemini-2.0-flash-001',
     max_tokens: 400,
     temperature: 0,
     messages: [{
