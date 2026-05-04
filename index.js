@@ -568,7 +568,7 @@ RESPONDA APENAS com a categoria, sem explicação.`;
 const INTENT_MODEL_CONFIG = {
   one_liner: { model: 'google/gemini-2.0-flash-lite-001',    maxTokens: 80,  temperature: 0.90, systemType: 'minimal'  },
   volume:    { model: 'google/gemini-2.0-flash-001',          maxTokens: 600, temperature: 0.85, systemType: 'degraded' },
-  premium:   { model: 'anthropic/claude-haiku-4-5-20251001',  maxTokens: 250, temperature: 0.80, systemType: 'full'     },
+  premium:   { model: 'anthropic/claude-haiku-4-5-20251001',  maxTokens: 450, temperature: 0.80, systemType: 'full'     },
   coaching:  { model: 'anthropic/claude-haiku-4-5-20251001',  maxTokens: 600, temperature: 0.75, systemType: 'coach'    },
   ousadia:   { model: 'meta-llama/llama-4-maverick',          maxTokens: 500, temperature: 0.95, systemType: 'ousadia'  },
 };
@@ -705,9 +705,8 @@ async function enviarResposta(message, sugestoes, intent = '') {
 
   // --- Formato padrão: diagnóstico + dica + 3 opções ---
   const dica = extrairDica(sugestoes);
-  const porque = extrairPorQueFunciona(sugestoes);
 
-  // Bloco 1 — contexto: diagnóstico + dica juntos, limpo
+  // Bloco 1 — contexto: diagnóstico + dica juntos
   if (diagnostico || dica) {
     const partes = [];
     if (diagnostico) partes.push(`📍 _${diagnostico}_`);
@@ -715,16 +714,10 @@ async function enviarResposta(message, sugestoes, intent = '') {
     await client.sendMessage(message.from, partes.join('\n\n'));
   }
 
-  // Bloco 2 — label + mensagem separados: label diz o estilo, mensagem é só o texto puro pra copiar
+  // Bloco 2 — cada opção numa bolha própria: emoji inline + texto (fácil de copiar)
   if (opcoes.length >= 2) {
-    const labels = { '🔥': '🔥 *Romântica*', '😏': '😏 *Ousada*', '⚡': '⚡ *Direta*', '1️⃣': '1️⃣', '2️⃣': '2️⃣', '3️⃣': '3️⃣' };
-    await client.sendMessage(message.from, '*Escolhe uma* 👇');
     for (const { emoji, msg } of opcoes) {
-      await client.sendMessage(message.from, labels[emoji] || emoji); // ex: "🔥 *Romântica*"
-      await client.sendMessage(message.from, msg);                    // texto puro, sem aspas
-    }
-    if (porque) {
-      await client.sendMessage(message.from, `_${porque}_`);
+      await client.sendMessage(message.from, `${emoji}  ${msg}`);
     }
   } else {
     // Fallback
