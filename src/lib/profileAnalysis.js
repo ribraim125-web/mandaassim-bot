@@ -27,9 +27,11 @@ const USD_TO_BRL = 5.75;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 // ── System prompt ─────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT_PROFILE = `Você é o MandaAssim — wingman direto e maduro. Analisa perfis de apps de relacionamento e gera primeiras mensagens personalizadas.
+const SYSTEM_PROMPT_PROFILE = `Você é o MandaAssim — lê a intenção por trás do perfil dela para gerar a primeira mensagem certa.
 
 PRINCÍPIO CENTRAL: a melhor primeira mensagem é aquela que ela lê e pensa "esse cara realmente olhou meu perfil". Específico > genérico sempre.
+
+LEITURA DE INTENÇÃO: antes de gerar a mensagem, entenda o que ela sinalizou — o que as fotos, a bio e os interesses revelam sobre o que ela busca e como ela quer ser abordada.
 
 REGRA DE OURO DAS PRIMEIRAS MENSAGENS:
 - NUNCA: "oi linda", "que perfil incrível", "você caiu do céu", elogio de aparência
@@ -64,12 +66,13 @@ Schema:
     {"hook": "...", "rationale": "..."},
     {"hook": "...", "rationale": "..."}
   ],
-  "risks": ["..."],
+  "risks_to_watch": ["sinal de alerta 1", "sinal de alerta 2"],
   "recommended_first_message": {
-    "safe_curious": "...",
+    "soft_curious": "...",
     "playful_clever": "...",
     "direct_charming": "..."
-  }
+  },
+  "what_NOT_to_send": ["erro clássico 1 pra evitar com esse perfil", "erro 2"]
 }`;
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
@@ -118,7 +121,7 @@ function salvarProfileAnalysis(phone, result) {
     photos_themes:           result.photos_themes || [],
     personality_signals:     result.personality_signals || [],
     potential_hooks_count:   (result.potential_hooks || []).length,
-    risks_count:             (result.risks || []).length,
+    risks_count:             (result.risks_to_watch || []).length,
     has_first_message:       !!(result.recommended_first_message?.playful_clever),
     raw_json:                result,
     created_at:              new Date().toISOString(),
@@ -129,11 +132,11 @@ function salvarProfileAnalysis(phone, result) {
 }
 
 /**
- * Formata JSON estruturado em 2-3 mensagens de WhatsApp.
+ * Formata JSON estruturado em 3 mensagens de WhatsApp.
  *
- * Msg 1: leitura da pessoa (1-2 linhas)
- * Msg 2: primeira mensagem recomendada (playful_clever)
- * Msg 3: oferta de alternativas
+ * Msg 1: 📍 leitura dela — quem ela é, o que sinalizou, o hook mais forte
+ * Msg 2: mensagem principal recomendada (playful_clever)
+ * Msg 3: variações + o que não mandar
  *
  * @param {object} result
  * @returns {string[]}
@@ -141,54 +144,71 @@ function salvarProfileAnalysis(phone, result) {
 function formatarRespostaPerfil(result) {
   const msgs = [];
 
-  // ── Msg 1: leitura da pessoa ───────────────────────────��─────────────────
+  // ── Msg 1: leitura dela ───────────────────────────────────────────────────
   const plataforma = result.platform !== 'unknown' ? result.platform : null;
   const nome = result.name_detected || null;
   const sinais = (result.personality_signals || []).slice(0, 2);
   const temas  = (result.photos_themes || []).slice(0, 2);
   const hooks  = result.potential_hooks || [];
 
-  let leitura = '';
-  if (nome) leitura += `*${nome}*`;
-  if (plataforma && nome) leitura += ` (${plataforma})`;
-  else if (plataforma) leitura += `Perfil do ${plataforma}`;
+  let leitura = `📍 _Lendo a intenção dela..._\n\n`;
+
+  if (nome) {
+    leitura += `*${nome}*`;
+    if (plataforma) leitura += ` (${plataforma})`;
+  } else if (plataforma) {
+    leitura += `Perfil ${plataforma}`;
+  }
 
   if (sinais.length > 0) {
-    leitura += leitura ? ' — ' : '';
+    leitura += leitura.includes('\n\n') && !nome && !plataforma ? '' : ' — ';
     leitura += sinais.join(', ');
   }
 
   if (temas.length > 0) {
-    leitura += leitura ? ', curte ' : 'Curte ';
-    leitura += temas.join(' e ');
+    leitura += `, curte ${temas.join(' e ')}`;
   }
 
-  // Hook mais forte como diagnóstico
+  // Hook mais forte como diagnóstico da intenção
   const melhorHook = hooks[0];
   if (melhorHook?.rationale) {
     leitura += `\n\n💡 _${melhorHook.rationale}_`;
   }
 
-  if (result.risks?.length > 0) {
-    leitura += `\n\n⚠️ ${result.risks[0]}`;
+  if (result.risks_to_watch?.length > 0) {
+    leitura += `\n\n⚠️ ${result.risks_to_watch[0]}`;
   }
 
-  if (leitura) msgs.push(leitura.trim());
+  msgs.push(leitura.trim());
 
-  // ── Msg 2: primeira mensagem (playful_clever como padrão) ────────────────
+  // ── Msg 2: mensagem principal ─────────────────────────────────────────────
   const sugestao = result.recommended_first_message?.playful_clever;
   if (sugestao) {
     msgs.push(`Manda isso pra abrir 👇\n\n"${sugestao}"`);
   }
 
-  // ── Msg 3: oferta de alternativas ────────────────────────────────────────
-  const temAlternativas =
-    result.recommended_first_message?.safe_curious &&
-    result.recommended_first_message?.direct_charming;
+  // ── Msg 3: variações + o que não mandar ──────────────────────────────────
+  const softCurious    = result.recommended_first_message?.soft_curious;
+  const directCharming = result.recommended_first_message?.direct_charming;
+  const naoMandar      = result.what_NOT_to_send || [];
 
-  if (temAlternativas) {
-    msgs.push(`Quer uma _mais direta_ ou _mais suave_? Só pedir 😏`);
+  let msg3 = '';
+
+  if (softCurious || directCharming) {
+    msg3 += `Variações:\n`;
+    if (softCurious)    msg3 += `• _Mais suave:_ "${softCurious}"\n`;
+    if (directCharming) msg3 += `• _Mais direta:_ "${directCharming}"\n`;
   }
+
+  if (naoMandar.length > 0) {
+    if (msg3) msg3 += '\n';
+    msg3 += `Não manda:\n`;
+    for (const erro of naoMandar.slice(0, 2)) {
+      msg3 += `• ${erro}\n`;
+    }
+  }
+
+  if (msg3) msgs.push(msg3.trim());
 
   return msgs;
 }

@@ -116,7 +116,47 @@ const FEATURES = {
     },
   },
 
-  // Camada 5 — Debrief Pós-Date
+  // Camada 5 — Auditar Meu Perfil (Vision — Wingman Pro)
+  profile_self_audit: {
+    trial:       { daily: 0 },
+    free:        { daily: 0 },
+    wingman:     { daily: 0 },
+    wingman_pro: { daily: 30 },
+    upsell: {
+      free: () =>
+        `Auditoria de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\n` +
+        `Manda print do teu perfil — eu analiso foto a foto, bio e te dou as 3 mudanças mais impactantes.\n\n` +
+        `Digita *pro* 👇`,
+      trial: () =>
+        `Auditoria de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      wingman: () =>
+        `Auditoria de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      wingman_pro: () =>
+        `Chegou no limite de 30 auditorias hoje.\n\nAmanhã cedo tem mais 30.`,
+    },
+  },
+
+  // Camada 6 — Analisar Perfil Dela (Vision — Wingman Pro)
+  profile_her_analysis: {
+    trial:       { daily: 0 },
+    free:        { daily: 0 },
+    wingman:     { daily: 0 },
+    wingman_pro: { daily: 30 },
+    upsell: {
+      free: () =>
+        `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\n` +
+        `Você manda o print do perfil dela no Tinder, Bumble ou Instagram — eu leio o que ela revela e gero a primeira mensagem certa.\n\n` +
+        `Digita *pro* 👇`,
+      trial: () =>
+        `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      wingman: () =>
+        `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      wingman_pro: () =>
+        `Chegou no limite de 30 análises de perfil hoje.\n\nAmanhã cedo tem mais 30.`,
+    },
+  },
+
+  // Camada 7 — Debrief Pós-Date
   postdate_debrief: {
     trial:       { monthly: 0 },
     free:        { monthly: 0 },

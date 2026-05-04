@@ -26,8 +26,9 @@ const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition
 const { analisarPrintConversaComHaiku } = require('./src/lib/printAnalysis');
 const { checkPrintLimit, incrementPrintCount, setPrintLastTime } = require('./src/lib/printLimits');
 const { analisarPerfilComHaiku } = require('./src/lib/profileAnalysis');
+const { auditarPerfilProprio } = require('./src/lib/profileSelfAudit');
 const { checkProfileLimit, incrementProfileCount, setProfileLastTime } = require('./src/lib/profileLimits');
-const { classificarTipoImagem } = require('./src/lib/imageClassifier');
+const { classificarTipoImagem, classificarPerfilSelfVsOther } = require('./src/lib/imageClassifier');
 const {
   scheduleInactiveFollowup,
   scheduleLimitDrop3,
@@ -78,6 +79,16 @@ const PRINT_ANALYSIS_TEST_PHONE = process.env.PRINT_ANALYSIS_TEST_PHONE || '';
 // Valor: 'false' | 'test' | 'beta' (10% pro) | 'all'
 const PROFILE_ANALYSIS_MODE = (process.env.ENABLE_PROFILE_ANALYSIS || 'false').toLowerCase();
 const PROFILE_ANALYSIS_TEST_PHONE = process.env.PROFILE_ANALYSIS_TEST_PHONE || '';
+
+// Feature flag: Auditar Meu Perfil via vision (Camada 5 — Wingman Pro, 30/dia)
+// Valor: 'false' | 'test' | 'all'
+const PROFILE_SELF_AUDIT_MODE = (process.env.ENABLE_PROFILE_SELF_AUDIT || 'false').toLowerCase();
+const PROFILE_SELF_AUDIT_TEST_PHONE = process.env.PROFILE_SELF_AUDIT_TEST_PHONE || '';
+
+// Feature flag: Analisar Perfil Dela via vision (Camada 6 — Wingman Pro, 30/dia)
+// Valor: 'false' | 'test' | 'all'
+const PROFILE_HER_ANALYSIS_MODE = (process.env.ENABLE_PROFILE_HER_ANALYSIS || 'false').toLowerCase();
+const PROFILE_HER_ANALYSIS_TEST_PHONE = process.env.PROFILE_HER_ANALYSIS_TEST_PHONE || '';
 
 // Feature flag: Coach de Transição (Camada 3 — Premium 2/mês, Pro ilimitado)
 // Valor: 'false' | 'test' | 'beta' (10% premium/pro) | 'all'
@@ -1385,6 +1396,22 @@ function isProfileAnalysisEnabled(phone) {
   }
 }
 
+function isProfileSelfAuditEnabled(phone) {
+  switch (PROFILE_SELF_AUDIT_MODE) {
+    case 'all':  return true;
+    case 'test': return phone === PROFILE_SELF_AUDIT_TEST_PHONE;
+    default: return false;
+  }
+}
+
+function isProfileHerAnalysisEnabled(phone) {
+  switch (PROFILE_HER_ANALYSIS_MODE) {
+    case 'all':  return true;
+    case 'test': return phone === PROFILE_HER_ANALYSIS_TEST_PHONE;
+    default: return false;
+  }
+}
+
 function isTransitionCoachEnabled(phone) {
   switch (TRANSITION_COACH_MODE) {
     case 'all':  return true;
@@ -2026,6 +2053,79 @@ client.on('message', async (message) => {
       userContext.set(phone, { ...currentCtx2, pendingImageClassification: null });
     }
 
+    // ── Resposta de desambiguação "meu" / "dela" (self vs other) ────────────
+    const ctxSelfOther = getUserContext(phone);
+    if (ctxSelfOther?.pendingProfileClassification) {
+      const lower = text.toLowerCase().trim();
+      const isSelf  = /^(meu|minha|meu perfil|é meu|próprio)$/.test(lower);
+      const isOther = /^(dela|o dela|perfil dela|é dela|de alguém)$/.test(lower);
+
+      if (isSelf || isOther) {
+        const { data: imgData, mimetype: imgMime } = ctxSelfOther.pendingProfileClassification;
+        const currentCtx = userContext.get(phone) || {};
+        userContext.set(phone, { ...currentCtx, pendingProfileClassification: null });
+
+        if (isSelf && isProfileSelfAuditEnabled(phone)) {
+          const needsPlanCheck = PROFILE_SELF_AUDIT_MODE !== 'test';
+          if (needsPlanCheck && !trial.isPro) {
+            const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_self_audit');
+            await client.sendMessage(message.from, upsellMessage ||
+              `Auditoria de Perfil é do *Wingman Pro* 🔍\n\nDigita *pro* pra conhecer.`
+            );
+          } else {
+            const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
+            if (!pl.allowed) {
+              await client.sendMessage(message.from,
+                pl.reason === 'cooldown' ? `Aguarda ${pl.remaining}s 😅` : PROFILE_LIMIT_REACHED_PRO
+              );
+            } else {
+              await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
+              try {
+                const { messages: am } = await auditarPerfilProprio(imgData, imgMime, phone);
+                incrementProfileCount(phone); setProfileLastTime(phone);
+                await incrementFeatureUsage(phone, 'profile_self_audit');
+                saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
+                for (const m of am) await client.sendMessage(message.from, m);
+              } catch (_) {
+                await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
+              }
+            }
+          }
+        } else {
+          // isOther (ou self sem flag de auditoria)
+          const needsPlanCheck = PROFILE_HER_ANALYSIS_MODE !== 'test';
+          if (needsPlanCheck && !trial.isPro) {
+            const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_her_analysis');
+            await client.sendMessage(message.from, upsellMessage ||
+              `Análise de Perfil é do *Wingman Pro* 🔍\n\nDigita *pro* pra conhecer.`
+            );
+          } else {
+            const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
+            if (!pl.allowed) {
+              await client.sendMessage(message.from,
+                pl.reason === 'cooldown' ? `Aguarda ${pl.remaining}s 😅` : PROFILE_LIMIT_REACHED_PRO
+              );
+            } else {
+              await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
+              try {
+                const { messages: pm } = await analisarPerfilComHaiku(imgData, imgMime, phone);
+                incrementProfileCount(phone); setProfileLastTime(phone);
+                await incrementFeatureUsage(phone, 'profile_her_analysis');
+                saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
+                for (const m of pm) await client.sendMessage(message.from, m);
+              } catch (_) {
+                await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
+              }
+            }
+          }
+        }
+        return;
+      }
+      // Não era resposta de desambiguação — limpa e segue fluxo normal
+      const currentCtx2 = userContext.get(phone) || {};
+      userContext.set(phone, { ...currentCtx2, pendingProfileClassification: null });
+    }
+
     // ── Resposta ao convite de mindset (SIM / NÃO) ───────────────────────────
     const mindsetCtx = getUserContext(phone);
     const pendingMindset = mindsetCtx?.pendingMindsetOptIn
@@ -2605,7 +2705,8 @@ client.on('message', async (message) => {
 
     } else {
       // ── Camada de classificação automática (quando alguma flag está ativa) ─
-      const usaClassificador = isPrintAnalysisEnabled(phone) || isProfileAnalysisEnabled(phone);
+      const usaClassificador = isPrintAnalysisEnabled(phone) || isProfileAnalysisEnabled(phone)
+        || isProfileSelfAuditEnabled(phone) || isProfileHerAnalysisEnabled(phone);
 
       let imageType;
       if (usaClassificador) {
@@ -2621,7 +2722,6 @@ client.on('message', async (message) => {
         await client.sendMessage(message.from,
           `Isso é uma *conversa* ou o *perfil* dela? Me fala pra eu analisar certo 📱\n\n_Responde: "conversa" ou "perfil"_`
         );
-        // Salva contexto para quando ele responder
         const current = userContext.get(phone) || {};
         userContext.set(phone, {
           ...current,
@@ -2630,10 +2730,148 @@ client.on('message', async (message) => {
         return;
       }
 
-      // ── Perfil: Camada 2 ────────────────────────────────────────────────
+      // ── Perfil ───────────────────────────────────────────────────────────
       if (imageType === 'profile') {
-        if (isProfileAnalysisEnabled(phone)) {
-          // Novo pipeline: Haiku 4.5 vision, Wingman Pro
+        const usaVisionProfile = isProfileSelfAuditEnabled(phone) || isProfileHerAnalysisEnabled(phone);
+
+        if (usaVisionProfile) {
+          // ── Vision: classifica se é perfil próprio ou dela ─────────────
+          const selfVsOther = await classificarPerfilSelfVsOther(media.data, media.mimetype);
+          console.log(`[SelfVsOther] ${phone} → ${selfVsOther}`);
+
+          if (selfVsOther === 'ambiguous') {
+            await client.sendMessage(message.from,
+              `Esse perfil é *teu* ou *dela*?\n\n_Responde: "meu" ou "dela"_`
+            );
+            const current = userContext.get(phone) || {};
+            userContext.set(phone, {
+              ...current,
+              pendingProfileClassification: { data: media.data, mimetype: media.mimetype },
+            });
+            return;
+          }
+
+          // ── Validação tamanho ─────────────────────────────────────────
+          const estimatedBytes = (media.data || '').length * 0.75;
+          if (estimatedBytes > 10 * 1024 * 1024) {
+            await client.sendMessage(message.from,
+              `Esse print tá muito pesado. Tira um screenshot menor e manda de novo.`
+            );
+            return;
+          }
+
+          if (selfVsOther === 'self' && isProfileSelfAuditEnabled(phone)) {
+            // ── Auditar Meu Perfil ──────────────────────────────────────
+            const needsPlanCheck = PROFILE_SELF_AUDIT_MODE !== 'test';
+            if (needsPlanCheck && !trial.isPro) {
+              const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_self_audit');
+              await client.sendMessage(message.from, upsellMessage ||
+                `Auditoria de Perfil é do *Wingman Pro* 🔍\n\nDigita *pro* pra conhecer.`
+              );
+              return;
+            }
+
+            const profileLimit = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
+            if (!profileLimit.allowed) {
+              if (profileLimit.reason === 'cooldown') {
+                await client.sendMessage(message.from,
+                  `Aguarda ${profileLimit.remaining}s antes da próxima análise 😅`
+                );
+              } else {
+                const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_self_audit');
+                await client.sendMessage(message.from, upsellMessage || PROFILE_LIMIT_REACHED_PRO);
+              }
+              return;
+            }
+
+            await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
+            const stopTypingAudit = await startTyping(message);
+            try {
+              const { messages: auditMsgs } = await auditarPerfilProprio(media.data, media.mimetype, phone);
+              stopTypingAudit();
+
+              incrementProfileCount(phone);
+              setProfileLastTime(phone);
+              await incrementFeatureUsage(phone, 'profile_self_audit');
+
+              saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
+
+              for (const msg of auditMsgs) {
+                await client.sendMessage(message.from, msg);
+              }
+            } catch (err) {
+              stopTypingAudit();
+              console.error('[ProfileSelfAudit] Erro:', err.message);
+              if (err.message?.includes('muito grande')) {
+                await client.sendMessage(message.from, `Esse print tá muito pesado. Tira um screenshot menor.`);
+              } else {
+                await client.sendMessage(message.from,
+                  `Não consegui ler esse perfil direito 😅\n\nManda um print mais claro — com fotos e bio visíveis.`
+                );
+              }
+            }
+
+          } else {
+            // selfVsOther === 'other' — Analisar Perfil Dela
+            const needsPlanCheck = PROFILE_HER_ANALYSIS_MODE !== 'test';
+            if (needsPlanCheck && !trial.isPro) {
+              const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_her_analysis');
+              await client.sendMessage(message.from, upsellMessage ||
+                `Análise de Perfil é do *Wingman Pro* 🔍\n\nDigita *pro* pra conhecer.`
+              );
+              trackSubscriptionEvent({
+                phone,
+                eventType:  'upgrade_offered',
+                planFrom:   trial.isPremium ? 'premium' : (trial.inTrial ? 'trial' : 'free'),
+                planTo:     'pro',
+                triggerCtx: 'profile_her_analysis',
+              });
+              return;
+            }
+
+            const profileLimit = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
+            if (!profileLimit.allowed) {
+              if (profileLimit.reason === 'cooldown') {
+                await client.sendMessage(message.from,
+                  `Aguarda ${profileLimit.remaining}s antes de analisar outro perfil 😅`
+                );
+              } else {
+                const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_her_analysis');
+                await client.sendMessage(message.from, upsellMessage || PROFILE_LIMIT_REACHED_PRO);
+              }
+              return;
+            }
+
+            await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
+            const stopTypingProfile = await startTyping(message);
+            try {
+              const { messages: profileMsgs } = await analisarPerfilComHaiku(media.data, media.mimetype, phone);
+              stopTypingProfile();
+
+              incrementProfileCount(phone);
+              setProfileLastTime(phone);
+              await incrementFeatureUsage(phone, 'profile_her_analysis');
+
+              saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
+
+              for (const msg of profileMsgs) {
+                await client.sendMessage(message.from, msg);
+              }
+            } catch (err) {
+              stopTypingProfile();
+              console.error('[ProfileHerAnalysis] Erro:', err.message);
+              if (err.message?.includes('muito grande')) {
+                await client.sendMessage(message.from, `Esse print tá muito pesado. Tira um screenshot menor.`);
+              } else {
+                await client.sendMessage(message.from,
+                  `Não consegui ler esse perfil direito 😅\n\nManda um print mais claro — com nome, bio e pelo menos uma foto.`
+                );
+              }
+            }
+          }
+
+        } else if (isProfileAnalysisEnabled(phone)) {
+          // ── Pipeline legado: Haiku 4.5 vision sem self/other routing ───
           const needsPlanCheck = PROFILE_ANALYSIS_MODE !== 'test';
           if (needsPlanCheck && !trial.isPro) {
             await client.sendMessage(message.from, PROFILE_UPSELL_MESSAGE);
@@ -2659,8 +2897,8 @@ client.on('message', async (message) => {
             return;
           }
 
-          const estimatedBytes = (media.data || '').length * 0.75;
-          if (estimatedBytes > 10 * 1024 * 1024) {
+          const estimatedBytesLegacy = (media.data || '').length * 0.75;
+          if (estimatedBytesLegacy > 10 * 1024 * 1024) {
             await client.sendMessage(message.from,
               `Esse print tá muito pesado. Tira um screenshot menor e manda de novo.`
             );
@@ -2675,21 +2913,18 @@ client.on('message', async (message) => {
 
             incrementProfileCount(phone);
             setProfileLastTime(phone);
-
             saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
 
             for (const msg of profileMsgs) {
               await client.sendMessage(message.from, msg);
             }
 
-            // Contador restante para Pro
             const { remaining: proRemaining } = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
             if (proRemaining <= 3) {
               await client.sendMessage(message.from,
                 `_${10 - proRemaining}/10 análises de perfil usadas hoje_`
               );
             }
-
           } catch (err) {
             stopTypingProfile();
             console.error('[ProfileAnalysis] Erro:', err.message);
