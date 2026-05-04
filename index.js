@@ -21,6 +21,7 @@ const {
 } = require('./src/lib/mindsetCapsules');
 const { cancelPendingFollowups, cancelPredateReminders } = require('./src/followup/followupCanceller');
 const { logApiRequest } = require('./src/lib/tracking');
+const { canUseFeature, incrementFeatureUsage, getDailyUsage } = require('./src/config/features');
 const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
 const { analisarPrintConversaComHaiku } = require('./src/lib/printAnalysis');
 const { checkPrintLimit, incrementPrintCount, setPrintLastTime } = require('./src/lib/printLimits');
@@ -29,8 +30,6 @@ const { checkProfileLimit, incrementProfileCount, setProfileLastTime } = require
 const { classificarTipoImagem } = require('./src/lib/imageClassifier');
 const {
   scheduleInactiveFollowup,
-  scheduleLimitDrop10,
-  scheduleLimitExhausted10,
   scheduleLimitDrop3,
   scheduleLimitExhausted3,
   scheduleTransitionCoachOutcome,
@@ -62,9 +61,7 @@ const {
 // ---------------------------------------------------------------------------
 
 const TRIAL_DAYS = 3;          // dias de acesso ilimitado após cadastro
-const SOFT_LIMIT_DAYS = 5;     // dias 4-5: limite suavizado antes do corte total
-const SOFT_LIMIT = 10;         // mensagens/dia nos dias 4 e 5
-const POST_TRIAL_LIMIT = 3;    // mensagens/dia após o dia 5
+const FREE_DAILY_LIMIT = 3;    // mensagens/dia no plano free (pós-trial sem upgrade)
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const PRECO_24H = 4.99;
 const PRECO_MENSAL = 29.90;
@@ -123,14 +120,10 @@ const OPCOES_PREMIUM =
   `📆 *Anual* — R$299/ano _(economiza R$60)_ → digita *anual*\n\n` +
   `_+1.200 caras já usaram essa semana_`;
 
-const TRANSICAO_SOFT_LIMIT =
-  `Seus 3 dias ilimitados acabaram — mas você ainda tem *10 mensagens por dia* pelos próximos 2 dias.\n\n` +
-  `É bastante. Usa nas conversas que importam.\n\n` +
-  `Digita *status* pra ver quanto te sobra hoje. Quando quiser ilimitado de novo: *mensal* (R$29,90) ou *anual* (R$299).`;
-
-const LIMITE_TRIAL_ENDED_MESSAGE =
-  `Deu 3 por hoje. Amanhã renova.\n\n` +
+const LIMITE_FREE_ESGOTADO =
+  `Deu ${FREE_DAILY_LIMIT} por hoje. Amanhã renova.\n\n` +
   `Se a conversa tá quente e não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`;
+
 
 // ── Mensagens da feature de print analysis ──────────────────────────────────
 
@@ -939,21 +932,29 @@ async function getTrialInfo(phone) {
   // Trial explícito no banco (novo) ou calculado por created_at (legado sem plan)
   const createdAt = new Date(data.created_at);
   const now = new Date();
-  const diffDays = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+  const diffMs = now - createdAt;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffHours = diffMs / (1000 * 60 * 60);
 
   const inTrial = rawPlan === 'trial' || diffDays < TRIAL_DAYS;
-  const inSoftLimit = !inTrial && diffDays < SOFT_LIMIT_DAYS;
+  const trialHoursLeft = inTrial ? Math.max(0, TRIAL_DAYS * 24 - diffHours) : 0;
   const trialDaysLeft = inTrial ? Math.max(TRIAL_DAYS - diffDays, 0) : 0;
   const isLastDay = trialDaysLeft === 1;
-
-  // Limite diário baseado na fase do usuário
-  let dailyLimit = null; // null = ilimitado (trial)
-  if (inSoftLimit) dailyLimit = SOFT_LIMIT;
-  else if (!inTrial) dailyLimit = POST_TRIAL_LIMIT;
+  const lastHours = inTrial && trialHoursLeft < 2; // últimas 2h do trial
 
   const planKey = inTrial ? 'trial' : 'free';
 
-  return { isPremium: false, isPro: false, inTrial, inSoftLimit, trialDaysLeft, isLastDay, dailyLimit, planKey };
+  // Transição lazy trial→free: se o trial expirou mas o banco ainda diz 'trial', atualiza
+  if (!inTrial && rawPlan === 'trial') {
+    const planStartedAt = new Date(createdAt.getTime() + TRIAL_DAYS * 86400000);
+    getSupabase().from('users').update({
+      plan: 'free',
+      trial_ended_at: planStartedAt.toISOString(),
+      plan_started_at: planStartedAt.toISOString(),
+    }).eq('phone', phone).then(() => {}).catch(() => {});
+  }
+
+  return { isPremium: false, isPro: false, inTrial, trialDaysLeft, trialHoursLeft, isLastDay, lastHours, planKey };
 }
 
 /**
@@ -1473,11 +1474,10 @@ client.on('disconnected', (reason) => console.warn('[Bot] Desconectado:', reason
 
 async function contadorRestante(message, trial, todayCount) {
   if (trial.isPremium || trial.inTrial) return;
-  const limit = trial.dailyLimit;
-  const remaining = limit - todayCount;
-  if (remaining > 0 && remaining <= Math.ceil(limit / 2)) {
+  // Free: mostra contador quando sobra 1 análise
+  if (todayCount === FREE_DAILY_LIMIT) {
     await client.sendMessage(message.from,
-      `_${todayCount}/${limit} análises usadas hoje — ${remaining} restante(s)_`
+      `_${todayCount}/${FREE_DAILY_LIMIT} — última análise de hoje_`
     );
   }
 }
@@ -1485,7 +1485,7 @@ async function contadorRestante(message, trial, todayCount) {
 async function upsellPicoPremium(message, trial, todayCount) {
   if (trial.isPremium) return;
 
-  // Último dia do trial + já usou 3+ mensagens hoje
+  // Último dia do trial + 3+ msgs hoje → oferta contextual
   if (trial.inTrial && trial.isLastDay && todayCount >= 3) {
     await client.sendMessage(message.from,
       `Hoje é seu último dia ilimitado — e você ainda tem conversa pra resolver.\n\n` +
@@ -1494,27 +1494,20 @@ async function upsellPicoPremium(message, trial, todayCount) {
     return;
   }
 
-  // Soft limit (dias 4-5): 2 mensagens restantes
-  if (trial.inSoftLimit) {
-    const remaining = SOFT_LIMIT - todayCount;
-    if (remaining === 2) {
-      await client.sendMessage(message.from,
-        `_Restam ${remaining} análises hoje._\n\n` +
-        `Se quiser ilimitado: *mensal* (R$29,90) ou *anual* (R$299).`
-      );
-    }
+  // Últimas horas do trial (< 2h)
+  if (trial.inTrial && trial.lastHours && todayCount >= 1) {
+    await client.sendMessage(message.from,
+      `Seu acesso ilimitado fecha em menos de *2h*. Se quiser continuar sem parar:\n\n` +
+      `${OPCOES_PREMIUM}`
+    );
     return;
   }
 
-  // Pós-trial (dia 6+): última mensagem do dia
-  if (!trial.inTrial && !trial.inSoftLimit) {
-    const remaining = POST_TRIAL_LIMIT - todayCount;
-    if (remaining === 1) {
-      await client.sendMessage(message.from,
-        `Última análise de hoje.\n\n` +
-        `Se a conversa tá no ponto e não dá pra esperar até amanhã: *mensal* (R$29,90) ou *anual* (R$299).`
-      );
-    }
+  // Free (pós-trial): última análise do dia
+  if (!trial.inTrial && todayCount === FREE_DAILY_LIMIT) {
+    await client.sendMessage(message.from,
+      `Última análise de hoje.\n\nSe a conversa tá no ponto e não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`
+    );
   }
 }
 
@@ -1658,15 +1651,7 @@ client.on('message', async (message) => {
 
     if (cmd === 'status') {
       const trial = await getTrialInfo(phone);
-      const supabase = getSupabase();
-      const today = new Date().toISOString().slice(0, 10);
-      const { data: countRow } = await supabase
-        .from('daily_message_counts')
-        .select('message_count')
-        .eq('phone', phone)
-        .eq('count_date', today)
-        .maybeSingle();
-      const used = countRow?.message_count ?? 0;
+      const used = await getDailyUsage(phone, 'messages');
 
       let statusText;
       if (trial.isPro) {
@@ -1674,18 +1659,17 @@ client.on('message', async (message) => {
         statusText = `🔥 *Wingman Pro* — mensagens ilimitadas + Análise de Perfil\n` +
           (validade ? `_Válido até ${validade}_` : '');
       } else if (trial.isPremium) {
-        if (trial.expiresAt) {
-          const validade = new Date(trial.expiresAt).toLocaleDateString('pt-BR');
-          statusText = `🌟 *Wingman Premium* — mensagens ilimitadas\n_Válido até ${validade}_`;
-        } else {
-          statusText = '🌟 *Wingman Premium* — mensagens ilimitadas';
-        }
+        const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
+        statusText = `🌟 *Wingman* — mensagens ilimitadas` +
+          (validade ? `\n_Válido até ${validade}_` : '');
       } else if (trial.inTrial) {
-        statusText = `🎉 *Trial ativo* — ilimitado por mais *${trial.trialDaysLeft} dia(s)*\n_Usado hoje: ${used} análises_`;
-      } else if (trial.inSoftLimit) {
-        statusText = `🆓 Gratuito — ${used}/${SOFT_LIMIT} análises usadas hoje`;
+        const horasLabel = trial.lastHours
+          ? `menos de 2h`
+          : `*${trial.trialDaysLeft} dia(s)*`;
+        statusText = `🎉 *Trial ativo* — ilimitado por mais ${horasLabel}\n_Usado hoje: ${used} análise(s)_`;
       } else {
-        statusText = `🆓 Gratuito — ${used}/${POST_TRIAL_LIMIT} análises usadas hoje`;
+        const remaining = Math.max(0, FREE_DAILY_LIMIT - used);
+        statusText = `🆓 *Free* — ${used}/${FREE_DAILY_LIMIT} análises usadas hoje · ${remaining} restante(s)`;
       }
 
       await message.reply(`📊 *Seu status:*\n\n${statusText}`);
@@ -1695,11 +1679,9 @@ client.on('message', async (message) => {
     if (cmd === 'premium') {
       const trial = await getTrialInfo(phone);
       if (trial.isPremium) {
-        await message.reply('🌟 Você já é *Premium*! Pode mandar à vontade.');
+        await message.reply('🌟 Você já é *Wingman*! Pode mandar à vontade.');
       } else {
-        await message.reply(
-          `${OPCOES_PREMIUM}`
-        );
+        await message.reply(OPCOES_PREMIUM);
       }
       return;
     }
@@ -1877,78 +1859,62 @@ client.on('message', async (message) => {
   // ---------------------------------------------------------------------------
 
   const trial = await getTrialInfo(phone);
-  const todayCount = await incrementDailyCount(phone);
 
-  if (trial.isPremium) {
-    // Premium: sem limite, segue em frente
+  if (!trial.isPremium) {
+    // Verifica limite ANTES de incrementar (corrige bug de contagem antecipada)
+    const limitCheck = await canUseFeature(phone, trial.planKey, 'messages');
+    if (!limitCheck.allowed) {
+      console.log(`[Limite] ${phone} (${trial.planKey}) esgotou mensagens hoje.`);
+      scheduleLimitExhausted3(phone).catch(() => {});
 
-  } else if (trial.inTrial) {
-    // Trial ativo (dias 1-3): ilimitado — avisa na primeira mensagem do dia
-    if (todayCount === 1) {
-      if (trial.isLastDay) {
-        await message.reply(
-          `Hoje é seu último dia ilimitado.\n\n` +
-          `Amanhã passa pra *10 análises/dia* por 2 dias, depois *3/dia*.\n\n` +
-          `Quer continuar ilimitado? *mensal* (R$29,90) ou *anual* (R$299).\n\n` +
-          `_Digita *status* pra ver seu plano_`
-        );
-      } else {
-        await message.reply(
-          `*${trial.trialDaysLeft} dias* de acesso ilimitado ainda. Manda o que tiver.\n\n` +
-          `_Digita *status* a qualquer momento_`
-        );
-      }
-    }
-
-  } else {
-    // Pós-trial: verifica limite da fase atual
-    const dailyLimit = trial.dailyLimit;
-
-    // Aviso na primeira mensagem da transição para soft limit (dia 4)
-    if (trial.inSoftLimit && todayCount === 1) {
-      await message.reply(TRANSICAO_SOFT_LIMIT);
-    }
-
-    if (todayCount > dailyLimit) {
-      console.log(`[Limite] ${phone} atingiu ${todayCount}/${dailyLimit} hoje.`);
-
-      // Agenda follow up para quando o limite for esgotado
-      if (trial.inSoftLimit) {
-        scheduleLimitExhausted10(phone).catch(() => {});
-      } else {
-        scheduleLimitExhausted3(phone).catch(() => {});
-      }
-
-      // Gatilho situacional: usuário estava no meio de uma conversa ativa?
       const ctx = getUserContext(phone);
       const conversaQuente = ctx?.lastRequestAt && (Date.now() - ctx.lastRequestAt) < 5 * 60 * 1000;
 
-      // Win-back: ex-premium na janela de 2-15 dias → oferta de R$19,90
+      // Win-back: ex-wingman na janela de 2-15 dias
       if (trial.expiredAt && await verificarWinback(phone, trial.expiredAt)) {
         await message.reply(
-          `Deu 3 por hoje.\n\n` +
-          `Como você já usou o Premium antes: *voltar* por R$19,90 no primeiro mês _(era R$29,90)_.`
+          `Deu ${FREE_DAILY_LIMIT} por hoje.\n\n` +
+          `Como você já assinou antes: *voltar* por R$19,90 no primeiro mês _(era R$29,90)_.`
         );
       } else if (conversaQuente) {
-        await message.reply(
-          `Deu o limite. Se a conversa tá no ponto: *mensal* (R$29,90) ou *anual* (R$299).`
-        );
-      } else if (trial.inSoftLimit) {
-        await message.reply(
-          `Suas ${SOFT_LIMIT} análises de hoje acabaram — essa conversa com ela não terminou ainda.\n\n` +
-          `${OPCOES_PREMIUM}`
-        );
+        await message.reply(`Deu o limite. Se a conversa tá no ponto: *mensal* (R$29,90) ou *anual* (R$299).`);
       } else {
-        await message.reply(LIMITE_TRIAL_ENDED_MESSAGE);
+        await message.reply(limitCheck.upsellMessage || LIMITE_FREE_ESGOTADO);
       }
       return;
     }
+  }
 
-    // Agenda follow up ao entrar no soft limit (dia 4) ou pós-trial (dia 6+) — primeira msg do dia
-    if (todayCount === 1) {
-      if (trial.inSoftLimit) scheduleLimitDrop10(phone).catch(() => {});
-      else if (!trial.inTrial) scheduleLimitDrop3(phone).catch(() => {});
+  // Incrementa uso após verificação (sem double-count em msgs bloqueadas)
+  const todayCount = await incrementFeatureUsage(phone, 'messages');
+  // Dual-write para manter dashboard funcionando durante transição
+  incrementDailyCount(phone).catch(() => {});
+
+  // Trial ativo: aviso informativo na 1ª msg do dia
+  if (trial.inTrial && todayCount === 1) {
+    if (trial.lastHours) {
+      await message.reply(
+        `Seu acesso ilimitado fecha em menos de *2h*.\n\n` +
+        `Quer continuar sem parar? *mensal* (R$29,90) ou *anual* (R$299).`
+      );
+    } else if (trial.isLastDay) {
+      await message.reply(
+        `Hoje é seu último dia ilimitado.\n\n` +
+        `Amanhã passa pra *${FREE_DAILY_LIMIT} análises/dia* gratuitamente — ou continua ilimitado:\n\n` +
+        `*mensal* (R$29,90) · *anual* (R$299)\n\n` +
+        `_Digita *status* pra ver seu plano_`
+      );
+    } else {
+      await message.reply(
+        `*${trial.trialDaysLeft} dia(s)* de acesso ilimitado. Manda o que tiver.\n\n` +
+        `_Digita *status* a qualquer momento_`
+      );
     }
+  }
+
+  // Free (pós-trial): agenda follow-up na 1ª msg do dia
+  if (!trial.isPremium && !trial.inTrial && todayCount === 1) {
+    scheduleLimitDrop3(phone).catch(() => {});
   }
 
   // ---------------------------------------------------------------------------
