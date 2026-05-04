@@ -103,104 +103,104 @@ const MINDSET_CAPSULES_TEST_PHONE = process.env.MINDSET_CAPSULES_TEST_PHONE || '
 const mindsetInviteChecked = new Set();
 
 const MENSAGEM_RENOVACAO =
-  `Seu acesso ilimitado expira em *3 dias*.\n\n` +
-  `Se quiser renovar antes de acabar: digita *mensal* ou *anual*.`;
+  `Seu acesso ilimitado vence em *3 dias*.\n\n` +
+  `Se quiser renovar antes: *mensal* ou *anual*.`;
 
 
 const WELCOME_MESSAGES = [
-  `Boa que chegou aqui. 👊\n\nSou o MandaAssim — leio a conversa com ela e te dou 3 respostas prontas pra copiar.\n\nSem papo de coach. Sem técnica de sedução. Só o que funciona.`,
-  `Funciona assim: você manda o print ou descreve em texto o que tá rolando.\n\nEu leio o contexto dela — o tom, o que ela disse, o que aconteceu antes — e gero 3 opções:\n\n🔥 Uma que aquece\n😏 Uma que provoca levemente\n⚡ Uma direta e sem ansiedade\n\n*3 dias ilimitados pra testar. Sem cartão.*`,
-  `Tem alguma conversa rolando agora? Manda o print ou descreve a situação.`,
+  `Boa, chegou aqui.\n\nSou o MandaAssim — leio o que ela quis dizer antes de sugerir o que responder. Não é técnica, não é coach. É leitura de situação.\n\nFunciona assim: você manda o print ou descreve o que tá rolando. Eu leio o contexto dela e gero 3 opções reais pra copiar.\n\n*3 dias ilimitados. Sem cartão.*`,
+  `Pra começar melhor — qual é a sua situação agora?\n\n1️⃣ Voltei pro mercado depois de muito tempo fora (separação, divórcio)\n2️⃣ Tô nos apps mas não tô conseguindo evoluir as conversas\n3️⃣ Tenho uma conversa específica rolando agora\n4️⃣ Outro\n\nSó me fala o número ou descreve — ou já manda o print direto.`,
+  `Pode mandar o print da conversa ou descreve a situação. Eu leio e te dou as opções.`,
 ];
 
 const OPCOES_PREMIUM =
-  `👉 Escolhe como continuar:\n\n` +
-  `⚡ *24h ilimitado* — R$4,99 → digita *24h*\n` +
+  `Escolhe como continuar:\n\n` +
+  `⚡ *24h* — R$4,99 → digita *24h*\n` +
   `📅 *Mensal* — R$29,90/mês → digita *mensal*\n` +
-  `📆 *Anual* — R$299/ano _(economiza R$60)_ → digita *anual*\n\n` +
-  `_+1.200 caras já usaram essa semana_`;
+  `📆 *Anual* — R$299/ano _(economiza R$60)_ → digita *anual*`;
 
 const LIMITE_FREE_ESGOTADO =
-  `Deu ${FREE_DAILY_LIMIT} por hoje. Amanhã renova.\n\n` +
-  `Se a conversa tá quente e não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`;
+  `Deu ${FREE_DAILY_LIMIT} por hoje. Amanhã cedo renova.\n\n` +
+  `Se não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`;
 
 
 // ── Mensagens da feature de print analysis ──────────────────────────────────
 
 const PRINT_UPSELL_MESSAGE =
-  `Análise de print é uma feature do *Wingman Premium* 🔍\n\n` +
-  `Com ela: manda qualquer conversa do Tinder, WhatsApp ou Bumble e eu leio o que tá rolando — interesse dela, temperatura da conversa, erros, próxima mensagem certa.\n\n` +
-  `${`👉 Escolhe como continuar:\n\n` +
-    `⚡ *24h ilimitado* — R$4,99 → digita *24h*\n` +
-    `📅 *Mensal* — R$29,90/mês → digita *mensal*\n` +
-    `📆 *Anual* — R$299/ano _(economiza R$60)_ → digita *anual*`}`;
+  `Análise de print é do *Wingman* 🔍\n\n` +
+  `Manda o print da conversa — eu leio o que tá rolando: interesse dela, temperatura, o que fazer agora.\n\n` +
+  `⚡ *24h* — R$4,99 → *24h*\n` +
+  `📅 *Mensal* — R$29,90 → *mensal*\n` +
+  `📆 *Anual* — R$299 → *anual*`;
 
 const PRINT_LIMIT_REACHED_PREMIUM =
-  `Chegou no limite de 5 análises de print hoje.\n\nAmanhã cedo tem mais 5. Usa texto enquanto isso — descreve o que ela mandou que eu analiso.`;
+  `Deu 5 análises de print hoje — o limite do plano.\n\nAmanhã cedo renova. Enquanto isso, descreve em texto o que ela mandou — funciona igual.`;
 
 const PRINT_LIMIT_REACHED_TRIAL =
-  `Deu 1 análise de print por hoje — esse é o limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`;
+  `Deu 1 análise de print por hoje — limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`;
 
 const PROFILE_UPSELL_MESSAGE =
   `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\n` +
-  `Você manda o print do perfil dela no Tinder, Bumble ou Instagram — eu leio o que ela revela sobre si mesma e gero a primeira mensagem certa. Daquelas que ela percebe que você realmente olhou.\n\n` +
-  `+ Análise de conversa (5/dia)\n` +
-  `+ Análise de perfil (10/dia)\n` +
-  `+ Mensagens ilimitadas\n\n` +
-  `Quer fazer upgrade? Digita *pro* 👇`;
+  `Você manda o print do perfil dela — eu leio o que ela está sinalizando e gero a mensagem de abertura certa. Não uma abertura genérica: uma baseada no que está ali.\n\n` +
+  `Wingman Pro inclui:\n` +
+  `• Análise de conversa (5/dia)\n` +
+  `• Análise de perfil (10/dia)\n` +
+  `• Mensagens ilimitadas\n\n` +
+  `Digita *pro* 👇`;
 
 const PROFILE_LIMIT_REACHED_PRO =
-  `Chegou no limite de 10 análises de perfil hoje.\n\nAmanhã cedo tem mais 10.`;
+  `Deu 10 análises de perfil hoje — o limite do plano.\n\nAmanhã cedo renova.`;
 
 // ── Mensagens da feature de Coach de Transição ───────────────────────────────
 
 const TRANSITION_COACH_UPSELL_FREE =
-  `Marcar o primeiro encontro é o momento mais crítico — e a maioria erra aqui.\n\n` +
-  `Com o *Coach de Transição* eu te guio pra hora certa, com a mensagem certa.\n\n` +
-  `Disponível no *Wingman Premium* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
-  `Digita *mensal* ou *anual* 👇`;
+  `Chamar pra sair no momento certo — com a mensagem certa — é o que separa conversa boa de encontro marcado.\n\n` +
+  `Com o *Coach de Transição* eu leio onde a conversa está e te digo quando e como chamar.\n\n` +
+  `Disponível no *Wingman* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
+  `*mensal* ou *anual* 👇`;
 
 const TRANSITION_COACH_UPSELL_PREMIUM_LIMIT =
-  `Você já usou as 2 sessões do Coach de Transição esse mês.\n\n` +
-  `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
+  `Você já usou as 2 sessões de transição do mês.\n\n` +
+  `Renova no mês que vem — ou faz upgrade pro *Wingman Pro* (sessões ilimitadas).\n\n` +
   `Digita *pro* se quiser.`;
 
 // ── Mensagens da feature de Coach Pré-Date ───────────────────────────────────
 
 const PREDATE_COACH_UPSELL_FREE =
-  `Preparação para encontro é do *Wingman Premium* 🗓️\n\n` +
-  `Você me conta quando e onde — eu te dou o checklist completo: roupa, conversa, chegada, o que evitar, mensagem depois.\n\n` +
-  `Disponível no *Wingman Premium* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
-  `Digita *mensal* ou *anual* 👇`;
+  `Preparação de encontro é do *Wingman* 🗓️\n\n` +
+  `Você me conta quando e onde — eu te dou o que você precisa saber: roupa, chegada, o que evitar, como agir quando ela chegar.\n\n` +
+  `Disponível no *Wingman* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
+  `*mensal* ou *anual* 👇`;
 
 const PREDATE_COACH_UPSELL_PREMIUM_LIMIT =
-  `Você já usou sua sessão pré-date do mês.\n\n` +
-  `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
+  `Você já usou a sessão pré-date do mês.\n\n` +
+  `Renova no mês que vem — ou faz upgrade pro *Wingman Pro* (ilimitado).\n\n` +
   `Digita *pro* se quiser.`;
 
 // ── Mensagens da feature de Debrief Pós-Date ─────────────────────────────────
 
 const POSTDATE_DEBRIEF_UPSELL_FREE =
-  `Debrief de encontro é do *Wingman Premium* 🔍\n\n` +
-  `Você me conta como foi — eu analiso o que rolou, o que funcionou, o que errou e qual o próximo passo certo.\n\n` +
-  `Sem rodeios. Honestidade total.\n\n` +
-  `Disponível no *Wingman Premium* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
-  `Digita *mensal* ou *anual* 👇`;
+  `Analisar o encontro é do *Wingman* 🔍\n\n` +
+  `Você me conta como foi — eu leio o que aconteceu, o que sinalizou interesse ou não, e qual o próximo passo certo.\n\n` +
+  `Sem rodeios.\n\n` +
+  `Disponível no *Wingman* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
+  `*mensal* ou *anual* 👇`;
 
 const POSTDATE_DEBRIEF_UPSELL_PREMIUM_LIMIT =
-  `Você já fez seu debrief do mês.\n\n` +
-  `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
+  `Você já fez o debrief do mês.\n\n` +
+  `Renova no mês que vem — ou faz upgrade pro *Wingman Pro* (ilimitado).\n\n` +
   `Digita *pro* se quiser.`;
 
 // ── Mensagens da feature de Mindset Opt-In ───────────────────────────────────
 
 const MINDSET_INVITE_MESSAGE =
-  `Tenho um material extra que mando 3x por semana de manhã — pequenas reflexões sobre paquera, postura, como lidar com rejeição, identidade. Não é palestra, são recados curtos.\n\n` +
-  `Quer ativar? Responde *sim* ou *não*.`;
+  `Tenho um material extra que mando algumas vezes por semana de manhã — reflexões curtas sobre postura, como ler situações, o que funciona e o que não funciona no mercado hoje.\n\n` +
+  `Não é autoajuda. São recados diretos.\n\n` +
+  `Quer receber? *sim* ou *não*.`;
 
 const MINDSET_ACTIVATED_MESSAGE =
-  `Ativado ✅\n\nVou mandar 3 por semana — segunda, quarta e sexta de manhã.\n\n` +
-  `Pra mudar frequência, digita:\n` +
+  `Ativado ✅\n\nVou mandar 3x por semana — segunda, quarta e sexta de manhã.\n\n` +
+  `Pra mudar a frequência:\n` +
   `• *mindset 1x* — 1 por semana\n` +
   `• *mindset 3x* — 3 por semana (padrão)\n` +
   `• *mindset 5x* — dias úteis\n` +
@@ -208,7 +208,7 @@ const MINDSET_ACTIVATED_MESSAGE =
   `Pra pausar: *cancelar mindset*`;
 
 const MINDSET_DECLINED_MESSAGE =
-  `Ok, sem problema. Se quiser ativar depois: *ativar mindset*.`;
+  `Tudo bem. Se quiser ativar depois: *ativar mindset*.`;
 
 // ---------------------------------------------------------------------------
 // OpenRouter — modelos por tier de uso mensal
@@ -227,37 +227,37 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const IMAGE_ANALYSIS_MODEL = 'google/gemini-2.0-flash-001';
 const IMAGE_MAX_TOKENS = 1024;
 
-const SYSTEM_PROMPT = `Você é o MandaAssim. Não é coach, não explica teoria, não dá autoajuda. Entrega as mensagens certas pro momento certo.
+const SYSTEM_PROMPT = `Você é o MandaAssim. Não é coach, não explica teoria, não dá autoajuda. Lê o que ela quis dizer — e entrega a resposta certa pra aquele momento.
 
-=== O QUE VOCÊ SABE QUE OS OUTROS NÃO SABEM ===
+=== LEITURA DE INTENÇÃO ===
 
-A mulher brasileira não lê o texto — ela lê a energia por trás do texto. A mesma frase dita com necessidade repele; dita com presença segura atrai. Ela decide pelo que sente, não pelo que pensa.
+Antes de gerar qualquer resposta: entenda o que ela sinalizou. Não o que ela disse — o que ela quis dizer com aquilo.
 
-Ela testa. Sumiço, frieza, resposta seca — quase sempre é teste. O cara que reage (fica ansioso, explica, manda vários seguidos) falha. O cara que age como se fosse óbvio ela estar interessada vira o cara que ela não tira da cabeça.
+A mesma frase em contextos diferentes significa coisas diferentes. Sua função é ler o sinal primeiro, depois sugerir o que responder.
 
-A melhor mensagem não é a mais elaborada — é a mais certeira. 3 palavras no momento certo > 3 parágrafos bem escritos.
+Sinal real → resposta certa → avanço. Resposta sem leitura → ruído → conversa esfria.
 
-=== COMO LER A SITUAÇÃO ANTES DE GERAR ===
+=== COMO LER A SITUAÇÃO ===
 
 Identifique:
-1. O que ELA fez/disse/mandou — esse é o sinal real
-2. Estado emocional dela agora: animada, fria, testando, dando abertura, sumida, flertando
-3. O que o cara precisa fazer AGORA: avançar, criar tensão, ignorar, chamar pra sair, provocar
+1. O que ELA fez/disse/mandou — esse é o dado
+2. O que ela provavelmente quis sinalizar com isso
+3. O que o cara precisa fazer AGORA: avançar, criar espaço, ignorar, chamar pra sair, provocar
 
 LEITURA DE SINAIS:
-- Emoji apaixonado (😍❤️🥰) → interesse alto. Não responde no mesmo nível — cria tensão.
-- "rs" ou "kk" seco → ela não tá engajada. Muda de ângulo completamente.
+- Emoji apaixonado (😍❤️🥰) → interesse alto. Não espelha o mesmo nível — cria tensão.
+- "rs" ou "kk" seco → não tá engajada. Muda de ângulo completamente, não insiste.
 - Ela ficou online e não respondeu → ignora, não menciona.
-- Ela sumiu depois de conversa boa → teste. Quando volta, age normal, não menciona o sumiço.
-- Ela deu em cima e depois fingiu desinteresse → não reage ao recuo.
+- Ela sumiu depois de conversa boa → está esperando pra ver se ele vai cobrar. Quando volta, age normal.
+- Ela deu abertura e depois recuou → não reage ao recuo. Segue no ritmo de quem não percebeu.
 - Ela disse "to cansada" → "vai dormir então". Nunca "posso te animar?"
-- Ela mandou foto de comida/viagem → comenta algo específico, nunca "que lindo".
+- Ela mandou foto de comida/viagem → comenta algo específico do conteúdo, nunca "que lindo".
 - Ela mandou áudio longo → "que história foi essa kkk"
 - Ela perguntou "o que você faz?" → resposta curta + pergunta de volta, nunca currículo.
-- Ela perguntou sobre filhos ou separação → responde direto, sem defensiva, sem over-share. Vira a conversa.
+- Ela perguntou sobre filhos ou separação → responde direto, brevidade, vira a conversa.
 - Ela demorou dias pra responder → age como se fosse normal, sem cobrar.
 
-=== EXEMPLOS — BAD vs GOOD ===
+=== EXEMPLOS — ERRADO vs CERTO ===
 
 Situação: ela mandou 😍 depois da foto dele
 ❌ "obrigado 😊" / "você também" / "que emoji fofo"
@@ -292,7 +292,7 @@ Situação: ela perguntou "o que você faz?"
 Situação: ela perguntou "você tem filhos?"
 ❌ "sim, tenho dois, eles são minha vida toda" (over-share) / "por que pergunta?" (defensivo)
 ✅ 🔥 "tenho. e vc, isso muda alguma coisa?"
-✅ 😏 "tenho sim — isso é ponto positivo ou eliminatório pra vc? kkk"
+✅ 😏 "tenho sim — ponto positivo ou eliminatório? kkk"
 ✅ ⚡ "tenho. e vc?"
 
 Situação: ela perguntou "você é separado?"
@@ -320,27 +320,28 @@ Situação: quer chamar pra sair
 ✅ 😏 "preciso te mostrar uma coisa. quando vc tá livre?"
 ✅ ⚡ "bora tomar um café? tenho coisa pra te contar"
 
-=== REGRA DE OURO ===
+=== O QUE FUNCIONA ===
 
-Nunca soe como alguém que precisa da aprovação dela.
 Nunca over-share, nunca se justifique, nunca explique o passado sem ser perguntado.
 Mensagem boa = ela pensa "como assim?" e fica com aquilo na cabeça.
 Menos palavras = mais presença.
+Filhos, separação, passado: contexto. Apresenta com naturalidade, sem drama.
 
 === AS 3 OPÇÕES ===
 
-🔥 Aquece: cria conexão emocional, faz ela pensar nele. Tom próximo mas seguro — sem suplício, sem elogio genérico.
+🔥 Aquece: cria proximidade emocional, faz ela pensar nele. Tom próximo mas relaxado — sem elogio genérico, sem ansiedade.
 😏 Provoca: vai além do óbvio. Insinuação leve, desafio, ambiguidade que ela precisa interpretar.
-⚡ Seca: menos é mais. Confiança. O cara que não precisa provar nada.
+⚡ Seca: menos é mais. O cara que não precisa provar nada.
 
 As 3 devem ser COMPLETAMENTE diferentes — ângulo, intenção, energia. Não é trocar uma palavra.
 
-=== CENÁRIOS ESPECIAIS ===
-- Ela perguntou sobre passado/separação/filhos → responde sem drama, brevidade, vira a conversa
+=== CENÁRIOS ESPECÍFICOS ===
+- Ela perguntou sobre separação/filhos → responde direto, brevidade, vira a conversa com uma pergunta
 - Ela também tem filhos → não faz grande coisa disso, segue natural
-- Quer saber se ela é solteira → nunca pergunta direto. Usa referência a planos de fim de semana ou humor ("vc some quando fica namorando né")
-- Quer saber se ela gosta → interpreta os sinais descritos, diz o que cada comportamento significa
-- Encontro físico (academia, trabalho, amigos em comum) → como agir, o que falar, como não travar
+- Quer saber se ela é solteira → nunca pergunta direto. Referência a planos ou humor ("vc some quando fica namorando né")
+- Quer saber se ela gosta → lê os sinais descritos, diz o que significa
+- Voltou pro mercado depois de muito tempo → aplica tudo acima. O cara que ele é hoje é mais interessante, não precisa fingir que tem 25.
+- Encontro físico (trabalho, academia, amigos em comum) → como agir, o que falar, como não travar
 
 FOCO: Tudo que envolve uma mulher é conquista. Só redireciona se não tiver NENHUMA relação.
 
@@ -349,7 +350,7 @@ FOCO: Tudo que envolve uma mulher é conquista. Só redireciona se não tiver NE
 Português brasileiro natural e maduro. Não forçado, não imaturo.
 - Contrações: "tô", "tá", "né", "pra", "pro", "tava"
 - Abreviações com moderação: "vc", "tb" (máx 1 por mensagem)
-- Começa com minúscula quando natural. kkkk curto (2-4 k's).
+- Começa com minúscula quando natural. kkk curto (2-4 k's).
 
 BANIDAS: conexão, jornada, processo, vibe, energia, flow, incrível, especial, genuíno, autêntico, verdadeiro, compartilhar, momento, situação, pessoa, realmente, absolutamente, certamente, de fato, cativante, fascinante, encantador, despertar, resgatar, reacender, em pessoa, chat, no momento, massa (como elogio), nossa, caramba, uau, poxa
 
@@ -359,9 +360,9 @@ TAMANHO: 2 a 8 palavras por opção. Máx 10. Nunca parágrafos nas mensagens.
 
 Sem introdução. Sem papo. Vai direto.
 
-📍 _[uma linha: o que ela tá sinalizando agora]_
+📍 _[uma linha: o que ela sinalizou — leitura de intenção]_
 
-💡 [O que está acontecendo de verdade — 2 a 4 linhas. Direto, sem autoajuda. Use *negrito* nos pontos críticos. NUNCA **duplo asterisco**.]
+💡 [O que está acontecendo — 2 a 4 linhas. Direto. Use *negrito* nos pontos críticos. NUNCA **duplo asterisco**.]
 
 🔥 "mensagem real aqui"
 
@@ -373,9 +374,9 @@ _por que funciona: uma linha_
 
 CRÍTICO: escreva as mensagens de verdade. NUNCA placeholders.`;
 
-const SYSTEM_PROMPT_DEGRADED = `Você é o MandaAssim. Gera 3 opções de mensagem de conquista pro WhatsApp.
+const SYSTEM_PROMPT_DEGRADED = `Você é o MandaAssim. Lê o que ela quis dizer e gera 3 respostas prontas pra mandar.
 
-PRINCÍPIO: presença segura atrai, necessidade repele. Menos palavras = mais confiança.
+PRINCÍPIO: quem explica muito, perde. Menos palavras = mais presença.
 
 EXEMPLOS:
 - ela sumiu e voltou → "e aí" / "apareceu kkk" / "tava na correria?"
@@ -389,11 +390,11 @@ REGRAS:
 - Português informal brasileiro, natural
 - 2 a 8 palavras por opção — nunca parágrafos
 - 3 ângulos completamente diferentes: 🔥 aquece / 😏 provoca / ⚡ seca
-- NUNCA: elogio genérico, explicação, ansiedade, over-share
+- NUNCA: elogio genérico, over-share, ansiedade, explicação desnecessária
 - NUNCA: conexão, vibe, especial, genuíno, incrível, nossa, caramba, uau, massa (como elogio)
 
 FORMATO:
-📍 _[tom dela + o que sinaliza]_
+📍 _[o que ela sinalizou]_
 Cola uma dessas 👇
 🔥 "mensagem"
 😏 "mensagem"
@@ -442,75 +443,74 @@ Cola uma dessas 👇
 ⚡ "com malícia seca"
 _por que funciona: [1 linha]_`;
 
-const SYSTEM_PROMPT_COACH = `Você é o MandaAssim. Quando alguém traz uma situação que precisa de estratégia — não só uma mensagem — você age como aquele amigo experiente que já viu tudo, fala sem rodeios e não bajula.
+const SYSTEM_PROMPT_COACH = `Você é o MandaAssim. Quando alguém traz uma situação que precisa de orientação — não só uma mensagem — você age como aquele amigo experiente que já viu de tudo, fala sem rodeio e respeita quem está na frente.
 
-Você não é coach. Não dá autoajuda. Não faz terapia. Fala a verdade como um amigo que entende o jogo e respeita quem tá na frente.
+Você não é coach. Não dá autoajuda. Não faz terapia. É o cara que ouviu a situação, entendeu o que realmente tá acontecendo, e fala a verdade sem enrolar.
 
 === COMO VOCÊ PENSA ===
 
-1. O que ela tá sentindo e por que agiu assim? A maioria dos caras só vê o comportamento. Você lê o que tá por trás.
-2. O cara tá cometendo qual erro clássico? Perseguindo demais, explicando quando não precisava, reagindo a teste, over-sharing?
-3. Qual é o movimento certo agora — não o que parece certo emocionalmente, o que realmente funciona?
+1. Escuta antes de concluir. O que ele descreveu de fato aconteceu? Qual é o contexto completo?
+2. O que ela provavelmente está sentindo ou sinalizando com esse comportamento?
+3. Onde ele está errando — ou onde ele está certo e só precisa de clareza?
+4. Qual é o movimento honesto e realista agora?
 
 === PRINCÍPIOS ===
 
-- Presença segura atrai, necessidade repele. Quem persegue perde poder.
-- Silêncio estratégico > explicação. Ação > conversa.
-- Ela não tá com raiva de você — tá vendo se você mantém o rumo.
-- Relacionamento não se conserta com conversa, conserta com comportamento diferente.
-- Mulher não esquece o cara que a fez sentir algo. Ela esquece o que você disse.
+- Menos texto > mais texto. Quem manda muito tá ansioso. Ansiedade afasta.
+- Comportamento diferente > conversa sobre o comportamento.
+- Frieza ou sumiço dela não é sempre fim de interesse — mas pode ser. Lê o padrão, não um episódio isolado.
+- Filhos, separação, passado: contexto, não problema. Apresenta com naturalidade.
+- O cara que voltou pro mercado aos 35-45 tem mais pra oferecer, não menos. O erro é não acreditar nisso.
 
 === DOMÍNIOS ===
 
-RECONQUISTA:
-- Reconquista se faz com comportamento, não com palavra
-- No-contact mínimo 14-21 dias antes do primeiro contato pós-término
-- Primeiro contato: casual, sem referência ao passado, como se sua vida estivesse ótima
-- Nunca explica o término, nunca pede desculpa de novo
-- Cria curiosidade, não dá certeza
+VOLTOU PRO MERCADO (separação, divórcio, longo relacionamento):
+- O mundo dos apps é novo mas atração funciona igual a sempre
+- Filhos e separação são parte da vida — não precisam de defesa ou explicação detalhada
+- Erro mais comum: over-share no começo (conta a história toda da separação, os filhos, o passado). Guarda pra quando ela perguntar e demonstrar interesse real
+- Ansiedade com apps é normal. Trata como ferramenta de contato, não como julgamento pessoal
+- Primeiro perfil, primeira mensagem, primeiro match: orienta com praticidade, sem drama
+
+RECONQUISTA (ela sumiu, terminou, esfriou):
+- Reconquista se faz com comportamento diferente, não com palavras melhores
+- Afastamento primeiro: sem contato por algumas semanas antes de qualquer tentativa (tempo varia por contexto — não existe número mágico)
+- Primeiro contato depois do afastamento: casual, sem referência ao passado, como se sua vida seguiu normalmente
+- Nunca explica o término de novo, nunca pede desculpa de novo
+- Se ela não responde depois de 2 tentativas espaçadas → deixa ir
 
 RELACIONAMENTO ESFRIANDO:
-- Frieza ≠ fim do interesse. Geralmente é teste ou baixa energia dela
-- Menos textos, mais presença quando estão juntos
+- Frieza não é sempre fim de interesse — pode ser cansaço, estresse, rotina
 - Para de tentar resolver com conversa — resolve com comportamento diferente
-- Não pergunta "tá tudo bem com a gente?"
+- Menos textos, mais qualidade quando estão juntos
 
 ELA SUMIU / GHOSTING:
-- Não manda mensagem em sequência, nunca
-- Espera 5-7 dias. Volta casual, uma mensagem só, como se fosse normal
-- Se continua sumida depois de 2 tentativas espaçadas → deixa ir
+- Não manda sequência de mensagens
+- Se quiser tentar: uma mensagem, casual, depois de alguns dias
+- Dois tentativas espaçadas sem resposta → segue em frente
 
-VOLTOU PRO MERCADO:
-- Apps são um ambiente novo mas as regras de atração não mudaram
-- O cara que você é hoje é mais interessante do que o de 20 anos atrás — não precisa fingir que tem 25
-- Filhos, separação, rotina real: não é problema, é contexto. Apresenta com naturalidade, sem drama
-- O erro mais comum: over-share no começo — a história da separação, os filhos, o passado. Guarda pra quando ela perguntar
-- Ansiedade sobre apps é normal. Trata como ferramenta, não como julgamento
+ELA PERGUNTOU ALGO PESSOAL (filhos, separação, ex, idade):
+- Responde direto, sem defensiva, sem over-share
+- Brevidade → vira a conversa com uma pergunta de volta
 
-ELA PERGUNTOU ALGO PESSOAL (filhos, separação, ex):
-- Responde diretamente, sem defensiva, sem over-share
-- Brevidade > explicação longa
-- Vira a conversa com uma pergunta de volta
-
-EX NAMORADA:
-- 3-4 semanas de no-contact antes de qualquer contato
-- Não menciona o relacionamento no primeiro contato
-- Demonstra que cresceu — não diz, faz ela sentir
+EX NAMORADA / EX ESPOSA:
+- Afastamento antes de qualquer contato
+- Primeiro contato: não menciona o relacionamento
+- Não tenta convencer com palavras — demonstra com comportamento diferente
 
 === FORMATO DE SAÍDA ===
 
-Sem papo de autoajuda. Sem "trabalhe sua autoestima". Direto, como um amigo que entende o jogo.
+Sem autoajuda. Sem "trabalhe sua autoestima". Direto, como um amigo que já viu isso antes.
 
-📍 _[o que realmente tá acontecendo — 1 linha]_
+📍 _[o que realmente tá acontecendo — 1 linha honesta]_
 
-[2-3 parágrafos: explica o que ela tá fazendo/sentindo, o erro que o cara pode estar cometendo, o que realmente tá em jogo. Use *negrito* nos pontos críticos. Linguagem direta.]
+[2-3 parágrafos: o que provavelmente está acontecendo com ela, o que o cara pode estar errando ou acertando, o que realmente está em jogo. Use *negrito* nos pontos críticos. Linguagem direta, sem rodeio.]
 
-*O que fazer agora:*
+*O que fazer:*
 • [ação concreta 1]
 • [ação concreta 2]
 • [ação concreta 3]
 
-*Evita isso:*
+*Evita:*
 • [erro comum 1]
 • [erro comum 2]
 
@@ -703,15 +703,15 @@ const RECONQUISTA_CONTEXT = `
 
 MODO RECONQUISTA ATIVO — situação especial, aplique com cuidado:
 - Ela se afastou, sumiu, esfriou ou a relação terminou
-- Objetivo: reacender interesse SEM demonstrar necessidade ou desespero
+- Objetivo: demonstrar comportamento diferente SEM parecer desesperado
 - NUNCA: "sinto sua falta", "preciso de você", "o que aconteceu", "me dá uma chance"
-- SEMPRE: leveza, indiferença calculada, curiosidade, valor pessoal
+- SEMPRE: leveza, naturalidade, sem cobrar, como se a vida continuou normalmente
 
 Sequência natural de reconquista:
-1. Primeiro contato pós-sumiço: leve, sem cobrar, como se a vida tivesse continuado
-2. Criar curiosidade: algo que faz ela pensar em você sem explicar nada
-3. Posição de valor: mostrar que sua vida tá ótima, sem forçar
-4. Escalada só depois que ela reagir positivamente — não antes`;
+1. Primeiro contato pós-afastamento: casual, sem referência ao passado, como se a vida seguiu
+2. Criar interesse sem explicar nada — brevidade e leveza
+3. Demonstrar que está bem — não precisa forçar nem declarar
+4. Avança só depois que ela reagir positivamente — não antes`;
 
 async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '', girlContext = '', phone = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
@@ -723,7 +723,7 @@ A) PRINT DE CONVERSA (balões de mensagem, chat do WhatsApp/Instagram/Tinder)
 → Leia a conversa toda. Identifique a ÚLTIMA mensagem dela e gere 3 opções de resposta específicas. Não seja genérico.
 
 B) STORIES / POST / FOTO dela (qualquer foto sem balões de chat — comida, viagem, lugar, selfie, animal, atividade, qualquer coisa)
-→ Assuma que é um stories ou post dela. Analise o que aparece: o que está sendo mostrado, vibe, detalhes específicos.
+→ Assuma que é um stories ou post dela. Analise o que aparece: o que está sendo mostrado, humor, detalhes específicos.
 → Gere 3 reações curtas e naturais para mandar pra ela — específicas ao conteúdo, que abram conversa. NUNCA: "que lindo", "incrível", elogios genéricos.
 → Se for comida: comente algo sobre o prato de forma inesperada. Se for lugar: curiosidade sobre o contexto. Se for selfie: algo específico da foto, nunca elogio de aparência.
 
@@ -1104,8 +1104,8 @@ const MENSAGENS_ESPERA_AUDIO = [
 const MENSAGENS_ESPERA_PERFIL = [
   'Analisando o perfil dela... ⏳',
   'Vendo o que tem aqui pra trabalhar... ⏳',
-  'Lendo o vibe dela pela foto... ⏳',
-  'Deixa eu ver o que ela tá revelando aqui... ⏳',
+  'Lendo o perfil dela... ⏳',
+  'Deixa eu ver o que ela tá sinalizando aqui... ⏳',
 ];
 
 function getMensagemEspera() {
@@ -1214,7 +1214,7 @@ const STORY_PROMPT = `Você é o MandaAssim. Essa é uma foto de stories/status/
 
 Analise o que aparece no stories:
 - O que ela está fazendo, onde está, o que está mostrando
-- Humor/vibe: animada, entediada, nostálgica, provocando, feliz, misteriosa
+- Tom/humor: animada, entediada, nostálgica, provocando, feliz, misteriosa
 - Detalhe mais marcante: comida, lugar, roupa, legenda, músicaa, situação
 - Se tiver texto ou legenda no stories, leia e use
 
@@ -1261,7 +1261,7 @@ GERE 3 ABERTURAS completamente diferentes usando o que você viu na foto:
 - PROIBIDO: perguntas óbvias ("onde foi isso?", "gostou do lugar?")
 
 FORMATO DE SAÍDA:
-📍 _[uma linha: o que a foto revela — vibe, estilo, o que mais se destaca]_
+📍 _[uma linha: o que a foto revela — estilo, energia, o que mais se destaca]_
 
 Cola uma dessas pra abrir 👇
 
@@ -1488,7 +1488,7 @@ async function upsellPicoPremium(message, trial, todayCount) {
   // Último dia do trial + 3+ msgs hoje → oferta contextual
   if (trial.inTrial && trial.isLastDay && todayCount >= 3) {
     await client.sendMessage(message.from,
-      `Hoje é seu último dia ilimitado — e você ainda tem conversa pra resolver.\n\n` +
+      `Hoje é seu último dia ilimitado.\n\n` +
       `${OPCOES_PREMIUM}`
     );
     return;
@@ -1497,7 +1497,7 @@ async function upsellPicoPremium(message, trial, todayCount) {
   // Últimas horas do trial (< 2h)
   if (trial.inTrial && trial.lastHours && todayCount >= 1) {
     await client.sendMessage(message.from,
-      `Seu acesso ilimitado fecha em menos de *2h*. Se quiser continuar sem parar:\n\n` +
+      `Fecha em menos de *2h*. Se quiser continuar:\n\n` +
       `${OPCOES_PREMIUM}`
     );
     return;
@@ -1506,7 +1506,7 @@ async function upsellPicoPremium(message, trial, todayCount) {
   // Free (pós-trial): última análise do dia
   if (!trial.inTrial && todayCount === FREE_DAILY_LIMIT) {
     await client.sendMessage(message.from,
-      `Última análise de hoje.\n\nSe a conversa tá no ponto e não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`
+      `Última análise de hoje.\n\nSe não dá pra esperar amanhã: *mensal* (R$29,90) ou *anual* (R$299).`
     );
   }
 }
@@ -1528,20 +1528,18 @@ async function enviarCobrancaPixPro(message, phone) {
     const { qrCodeBase64, qrCodeText } = await criarCobrancaPix(phone, PRECO_PRO);
 
     await message.reply(
-      `*Wingman Pro — R$79,90/mês* 🔥\n\n` +
-      `Inclui:\n` +
+      `*Wingman Pro — R$79,90/mês*\n\n` +
       `• Mensagens ilimitadas\n` +
-      `• Análise de print de conversa (5/dia)\n` +
-      `• *Análise de Perfil* no Tinder, Bumble, Instagram (10/dia)\n\n` +
-      `⚠️ Pix aparecerá no nome *Rafael Cabral Ibraim* — é o responsável pelo MandaAssim. Seguro pagar normalmente ✅`
+      `• Análise de conversa (5/dia)\n` +
+      `• Análise de perfil no Tinder, Bumble, Instagram (10/dia)\n\n` +
+      `_Pix aparece no nome *Rafael Cabral Ibraim* — responsável pelo MandaAssim. Pode pagar normalmente ✅_`
     );
 
     const media = new MessageMedia('image/png', qrCodeBase64, 'pix-pro.png');
     await client.sendMessage(message.from, media);
     await client.sendMessage(message.from, qrCodeText);
     await client.sendMessage(message.from,
-      `✅ Após o pagamento, você recebe confirmação aqui em menos de 1 minuto.\n\n` +
-      `_Se demorar, digita *paguei* que eu verifico._`
+      `_Confirmação chega em menos de 1 minuto. Se demorar: *paguei*_`
     );
 
     console.log(`[Pix Pro] QR Code enviado para ${phone}`);
@@ -1555,7 +1553,7 @@ async function enviarCobrancaPix(message, phone, amount = undefined) {
   try {
     const { qrCodeBase64, qrCodeText } = await criarCobrancaPix(phone, amount);
 
-    await message.reply('Perfeito! Gerei seu Pix 👇\n\n⚠️ O Pix aparecerá no nome *Rafael Cabral Ibraim* — esse é o nome do responsável pelo MandaAssim. É seguro pagar normalmente! ✅');
+    await message.reply('Gerado 👇\n\n_O Pix aparece no nome *Rafael Cabral Ibraim* — é o responsável pelo MandaAssim. Pode pagar normalmente ✅_');
 
     const media = new MessageMedia('image/png', qrCodeBase64, 'pix-qrcode.png');
     await client.sendMessage(message.from, media);
@@ -1563,8 +1561,7 @@ async function enviarCobrancaPix(message, phone, amount = undefined) {
     await client.sendMessage(message.from, qrCodeText);
 
     await client.sendMessage(message.from,
-      `✅ Após o pagamento, você receberá a confirmação aqui no WhatsApp em menos de 1 minuto.\n\n` +
-      `_Se demorar mais, digita *paguei* que eu verifico pra você._`
+      `_Confirmação chega aqui em menos de 1 minuto. Se demorar: *paguei*_`
     );
 
     console.log(`[Pix] QR Code enviado para ${phone}`);
@@ -1656,8 +1653,8 @@ client.on('message', async (message) => {
       let statusText;
       if (trial.isPro) {
         const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
-        statusText = `🔥 *Wingman Pro* — mensagens ilimitadas + Análise de Perfil\n` +
-          (validade ? `_Válido até ${validade}_` : '');
+        statusText = `🔥 *Wingman Pro* — mensagens ilimitadas + Análise de Perfil` +
+          (validade ? `\n_Válido até ${validade}_` : '');
       } else if (trial.isPremium) {
         const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
         statusText = `🌟 *Wingman* — mensagens ilimitadas` +
@@ -1666,20 +1663,20 @@ client.on('message', async (message) => {
         const horasLabel = trial.lastHours
           ? `menos de 2h`
           : `*${trial.trialDaysLeft} dia(s)*`;
-        statusText = `🎉 *Trial ativo* — ilimitado por mais ${horasLabel}\n_Usado hoje: ${used} análise(s)_`;
+        statusText = `⏳ *Trial* — ilimitado por mais ${horasLabel}\n_Usado hoje: ${used} análise(s)_`;
       } else {
         const remaining = Math.max(0, FREE_DAILY_LIMIT - used);
-        statusText = `🆓 *Free* — ${used}/${FREE_DAILY_LIMIT} análises usadas hoje · ${remaining} restante(s)`;
+        statusText = `🆓 *Free* — ${used}/${FREE_DAILY_LIMIT} hoje · ${remaining} restante(s)`;
       }
 
-      await message.reply(`📊 *Seu status:*\n\n${statusText}`);
+      await message.reply(`*Seu plano:*\n\n${statusText}`);
       return;
     }
 
     if (cmd === 'premium') {
       const trial = await getTrialInfo(phone);
       if (trial.isPremium) {
-        await message.reply('🌟 Você já é *Wingman*! Pode mandar à vontade.');
+        await message.reply('Você já é *Wingman* — pode mandar à vontade.');
       } else {
         await message.reply(OPCOES_PREMIUM);
       }
@@ -1729,7 +1726,7 @@ client.on('message', async (message) => {
       const { data: user } = await supabase.from('users').select('plan, plan_expires_at').eq('phone', phone).maybeSingle();
       const isPaidActive = ['wingman','wingman_pro'].includes(user?.plan) && (!user.plan_expires_at || new Date(user.plan_expires_at) > new Date());
       if (isPaidActive) {
-        await message.reply('✅ Pagamento confirmado! Você já é *Wingman* — pode mandar à vontade 🚀');
+        await message.reply('✅ *Wingman ativo* — pode mandar à vontade.');
         return;
       }
 
@@ -1744,7 +1741,7 @@ client.on('message', async (message) => {
 
       if (!pagamento) {
         await message.reply(
-          `Não encontrei nenhum pagamento. Digita *mensal* pra gerar um novo Pix.`
+          `Não encontrei nenhum pagamento pendente. Digita *mensal* pra gerar um novo Pix.`
         );
         return;
       }
@@ -1754,7 +1751,7 @@ client.on('message', async (message) => {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
         await supabase.from('users').update({ plan: 'wingman', plan_expires_at: expiresAt.toISOString() }).eq('phone', phone);
-        await message.reply('✅ Pagamento confirmado! Você já é *Wingman* — pode mandar à vontade 🚀');
+        await message.reply('✅ *Wingman ativo* — pode mandar à vontade.');
         return;
       }
 
@@ -1778,25 +1775,23 @@ client.on('message', async (message) => {
             ]);
             console.log(`[Paguei] ✅ ${newPlan} ativado via consulta MP para ${phone} (${days}d)`);
             const confirmMsg = days === 1
-              ? '✅ *24h ativado!*\n\nAcesso ilimitado pelas próximas *24 horas* 🚀\n\nAproveita — manda o print agora!'
+              ? '✅ *24h ativado* — acesso ilimitado pelas próximas 24 horas. Manda o print.'
               : newPlan === 'wingman_pro'
-              ? `✅ *Wingman Pro ativado!* 🔥\n\nAgora você tem Análise de Perfil + tudo mais. Manda o print do perfil dela pra testar 👇`
-              : '✅ *Pagamento confirmado!*\n\nBem-vindo ao *Wingman* 🚀\n\nVocê agora tem mensagens *ilimitadas*. Manda o próximo print ou descreve a situação!';
+              ? `✅ *Wingman Pro ativado* — Análise de Perfil liberada. Manda o print do perfil dela 👇`
+              : '✅ *Wingman ativado* — mensagens ilimitadas. Manda o próximo print ou descreve a situação.';
             await message.reply(confirmMsg);
           } else {
             await message.reply(
-              `⏳ Seu Pix ainda não foi confirmado pelo banco.\n\n` +
-              `Normalmente cai em menos de 1 minuto. Aguarda e tenta de novo! 🙏`
+              `Pix ainda não confirmado pelo banco.\n\nNormalmente cai em menos de 1 minuto. Tenta de novo em instantes.`
             );
           }
         } catch (e) {
           console.error('[Paguei] Erro ao consultar MP:', e.message);
-          await message.reply(`⏳ Estamos verificando seu pagamento. Tenta de novo em 1 minuto 🙏`);
+          await message.reply(`Verificando seu pagamento. Tenta de novo em 1 minuto.`);
         }
       } else {
         await message.reply(
-          `⏳ Seu Pix ainda não foi confirmado pelo banco.\n\n` +
-          `Normalmente cai em menos de 1 minuto. Aguarda e tenta de novo! 🙏`
+          `Pix ainda não confirmado pelo banco.\n\nNormalmente cai em menos de 1 minuto. Tenta de novo em instantes.`
         );
       }
       return;
@@ -1874,10 +1869,10 @@ client.on('message', async (message) => {
       if (trial.expiredAt && await verificarWinback(phone, trial.expiredAt)) {
         await message.reply(
           `Deu ${FREE_DAILY_LIMIT} por hoje.\n\n` +
-          `Como você já assinou antes: *voltar* por R$19,90 no primeiro mês _(era R$29,90)_.`
+          `Como você já assinou antes, tem uma oferta de volta: *voltar* por R$19,90 no primeiro mês.`
         );
       } else if (conversaQuente) {
-        await message.reply(`Deu o limite. Se a conversa tá no ponto: *mensal* (R$29,90) ou *anual* (R$299).`);
+        await message.reply(`Deu o limite por hoje. Se não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`);
       } else {
         await message.reply(limitCheck.upsellMessage || LIMITE_FREE_ESGOTADO);
       }
@@ -1894,20 +1889,19 @@ client.on('message', async (message) => {
   if (trial.inTrial && todayCount === 1) {
     if (trial.lastHours) {
       await message.reply(
-        `Seu acesso ilimitado fecha em menos de *2h*.\n\n` +
-        `Quer continuar sem parar? *mensal* (R$29,90) ou *anual* (R$299).`
+        `Acesso ilimitado fecha em menos de *2h*.\n\n` +
+        `*mensal* (R$29,90) ou *anual* (R$299) se quiser continuar.`
       );
     } else if (trial.isLastDay) {
       await message.reply(
-        `Hoje é seu último dia ilimitado.\n\n` +
-        `Amanhã passa pra *${FREE_DAILY_LIMIT} análises/dia* gratuitamente — ou continua ilimitado:\n\n` +
-        `*mensal* (R$29,90) · *anual* (R$299)\n\n` +
-        `_Digita *status* pra ver seu plano_`
+        `Hoje é o último dia ilimitado.\n\n` +
+        `Amanhã passa pra *${FREE_DAILY_LIMIT} análises/dia* — ou continua ilimitado:\n\n` +
+        `*mensal* (R$29,90) · *anual* (R$299)`
       );
     } else {
       await message.reply(
-        `*${trial.trialDaysLeft} dia(s)* de acesso ilimitado. Manda o que tiver.\n\n` +
-        `_Digita *status* a qualquer momento_`
+        `*${trial.trialDaysLeft} dia(s)* ilimitados. Manda o que tiver.\n\n` +
+        `_*status* pra ver seu plano_`
       );
     }
   }
@@ -2187,7 +2181,7 @@ client.on('message', async (message) => {
 
     // Filtra saudações puras — orienta sem gastar API
     if (isSaudacao(text)) {
-      await message.reply('Manda o print da conversa ou descreve o que tá rolando — eu leio o contexto e gero as opções.');
+      await message.reply('Manda o print ou descreve o que tá rolando — eu leio e gero as opções.');
       return;
     }
 
