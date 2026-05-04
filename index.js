@@ -230,13 +230,9 @@ const openrouter = new OpenAI({
 // Cliente direto da Anthropic (Haiku — mais barato e sem overhead do OpenRouter)
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const MODELS = {
-  full:     'google/gemini-2.0-flash-001',      // análise de imagens (visão nativa)
-  degraded: 'google/gemini-2.0-flash-lite-001', // fallback degradado
-  minimal:  'google/gemini-2.0-flash-lite-001', // fallback mínimo
-};
-
-const MAX_TOKENS = { full: 1024, degraded: 600, minimal: 300 };
+// Modelo para análise de imagens via visão nativa (OpenRouter)
+const IMAGE_ANALYSIS_MODEL = 'google/gemini-2.0-flash-001';
+const IMAGE_MAX_TOKENS = 1024;
 
 const SYSTEM_PROMPT = `Você é o MandaAssim. Não é coach, não explica teoria, não dá autoajuda. Entrega as mensagens certas pro momento certo.
 
@@ -565,32 +561,17 @@ REGRA: na dúvida entre volume e premium → premium. Na dúvida entre premium e
 
 RESPONDA APENAS com a categoria, sem explicação.`;
 
+// Todos os intents roteiam para Haiku 4.5 diretamente — sem degradação por tier
+const HAIKU_MODEL = 'anthropic/claude-haiku-4-5-20251001';
+const HAIKU_FALLBACK = 'google/gemini-2.0-flash-001';
+
 const INTENT_MODEL_CONFIG = {
-  one_liner: { model: 'google/gemini-2.0-flash-lite-001',    maxTokens: 80,  temperature: 0.90, systemType: 'minimal'  },
-  volume:    { model: 'google/gemini-2.0-flash-001',          maxTokens: 600, temperature: 0.85, systemType: 'degraded' },
-  premium:   { model: 'anthropic/claude-haiku-4-5-20251001',  maxTokens: 450, temperature: 0.80, systemType: 'full'     },
-  coaching:  { model: 'anthropic/claude-haiku-4-5-20251001',  maxTokens: 600, temperature: 0.75, systemType: 'coach'    },
-  ousadia:   { model: 'meta-llama/llama-4-maverick',          maxTokens: 500, temperature: 0.95, systemType: 'ousadia'  },
+  one_liner: { model: HAIKU_MODEL, maxTokens: 100, temperature: 0.90, systemType: 'minimal'  },
+  volume:    { model: HAIKU_MODEL, maxTokens: 550, temperature: 0.85, systemType: 'degraded' },
+  premium:   { model: HAIKU_MODEL, maxTokens: 500, temperature: 0.80, systemType: 'full'     },
+  coaching:  { model: HAIKU_MODEL, maxTokens: 650, temperature: 0.75, systemType: 'coach'    },
+  ousadia:   { model: HAIKU_MODEL, maxTokens: 450, temperature: 0.95, systemType: 'ousadia'  },
 };
-
-const INTENT_FALLBACKS = {
-  'google/gemini-2.0-flash-lite-001':   'google/gemini-2.0-flash-001',
-  'anthropic/claude-haiku-4-5-20251001': 'google/gemini-2.0-flash-001',
-  'meta-llama/llama-4-maverick':         'google/gemini-2.0-flash-001',
-};
-
-// Limita o intent ao que o tier de uso permite
-function capIntentByTier(intent, tier) {
-  if (tier === 'minimal') {
-    if (intent === 'premium' || intent === 'ousadia' || intent === 'coaching') return 'volume';
-  }
-  if (tier === 'degraded') {
-    if (intent === 'ousadia') return 'volume';
-    // coaching e premium degradam pra volume no tier degraded
-    if (intent === 'coaching' || intent === 'premium') return 'volume';
-  }
-  return intent; // tier 'full': tudo liberado
-}
 
 async function classificarIntent(situacao) {
   try {
@@ -768,8 +749,8 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
   let usage = null;
   try {
     const response = await openrouter.chat.completions.create({
-      model: MODELS.full,
-      max_tokens: MAX_TOKENS.full,
+      model: IMAGE_ANALYSIS_MODEL,
+      max_tokens: IMAGE_MAX_TOKENS,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT_IMAGE + girlContext },
         {
@@ -790,9 +771,8 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
     logApiRequest({
       phone,
       intent: 'image',
-      targetModel: MODELS.full,
-      modelActuallyUsed: MODELS.full,
-      tierAtRequest: 'full',
+      targetModel: IMAGE_ANALYSIS_MODEL,
+      modelActuallyUsed: IMAGE_ANALYSIS_MODEL,
       inputTokens: usage?.prompt_tokens || null,
       outputTokens: usage?.completion_tokens || null,
       latencyMs: Date.now() - t0,
@@ -803,30 +783,15 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
   return responseText;
 }
 
-// Limites diários de uso do Haiku por plano
-const HAIKU_DAILY_LIMIT = { premium: 10, free: 3 };
-
-async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', usageTier = 'full', phone = '', recentSuccess = false, isPremium = false) {
+async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', phone = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
 
-  const rawIntent = await classificarIntent(situacao);
-  let intent = capIntentByTier(rawIntent, usageTier);
-
-  // Limite diário do Haiku: 3 free / 10 premium
-  if (intent === 'premium') {
-    const haikuLimit = isPremium ? HAIKU_DAILY_LIMIT.premium : HAIKU_DAILY_LIMIT.free;
-    const haikuCount = getHaikuCount(phone);
-    if (haikuCount >= haikuLimit) {
-      console.log(`[Haiku] ${phone} atingiu limite diário (${haikuCount}/${haikuLimit}) → fallback volume`);
-      intent = 'volume';
-    }
-  }
-
+  const intent = await classificarIntent(situacao);
   const config = INTENT_MODEL_CONFIG[intent];
   const systemPrompt = getSystemPrompt(config.systemType, girlContext);
-  console.log(`[Roteamento] raw:${rawIntent} → final:${intent} → ${config.model}`);
+  console.log(`[Roteamento] intent:${intent} → ${config.model}`);
 
-  // Monta histórico recente (sliding window: últimas situações desta sessão)
+  // Histórico recente da sessão (sliding window)
   const ctx = userContext.get(phone);
   const history = ctx?.history || [];
   const historicoStr = history.length > 1
@@ -836,7 +801,8 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
 
   const userContent = `${prefixo}${historicoStr}\n\nSituação atual: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
 
-  const modelos = [config.model, INTENT_FALLBACKS[config.model]].filter(Boolean);
+  // Tenta Haiku direto → fallback Gemini Flash se Anthropic cair
+  const modelos = [config.model, HAIKU_FALLBACK].filter(Boolean);
   for (let i = 0; i < modelos.length; i++) {
     const model = modelos[i];
     const isFallback = i > 0;
@@ -847,24 +813,19 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
 
     try {
       if (model.startsWith('anthropic/') && process.env.ANTHROPIC_API_KEY) {
-        // Chama a API da Anthropic diretamente com prompt caching no system prompt
         const modelId = model.replace('anthropic/', '');
         const msg = await anthropic.messages.create({
           model: modelId,
           max_tokens: config.maxTokens,
-          // Prompt caching: cobra 10% do input nas leituras seguintes do mesmo system prompt
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: userContent }],
         });
         text = msg.content[0]?.text || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
-        inputTokens      = msg.usage?.input_tokens               || null;
-        outputTokens     = msg.usage?.output_tokens              || null;
-        cacheReadTokens  = msg.usage?.cache_read_input_tokens    || null;
+        inputTokens      = msg.usage?.input_tokens                || null;
+        outputTokens     = msg.usage?.output_tokens               || null;
+        cacheReadTokens  = msg.usage?.cache_read_input_tokens     || null;
         cacheWriteTokens = msg.usage?.cache_creation_input_tokens || null;
-        const cached = cacheReadTokens  || 0;
-        const written = cacheWriteTokens || 0;
-        console.log(`[Anthropic] ${modelId} | cache_read:${cached} cache_write:${written} out:${outputTokens}`);
-        incrementHaikuCount(phone);
+        console.log(`[Haiku] ${modelId} | cache_read:${cacheReadTokens || 0} cache_write:${cacheWriteTokens || 0} out:${outputTokens}`);
       } else {
         const response = await openrouter.chat.completions.create({
           model,
@@ -883,37 +844,22 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
       trackingError = err.message;
       console.error(`[Roteamento] Falha em ${model}:`, err.message);
       logApiRequest({
-        phone,
-        intent,
-        rawIntent,
+        phone, intent,
         intentClassifierModel: 'google/gemini-2.0-flash-001',
-        targetModel: config.model,
-        modelActuallyUsed: model,
-        tierAtRequest: usageTier,
-        fallbackTriggered: isFallback,
-        fallbackReason: isFallback ? 'model_error' : null,
-        latencyMs: Date.now() - t0,
-        userMessageLengthChars: situacao.length,
-        error: trackingError,
+        targetModel: config.model, modelActuallyUsed: model,
+        fallbackTriggered: isFallback, fallbackReason: isFallback ? 'model_error' : null,
+        latencyMs: Date.now() - t0, userMessageLengthChars: situacao.length, error: trackingError,
       });
       if (model === modelos[modelos.length - 1]) throw err;
       continue;
     }
 
     logApiRequest({
-      phone,
-      intent,
-      rawIntent,
+      phone, intent,
       intentClassifierModel: 'google/gemini-2.0-flash-001',
-      targetModel: config.model,
-      modelActuallyUsed: model,
-      tierAtRequest: usageTier,
-      fallbackTriggered: isFallback,
-      fallbackReason: isFallback ? 'model_error' : null,
-      inputTokens,
-      outputTokens,
-      cacheReadTokens,
-      cacheWriteTokens,
+      targetModel: config.model, modelActuallyUsed: model,
+      fallbackTriggered: isFallback, fallbackReason: isFallback ? 'model_error' : null,
+      inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens,
       latencyMs: Date.now() - t0,
       responseLengthChars: text ? text.length : null,
       userMessageLengthChars: situacao.length,
@@ -1041,35 +987,6 @@ async function verificarWinback(phone, expiredAt) {
 }
 
 
-async function getMonthlyCount(phone) {
-  const supabase = getSupabase();
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  const startDate = startOfMonth.toISOString().slice(0, 10);
-  const { data } = await supabase
-    .from('daily_message_counts')
-    .select('message_count')
-    .eq('phone', phone)
-    .gte('count_date', startDate);
-  return (data || []).reduce((sum, row) => sum + (row.message_count || 0), 0);
-}
-
-function getModelTier(monthlyCount) {
-  if (monthlyCount <= 400) return 'full';
-  if (monthlyCount <= 700) return 'degraded';
-  return 'minimal';
-}
-
-function getTrialTier(dailyCount) {
-  if (dailyCount <= 20) return 'full';
-  if (dailyCount <= 50) return 'degraded';
-  return 'minimal';
-}
-
-function resolveTier(trial, dailyCount, monthlyCount) {
-  if (trial.inTrial) return getTrialTier(dailyCount);
-  return getModelTier(monthlyCount); // premium e free: degradam por uso mensal
-}
 
 async function incrementDailyCount(phone) {
   const supabase = getSupabase();
@@ -1142,22 +1059,6 @@ function buildGirlContext(profile) {
 // ---------------------------------------------------------------------------
 
 const userContext = new Map(); // phone -> { lastRequest, lastType, scenario, tonePreference, history[] }
-
-// Contador diário de chamadas ao Haiku por usuário (in-memory, reseta meia-noite)
-const haikuDailyUsage = new Map(); // phone -> { date: 'YYYY-MM-DD', count: number }
-
-function getHaikuCount(phone) {
-  const today = new Date().toISOString().slice(0, 10);
-  const e = haikuDailyUsage.get(phone);
-  return (e?.date === today) ? e.count : 0;
-}
-
-function incrementHaikuCount(phone) {
-  const today = new Date().toISOString().slice(0, 10);
-  const count = getHaikuCount(phone) + 1;
-  haikuDailyUsage.set(phone, { date: today, count });
-  return count;
-}
 
 function saveUserContext(phone, request, type) {
   const current = userContext.get(phone) || {};
@@ -2555,14 +2456,12 @@ client.on('message', async (message) => {
       }
       const girlProfile = await getGirlProfile(phone);
       const girlContext = buildGirlContext(girlProfile);
-      const monthlyCount = await getMonthlyCount(phone);
-      const tier = resolveTier(trial, todayCount, monthlyCount);
-      
+
       const stopTyping1 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
           ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext, phone) }
-          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, tier, phone, false, trial.isPremium);
+          : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, phone);
         stopTyping1();
         await enviarResposta(message, result.text, result.intent);
       } catch (err) {
@@ -2583,14 +2482,12 @@ client.on('message', async (message) => {
       setUserTonePreference(phone, text.trim());
       const girlProfile = await getGirlProfile(phone);
       const girlContext = buildGirlContext(girlProfile);
-      const monthlyCount = await getMonthlyCount(phone);
-      const tier = resolveTier(trial, todayCount, monthlyCount);
-      
+
       const stopTyping2 = await startTyping(message);
       try {
         const result = ctx.lastType === 'image'
           ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, `Analise essa conversa e gere 3 opções com tom "${text.trim()}". Seja fiel ao estilo pedido.`, '', girlContext, phone) }
-          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, tier, phone, false, trial.isPremium);
+          : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, phone);
         stopTyping2();
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
         await enviarResposta(message, result.text, result.intent);
@@ -2632,13 +2529,10 @@ client.on('message', async (message) => {
         const situacaoCompleta = montarContextoCoaching(state.originalRequest, qa);
         const girlProfileCtx = await getGirlProfile(phone);
         const girlContextCtx = buildGirlContext(girlProfileCtx);
-        const monthlyCountCtx = await getMonthlyCount(phone);
-        const tierCtx = resolveTier(trial, todayCount, monthlyCountCtx);
 
-        
         const stopTypingFinal = await startTyping(message);
         try {
-          const result = await analisarTextoComClaude(situacaoCompleta, '', girlContextCtx, tierCtx, phone, false, trial.isPremium);
+          const result = await analisarTextoComClaude(situacaoCompleta, '', girlContextCtx, phone);
           stopTypingFinal();
           saveUserContext(phone, situacaoCompleta, 'text');
           await enviarResposta(message, result.text, result.intent);
@@ -2682,9 +2576,6 @@ client.on('message', async (message) => {
     const girlProfile = await getGirlProfile(phone);
     const girlContext = buildGirlContext(girlProfile);
     const reconquistaExtra = RECONQUISTA_KEYWORDS.test(text) ? RECONQUISTA_CONTEXT : '';
-    const monthlyCount = await getMonthlyCount(phone);
-    const tier = resolveTier(trial, todayCount, monthlyCount);
-    console.log(`[Tier] ${phone} — daily:${todayCount} monthly:${monthlyCount} → tier:${tier} recentSuccess:${recentSuccess}`);
 
     // --- Coaching: inicia conversa de contexto se situação for vaga ---
     const temHistorico = (ctx?.history?.length || 0) > 0;
@@ -2703,7 +2594,7 @@ client.on('message', async (message) => {
     
     const stopTyping3 = await startTyping(message);
     try {
-      const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, tier, phone, recentSuccess, trial.isPremium);
+      const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, phone);
       stopTyping3();
       saveUserContext(phone, text, 'text');
       if (recentSuccess) {
@@ -2994,12 +2885,8 @@ client.on('message', async (message) => {
       const girlProfileAudio = await getGirlProfile(phone);
       const girlContextAudio = buildGirlContext(girlProfileAudio);
       const reconquistaExtraAudio = RECONQUISTA_KEYWORDS.test(transcricao) ? RECONQUISTA_CONTEXT : '';
-      const monthlyCountAudio = await getMonthlyCount(phone);
-      const tierAudio = resolveTier(trial, todayCount, monthlyCountAudio);
-      const ctxAudio = getUserContext(phone);
-      const recentSuccessAudio = ctxAudio?.recentSuccess || false;
 
-      const result = await analisarTextoComClaude(transcricao, '', girlContextAudio + reconquistaExtraAudio, tierAudio, phone, recentSuccessAudio, trial.isPremium);
+      const result = await analisarTextoComClaude(transcricao, '', girlContextAudio + reconquistaExtraAudio, phone);
       stopTypingAudio();
       saveUserContext(phone, transcricao, 'text');
       if (recentSuccessAudio) {
