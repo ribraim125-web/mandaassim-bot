@@ -36,6 +36,15 @@ const {
   scheduleTransitionCoachOutcome,
   schedulePredateReminders,
 } = require('./src/followup/followupScheduler');
+const { logJourneyEvent }   = require('./src/narrative/journeyEvents');
+const { recordOutcome }     = require('./src/narrative/narrativeLog');
+const {
+  getAct1Message,
+  handleAct1Response,
+  getAct3Suffix,
+  getAct7Message,
+} = require('./src/narrative/narrativeInline');
+const { startWorker: startNarrativeWorker } = require('./src/narrative/narrativeWorker');
 const {
   INTERVIEW_QUESTIONS,
   analisarTransicaoComHaiku,
@@ -647,7 +656,7 @@ function extrairPorQueFunciona(texto) {
   return match ? match[1].trim() : null;
 }
 
-async function enviarResposta(message, sugestoes, intent = '') {
+async function enviarResposta(message, sugestoes, intent = '', phone = '') {
   const diagnostico = extrairDiagnostico(sugestoes);
   const opcoes = parsearOpcoes(sugestoes);
 
@@ -707,6 +716,13 @@ async function enviarResposta(message, sugestoes, intent = '') {
   } else {
     // Fallback
     await message.reply(sugestoes.trim().replace(/\n{3,}/g, '\n\n'));
+  }
+
+  // Ato 3 — sufixo narrativo na primeira análise (fire-and-forget)
+  if (phone) {
+    getAct3Suffix(phone).then(suffix => {
+      if (suffix) client.sendMessage(message.from, suffix).catch(() => {});
+    }).catch(() => {});
   }
 }
 
@@ -1654,11 +1670,23 @@ client.on('message', async (message) => {
   // Boas-vindas para novos usuários (não conta no limite)
   const isNewUser = await upsertUser(phone, contactName, message.from);
   if (isNewUser) {
-    saveAttribution(phone, acquisitionSlug).catch(() => {}); // fire-and-forget, nunca bloqueia
-    for (const msg of WELCOME_MESSAGES) {
-      await client.sendMessage(message.from, msg);
+    saveAttribution(phone, acquisitionSlug).catch(() => {});
+
+    // Evento: signup
+    logJourneyEvent(phone, 'signup', { acquisition_slug: acquisitionSlug || 'direct' }).catch(() => {});
+
+    // Ato 1 — Boas-vindas com diagnóstico (substitui WELCOME_MESSAGES[1] quando ativo)
+    const act1Msg = await getAct1Message(phone).catch(() => null);
+
+    for (let i = 0; i < WELCOME_MESSAGES.length; i++) {
+      if (i === 1 && act1Msg) {
+        await client.sendMessage(message.from, act1Msg); // Ato 1 no lugar da msg[1]
+      } else {
+        await client.sendMessage(message.from, WELCOME_MESSAGES[i]);
+      }
     }
-    console.log(`[Boas-vindas] Enviada para: ${phone}`);
+
+    console.log(`[Boas-vindas] Enviada para: ${phone}${act1Msg ? ' (Ato 1 ativo)' : ''}`);
     scheduleInactiveFollowup(phone).catch(() => {});
     return;
   }
@@ -2126,6 +2154,14 @@ client.on('message', async (message) => {
       userContext.set(phone, { ...currentCtx2, pendingProfileClassification: null });
     }
 
+    // ── Resposta ao Ato 1 (persona 1-4) → dispara Ato 2 ─────────────────────
+    const act2Msg = await handleAct1Response(phone, text).catch(() => null);
+    if (act2Msg) {
+      await client.sendMessage(message.from, act2Msg);
+      logJourneyEvent(phone, 'first_message_sent').catch(() => {});
+      return;
+    }
+
     // ── Resposta ao convite de mindset (SIM / NÃO) ───────────────────────────
     const mindsetCtx = getUserContext(phone);
     const pendingMindset = mindsetCtx?.pendingMindsetOptIn
@@ -2523,7 +2559,7 @@ client.on('message', async (message) => {
           ? { text: await analisarPrintComClaude(ctx.lastRequest.data, ctx.lastRequest.mimetype, '', '', girlContext, phone) }
           : await analisarTextoComClaude(ctx.lastRequest + '\n\n(Gere 3 variações COMPLETAMENTE DIFERENTES das anteriores. Mude os ângulos, metáforas e abordagens.)', '', girlContext, phone);
         stopTyping1();
-        await enviarResposta(message, result.text, result.intent);
+        await enviarResposta(message, result.text, result.intent, phone);
       } catch (err) {
         stopTyping1();
         console.error('[OpenRouter] Erro ao gerar variações:', err.message);
@@ -2550,7 +2586,7 @@ client.on('message', async (message) => {
           : await analisarTextoComClaude(`Situação: ${ctx.lastRequest}\n\nGere 3 opções com tom "${text.trim()}". Adapte completamente o estilo.`, '', girlContext, phone);
         stopTyping2();
         saveUserContext(phone, ctx.lastRequest, ctx.lastType);
-        await enviarResposta(message, result.text, result.intent);
+        await enviarResposta(message, result.text, result.intent, phone);
       } catch (err) {
         stopTyping2();
         console.error('[OpenRouter] Erro ao ajustar tom:', err.message);
@@ -2595,7 +2631,7 @@ client.on('message', async (message) => {
           const result = await analisarTextoComClaude(situacaoCompleta, '', girlContextCtx, phone);
           stopTypingFinal();
           saveUserContext(phone, situacaoCompleta, 'text');
-          await enviarResposta(message, result.text, result.intent);
+          await enviarResposta(message, result.text, result.intent, phone);
           await contadorRestante(message, trial, todayCount);
           await upsellPicoPremium(message, trial, todayCount);
         } catch (err) {
@@ -2793,6 +2829,7 @@ client.on('message', async (message) => {
               incrementProfileCount(phone);
               setProfileLastTime(phone);
               await incrementFeatureUsage(phone, 'profile_self_audit');
+              logJourneyEvent(phone, 'first_profile_audit_done').catch(() => {});
 
               saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
 
@@ -3007,6 +3044,13 @@ client.on('message', async (message) => {
               await client.sendMessage(message.from, msg);
             }
 
+            // Journey events: first_print_analyzed, third_print_analyzed
+            logJourneyEvent(phone, 'first_print_analyzed').catch(() => {});
+            incrementFeatureUsage(phone, 'print_count_narrative').catch(() => {});
+            getDailyUsage(phone, 'print_analysis').then(usedToday => {
+              if (usedToday >= 3) logJourneyEvent(phone, 'third_print_analyzed').catch(() => {});
+            }).catch(() => {});
+
             if (trial.isPremium) {
               const { remaining } = checkPrintLimit(phone, true, false);
               if (remaining <= 2) {
@@ -3165,6 +3209,7 @@ client.on('ready', () => {
   console.log('[Bot] Conectado e pronto para receber mensagens!');
   startWorker(client);
   startMindsetWorker(client);
+  startNarrativeWorker(client);
   setTimeout(verificarExpiracoes, 15000);
   setInterval(verificarExpiracoes, 6 * 60 * 60 * 1000);
 });

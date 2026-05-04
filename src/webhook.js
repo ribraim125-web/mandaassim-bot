@@ -5,6 +5,7 @@ const { MercadoPagoConfig, Payment } = require('mercadopago');
 const { createClient } = require('@supabase/supabase-js');
 const { determinarPlano } = require('./mercadopago');
 const { trackSubscriptionEvent } = require('./lib/subscriptionTracking');
+const { logJourneyEvent } = require('./narrative/journeyEvents');
 
 // Rate limiting simples (sem dependência externa)
 const requestHits = new Map(); // ip+scope -> { count, resetAt }
@@ -187,6 +188,8 @@ function createWebhookApp(waClient) {
           amountBrl: amount,
           metadata: { mp_payment_id: paymentId, days },
         });
+        const upgradeEvent = newPlan === 'wingman_pro' ? 'upgraded_pro' : 'upgraded_wingman';
+        logJourneyEvent(phoneFromRef, upgradeEvent, { plan: newPlan, amount }).catch(() => {});
         const chatIdFallback = userRowFallback?.wa_chat_id || `${phoneFromRef}@c.us`;
         try {
           await waClient.sendMessage(chatIdFallback, confirmacaoMsg);
@@ -247,6 +250,8 @@ function createWebhookApp(waClient) {
         amountBrl: amount,
         metadata: { mp_payment_id: paymentId, days, external_ref: externalRef },
       });
+      const upgradeEvt = newPlan === 'wingman_pro' ? 'upgraded_pro' : 'upgraded_wingman';
+      logJourneyEvent(phone, upgradeEvt, { plan: newPlan, plan_from: planAnterior, amount }).catch(() => {});
 
       // Notifica o usuário no WhatsApp usando o chat ID real (salvo quando o usuário mandou a primeira mensagem)
       const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
