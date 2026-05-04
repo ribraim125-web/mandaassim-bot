@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "create-slug": "node scripts/create-slug.js",
+    "acquisition-report": "node scripts/acquisition-report.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

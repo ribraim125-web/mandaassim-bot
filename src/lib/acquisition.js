@@ -101,11 +101,14 @@ async function saveAttribution(phone, slug) {
       console.log(`[Aquisição] ${phone} → direct (sem slug)`);
     }
 
+    const now = new Date().toISOString();
     await supabase.from('users').update({
-      acquisition_source:        source,
-      acquisition_medium:        medium,
-      acquisition_campaign:      campaign,
-      acquisition_first_seen_at: new Date().toISOString(),
+      acquisition_slug:             slug || null,
+      acquisition_source:           source,
+      acquisition_medium:           medium,
+      acquisition_campaign:         campaign,
+      acquisition_first_seen_at:    now,
+      acquisition_first_message_at: now,
     }).eq('phone', phone);
 
   } catch (err) {
@@ -115,13 +118,15 @@ async function saveAttribution(phone, slug) {
 
 /**
  * Retorna estatísticas de aquisição por canal para um período.
+ * Inclui funil completo por plano e custo IA do cohort.
  *
  * @param {Date|string} periodStart
  * @param {Date|string} periodEnd
  * @returns {Promise<Array<{
- *   source, medium, campaign,
- *   signups, conversions, conversionRate,
- *   totalMessages, activeW1, activeM1
+ *   source, medium, campaign, signups,
+ *   plan_free, plan_wingman, plan_wingman_pro,
+ *   conv_trial_to_paid, conv_free_to_wingman, conv_wingman_to_pro,
+ *   ia_cost_brl, ltv_avg_brl
  * }>>}
  */
 async function getAcquisitionStats(periodStart, periodEnd) {
@@ -132,7 +137,7 @@ async function getAcquisitionStats(periodStart, periodEnd) {
   // Usuários cadastrados no período
   const { data: users } = await supabase
     .from('users')
-    .select('phone, acquisition_source, acquisition_medium, acquisition_campaign, created_at')
+    .select('phone, acquisition_source, acquisition_medium, acquisition_campaign, acquisition_slug, plan, created_at')
     .gte('created_at', start)
     .lte('created_at', end);
 
@@ -140,23 +145,34 @@ async function getAcquisitionStats(periodStart, periodEnd) {
 
   const phones = users.map(u => u.phone);
 
-  // Pagamentos aprovados desses usuários
+  // Pagamentos aprovados desses usuários (para LTV)
   const { data: payments } = await supabase
     .from('payments')
-    .select('phone, status')
+    .select('phone, amount, status, plan')
     .in('phone', phones)
     .eq('status', 'approved');
 
-  // Volume de mensagens desses usuários
-  const { data: counts } = await supabase
-    .from('daily_message_counts')
-    .select('phone, count_date, message_count')
+  // Custo IA total por usuário (via api_requests)
+  const { data: apiCosts } = await supabase
+    .from('api_requests')
+    .select('phone, estimated_cost_brl')
     .in('phone', phones);
 
-  const convertedPhones = new Set((payments || []).map(p => p.phone));
-  const now = new Date();
-  const d7  = new Date(now - 7  * 86400000);
-  const d30 = new Date(now - 30 * 86400000);
+  // Mapa de plano atual por telefone
+  const planByPhone = {};
+  users.forEach(u => { planByPhone[u.phone] = u.plan || 'trial'; });
+
+  // LTV por telefone (soma de pagamentos aprovados)
+  const ltvByPhone = {};
+  (payments || []).forEach(p => {
+    ltvByPhone[p.phone] = (ltvByPhone[p.phone] || 0) + (parseFloat(p.amount) || 0);
+  });
+
+  // Custo IA por telefone
+  const iaCostByPhone = {};
+  (apiCosts || []).forEach(r => {
+    iaCostByPhone[r.phone] = (iaCostByPhone[r.phone] || 0) + (parseFloat(r.estimated_cost_brl) || 0);
+  });
 
   // Agrupa por source/medium/campaign
   const groups = {};
@@ -169,47 +185,50 @@ async function getAcquisitionStats(periodStart, periodEnd) {
 
     if (!groups[key]) {
       groups[key] = {
-        source:      u.acquisition_source   || 'direct',
-        medium:      u.acquisition_medium   || 'direct',
-        campaign:    u.acquisition_campaign || null,
-        phones:      [],
+        source:   u.acquisition_source   || 'direct',
+        medium:   u.acquisition_medium   || 'direct',
+        campaign: u.acquisition_campaign || null,
+        phones:   [],
       };
     }
     groups[key].phones.push(u.phone);
   });
 
   return Object.values(groups).map(g => {
-    const groupPhones = new Set(g.phones);
+    const gPhones = g.phones;
+    const signups = gPhones.length;
 
-    const signups     = g.phones.length;
-    const conversions = g.phones.filter(p => convertedPhones.has(p)).length;
+    // Distribuição por plano atual
+    const planFree       = gPhones.filter(p => planByPhone[p] === 'free').length;
+    const planWingman    = gPhones.filter(p => planByPhone[p] === 'wingman').length;
+    const planWingmanPro = gPhones.filter(p => planByPhone[p] === 'wingman_pro').length;
+    const planTrial      = gPhones.filter(p => planByPhone[p] === 'trial').length;
 
-    const totalMessages = (counts || [])
-      .filter(c => groupPhones.has(c.phone))
-      .reduce((s, c) => s + c.message_count, 0);
+    // Conversões por etapa do funil
+    const convTrialToPaid    = planWingman + planWingmanPro;            // saiu do trial/free para qualquer plano pago
+    const convFreeToWingman  = planWingman + planWingmanPro;            // mesmo: atingiu wingman ou pro
+    const convWingmanToPro   = planWingmanPro;                          // chegou ao Pro
 
-    const activeW1 = new Set(
-      (counts || [])
-        .filter(c => groupPhones.has(c.phone) && new Date(c.count_date) >= d7)
-        .map(c => c.phone)
-    ).size;
-
-    const activeM1 = new Set(
-      (counts || [])
-        .filter(c => groupPhones.has(c.phone) && new Date(c.count_date) >= d30)
-        .map(c => c.phone)
-    ).size;
+    // Custo IA total e LTV médio do cohort
+    const iaCostBrl = gPhones.reduce((s, p) => s + (iaCostByPhone[p] || 0), 0);
+    const ltvTotal  = gPhones.reduce((s, p) => s + (ltvByPhone[p]   || 0), 0);
+    const ltvAvg    = signups > 0 ? ltvTotal / signups : 0;
 
     return {
-      source:         g.source,
-      medium:         g.medium,
-      campaign:       g.campaign,
+      source:               g.source,
+      medium:               g.medium,
+      campaign:             g.campaign,
       signups,
-      conversions,
-      conversionRate: signups > 0 ? parseFloat((conversions / signups * 100).toFixed(1)) : 0,
-      totalMessages,
-      activeW1,
-      activeM1,
+      plan_trial:           planTrial,
+      plan_free:            planFree,
+      plan_wingman:         planWingman,
+      plan_wingman_pro:     planWingmanPro,
+      conv_trial_to_paid:   convTrialToPaid,
+      conv_free_to_wingman: convFreeToWingman,
+      conv_wingman_to_pro:  convWingmanToPro,
+      conv_rate_pct:        signups > 0 ? parseFloat((convTrialToPaid / signups * 100).toFixed(1)) : 0,
+      ia_cost_brl:          parseFloat(iaCostBrl.toFixed(2)),
+      ltv_avg_brl:          parseFloat(ltvAvg.toFixed(2)),
     };
   }).sort((a, b) => b.signups - a.signups);
 }
