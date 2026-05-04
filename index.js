@@ -958,6 +958,9 @@ async function upsertUser(phone, name, chatId) {
 /**
  * Retorna o status completo do usuário: premium, trial ativo, dias restantes.
  * Fonte única de verdade — usar no lugar de isUserPremium() isolado.
+ *
+ * Planos novos: 'trial' | 'free' | 'wingman' | 'wingman_pro'
+ * Planos legados aceitos: 'premium' (→ wingman), 'pro' (→ wingman_pro)
  */
 async function getTrialInfo(phone) {
   const supabase = getSupabase();
@@ -967,33 +970,34 @@ async function getTrialInfo(phone) {
     .eq('phone', phone)
     .maybeSingle();
 
-  if (!data) return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false };
+  if (!data) return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, planKey: 'free' };
 
-  // Pro ativo? (Wingman Pro — plano futuro, R$79,90/mês)
-  if (data.plan === 'pro') {
+  const rawPlan = data.plan;
+
+  // Wingman Pro (novo) ou pro (legado)
+  if (rawPlan === 'wingman_pro' || rawPlan === 'pro') {
     if (!data.plan_expires_at || new Date(data.plan_expires_at) > new Date()) {
-      return { isPremium: true, isPro: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at };
+      return { isPremium: true, isPro: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'wingman_pro' };
     }
-    return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at };
+    return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at, planKey: 'free' };
   }
 
-  // Premium ativo?
-  if (data.plan === 'premium') {
+  // Wingman (novo) ou premium (legado)
+  if (rawPlan === 'wingman' || rawPlan === 'premium') {
     if (!data.plan_expires_at || new Date(data.plan_expires_at) > new Date()) {
-      return { isPremium: true, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at };
+      return { isPremium: true, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'wingman' };
     }
-    // Premium expirado — retorna a data para lógica de win-back
-    return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at };
+    return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at, planKey: 'free' };
   }
 
-  // Calcula dias desde o cadastro (baseado em created_at — imutável no banco)
+  // Trial explícito no banco (novo) ou calculado por created_at (legado sem plan)
   const createdAt = new Date(data.created_at);
   const now = new Date();
   const diffDays = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
 
-  const inTrial = diffDays < TRIAL_DAYS;
+  const inTrial = rawPlan === 'trial' || diffDays < TRIAL_DAYS;
   const inSoftLimit = !inTrial && diffDays < SOFT_LIMIT_DAYS;
-  const trialDaysLeft = inTrial ? TRIAL_DAYS - diffDays : 0;
+  const trialDaysLeft = inTrial ? Math.max(TRIAL_DAYS - diffDays, 0) : 0;
   const isLastDay = trialDaysLeft === 1;
 
   // Limite diário baseado na fase do usuário
@@ -1001,7 +1005,9 @@ async function getTrialInfo(phone) {
   if (inSoftLimit) dailyLimit = SOFT_LIMIT;
   else if (!inTrial) dailyLimit = POST_TRIAL_LIMIT;
 
-  return { isPremium: false, isPro: false, inTrial, inSoftLimit, trialDaysLeft, isLastDay, dailyLimit };
+  const planKey = inTrial ? 'trial' : 'free';
+
+  return { isPremium: false, isPro: false, inTrial, inSoftLimit, trialDaysLeft, isLastDay, dailyLimit, planKey };
 }
 
 /**
@@ -1818,8 +1824,8 @@ client.on('message', async (message) => {
       trackSubscriptionEvent({
         phone,
         eventType:  'upgrade_offered',
-        planFrom:   trial.isPremium ? 'premium' : (trial.inTrial ? 'trial' : 'free'),
-        planTo:     'pro',
+        planFrom:   trial.planKey || (trial.isPremium ? 'wingman' : (trial.inTrial ? 'trial' : 'free')),
+        planTo:     'wingman_pro',
         triggerCtx: 'command_pro',
       });
       return;
@@ -1838,8 +1844,9 @@ client.on('message', async (message) => {
     if (cmd === 'paguei') {
       const supabase = getSupabase();
       const { data: user } = await supabase.from('users').select('plan, plan_expires_at').eq('phone', phone).maybeSingle();
-      if (user?.plan === 'premium' && (!user.plan_expires_at || new Date(user.plan_expires_at) > new Date())) {
-        await message.reply('✅ Pagamento confirmado! Você já é *Premium* — pode mandar à vontade 🚀');
+      const isPaidActive = ['wingman','wingman_pro'].includes(user?.plan) && (!user.plan_expires_at || new Date(user.plan_expires_at) > new Date());
+      if (isPaidActive) {
+        await message.reply('✅ Pagamento confirmado! Você já é *Wingman* — pode mandar à vontade 🚀');
         return;
       }
 
@@ -1859,12 +1866,12 @@ client.on('message', async (message) => {
         return;
       }
 
-      // Se já aprovado no banco mas usuário não é premium, ativa agora
+      // Se já aprovado no banco mas usuário não tem plano ativo, ativa agora
       if (pagamento.status === 'approved') {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
-        await supabase.from('users').update({ plan: 'premium', plan_expires_at: expiresAt.toISOString() }).eq('phone', phone);
-        await message.reply('✅ Pagamento confirmado! Você já é *Premium* — pode mandar à vontade 🚀');
+        await supabase.from('users').update({ plan: 'wingman', plan_expires_at: expiresAt.toISOString() }).eq('phone', phone);
+        await message.reply('✅ Pagamento confirmado! Você já é *Wingman* — pode mandar à vontade 🚀');
         return;
       }
 
@@ -1889,9 +1896,9 @@ client.on('message', async (message) => {
             console.log(`[Paguei] ✅ ${newPlan} ativado via consulta MP para ${phone} (${days}d)`);
             const confirmMsg = days === 1
               ? '✅ *24h ativado!*\n\nAcesso ilimitado pelas próximas *24 horas* 🚀\n\nAproveita — manda o print agora!'
-              : newPlan === 'pro'
+              : newPlan === 'wingman_pro'
               ? `✅ *Wingman Pro ativado!* 🔥\n\nAgora você tem Análise de Perfil + tudo mais. Manda o print do perfil dela pra testar 👇`
-              : '✅ *Pagamento confirmado!*\n\nBem-vindo ao *MandaAssim Premium* 🚀\n\nVocê agora tem mensagens *ilimitadas*. Manda o próximo print ou descreve a situação!';
+              : '✅ *Pagamento confirmado!*\n\nBem-vindo ao *Wingman* 🚀\n\nVocê agora tem mensagens *ilimitadas*. Manda o próximo print ou descreve a situação!';
             await message.reply(confirmMsg);
           } else {
             await message.reply(

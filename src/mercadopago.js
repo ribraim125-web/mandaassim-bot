@@ -7,12 +7,14 @@ const PRECO_PRO     = 79.90;
 /**
  * Determina plano e dias de validade com base no valor pago.
  * Centralizado aqui para webhook e index.js usarem a mesma lógica.
+ *
+ * Planos novos: 'wingman' (ex-premium) | 'wingman_pro' (ex-pro)
  */
 function determinarPlano(amount) {
-  if (amount <= 9.99)                    return { plan: 'premium', days: 1   }; // 24h
-  if (Math.abs(amount - PRECO_PRO) < 2) return { plan: 'pro',     days: 30  }; // Pro mensal
-  if (amount >= 100)                     return { plan: 'premium', days: 365 }; // anual
-  return                                        { plan: 'premium', days: 30  }; // mensal básico
+  if (amount <= 9.99)                    return { plan: 'wingman',     days: 1   }; // 24h
+  if (Math.abs(amount - PRECO_PRO) < 2) return { plan: 'wingman_pro', days: 30  }; // Pro mensal
+  if (amount >= 100)                     return { plan: 'wingman',     days: 365 }; // anual
+  return                                        { plan: 'wingman',     days: 30  }; // mensal básico
 }
 
 function getSupabase() {

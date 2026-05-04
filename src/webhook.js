@@ -142,8 +142,8 @@ function createWebhookApp(waClient) {
       const amount = result.transaction_amount ?? 0;
       const { plan: newPlan, days } = determinarPlano(amount);
       const confirmacaoMsg =
-        days === 1       ? CONFIRMACAO_24H :
-        newPlan === 'pro' ? CONFIRMACAO_PRO :
+        days === 1                  ? CONFIRMACAO_24H :
+        newPlan === 'wingman_pro'   ? CONFIRMACAO_PRO :
         CONFIRMACAO_PREMIUM;
 
       const supabase = getSupabase();
@@ -165,8 +165,9 @@ function createWebhookApp(waClient) {
           .select('wa_chat_id, plan, plan_expires_at')
           .eq('phone', phoneFromRef)
           .maybeSingle();
-        // Acumula: se ainda é premium e não expirou, soma a partir da data atual de expiração
-        const baseDate = (userRowFallback?.plan === 'premium' && userRowFallback?.plan_expires_at && new Date(userRowFallback.plan_expires_at) > new Date())
+        // Acumula: se ainda tem plano pago ativo, soma a partir da data atual de expiração
+        const isPaidFallback = ['wingman', 'wingman_pro'].includes(userRowFallback?.plan);
+        const baseDate = (isPaidFallback && userRowFallback?.plan_expires_at && new Date(userRowFallback.plan_expires_at) > new Date())
           ? new Date(userRowFallback.plan_expires_at)
           : new Date();
         const expiresAt = new Date(baseDate);
@@ -210,8 +211,9 @@ function createWebhookApp(waClient) {
         .eq('phone', phone)
         .maybeSingle();
 
-      // Acumula: se ainda é premium e não expirou, soma a partir da data atual de expiração
-      const baseDate = (userRow?.plan === 'premium' && userRow?.plan_expires_at && new Date(userRow.plan_expires_at) > new Date())
+      // Acumula: se ainda tem plano pago ativo, soma a partir da data atual de expiração
+      const isPaid = ['wingman', 'wingman_pro'].includes(userRow?.plan);
+      const baseDate = (isPaid && userRow?.plan_expires_at && new Date(userRow.plan_expires_at) > new Date())
         ? new Date(userRow.plan_expires_at)
         : new Date();
       const expiresAt = new Date(baseDate);
@@ -289,7 +291,7 @@ function createWebhookApp(waClient) {
 
     const { data: userRow, error } = await supabase
       .from('users')
-      .update({ plan: 'pro', plan_expires_at: expiresAt.toISOString(), renewal_notified: false })
+      .update({ plan: 'wingman_pro', plan_expires_at: expiresAt.toISOString(), renewal_notified: false })
       .eq('phone', phone)
       .select('wa_chat_id, plan')
       .maybeSingle();
@@ -300,7 +302,7 @@ function createWebhookApp(waClient) {
       phone,
       eventType: 'plan_activated',
       planFrom: userRow?.plan || 'unknown',
-      planTo: 'pro',
+      planTo: 'wingman_pro',
       triggerCtx: 'manual',
       metadata: { activated_by: 'admin', expires_at: expiresAt.toISOString() },
     });
@@ -329,7 +331,7 @@ function createWebhookApp(waClient) {
     const supabase = getSupabase();
     const { data: userRow, error } = await supabase
       .from('users')
-      .update({ plan: 'premium', plan_expires_at: null })
+      .update({ plan: 'wingman', plan_expires_at: null })
       .eq('phone', phone)
       .select('wa_chat_id')
       .maybeSingle();
@@ -372,12 +374,13 @@ function createWebhookApp(waClient) {
     const { data: allUsersRaw } = await supabase.from('users').select('phone, plan, plan_expires_at, created_at');
     const usersData = (allUsersRaw ?? []).filter(u => !ADMIN_PHONES.includes(u.phone));
 
+    const PAID_PLANS = ['wingman', 'wingman_pro', 'premium', 'pro']; // legados incluídos
     const now = new Date();
     const totalUsers = usersData.length;
-    const premium = usersData.filter(u => u.plan === 'premium' && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
-    const pro     = usersData.filter(u => u.plan === 'pro'     && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
-    const trial = usersData.filter(u => !['premium','pro'].includes(u.plan) && new Date(u.created_at) >= trialCutoff).length;
-    const free  = usersData.filter(u => !['premium','pro'].includes(u.plan) && new Date(u.created_at) < trialCutoff).length;
+    const premium = usersData.filter(u => ['wingman','premium'].includes(u.plan) && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
+    const pro     = usersData.filter(u => ['wingman_pro','pro'].includes(u.plan) && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
+    const trial = usersData.filter(u => !PAID_PLANS.includes(u.plan) && new Date(u.created_at) >= trialCutoff).length;
+    const free  = usersData.filter(u => !PAID_PLANS.includes(u.plan) && new Date(u.created_at) < trialCutoff).length;
     const newToday = usersData.filter(u => new Date(u.created_at) >= todayStart).length;
     const newWeek = usersData.filter(u => new Date(u.created_at) >= weekAgo).length;
 
@@ -394,10 +397,10 @@ function createWebhookApp(waClient) {
 
     // Métricas avançadas
     const churnCount = usersData.filter(u =>
-      ['premium','pro'].includes(u.plan) && u.plan_expires_at && new Date(u.plan_expires_at) <= now
+      PAID_PLANS.includes(u.plan) && u.plan_expires_at && new Date(u.plan_expires_at) <= now
     ).length;
     const freePostTrial = usersData.filter(u =>
-      !['premium','pro'].includes(u.plan) && new Date(u.created_at) < trialCutoff
+      !PAID_PLANS.includes(u.plan) && new Date(u.created_at) < trialCutoff
     ).length;
     const totalPaid = premium + pro;
     const conversionRate = (totalPaid + freePostTrial) > 0
@@ -473,7 +476,7 @@ function createWebhookApp(waClient) {
       .filter(u => !ADMIN_PHONES.includes(u.phone))
       .map(u => ({
         ...u,
-        is_trial: !['premium','pro'].includes(u.plan) && new Date(u.created_at) >= trialCutoff,
+        is_trial: !['wingman','wingman_pro','premium','pro'].includes(u.plan) && new Date(u.created_at) >= trialCutoff,
         msgs_today: todayMap[u.phone] || 0,
         msgs_total: totalMap[u.phone] || 0,
       }));
