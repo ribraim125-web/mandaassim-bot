@@ -179,7 +179,8 @@ function formatarRespostaPrint(result) {
   // ── Msg 2: Sugestão (balanced como padrão) ───────────────────────────────
   const sugestao = result.suggested_next_message?.balanced;
   if (sugestao) {
-    msgs.push(`Manda isso 👇\n\n"${sugestao}"`);
+    msgs.push(`Manda isso 👇`);
+    msgs.push(sugestao.trim());
   }
 
   // ── Msg 3 (opcional): oferta de alternativas se a conversa tiver leitura clara ──

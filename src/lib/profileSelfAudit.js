@@ -180,11 +180,12 @@ function formatarAuditoriaPerfil(result) {
       msg3 += '\n';
     }
 
-    if (bio.rewritten_suggestion) {
-      msg3 += `*Sugiro:*\n"${bio.rewritten_suggestion}"`;
-    }
-
     msgs.push(msg3.trim());
+
+    if (bio.rewritten_suggestion) {
+      msgs.push(`*Sugiro essa bio:*`);
+      msgs.push(bio.rewritten_suggestion.trim());
+    }
   }
 
   // ── Msg 4: top 3 mudanças ────────────────────────────────────────────────

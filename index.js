@@ -21,6 +21,7 @@ const {
 } = require('./src/lib/mindsetCapsules');
 const { cancelPendingFollowups, cancelPredateReminders } = require('./src/followup/followupCanceller');
 const { logApiRequest } = require('./src/lib/tracking');
+const { validateResponseArray, logViolations } = require('./src/lib/messageFormatValidator');
 const { canUseFeature, incrementFeatureUsage, getDailyUsage } = require('./src/config/features');
 const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
 const { analisarPrintConversaComHaiku } = require('./src/lib/printAnalysis');
@@ -800,7 +801,15 @@ function extrairPorQueFunciona(texto) {
  * Envia array de mensagens com delay aleatório de 1.2-2.5s entre cada.
  * Cria ritmo de conversa — cada mensagem = 1 pico de dopamina.
  */
-async function sendWithDelay(chatId, messages) {
+async function sendWithDelay(chatId, messages, { phone, intent } = {}) {
+  // Valida formato das mensagens (fire-and-forget — nunca bloqueia)
+  if (phone) {
+    const { valid, violations } = validateResponseArray(messages);
+    if (!valid) {
+      logViolations(phone, intent || 'unknown', violations, getSupabase()).catch(() => {});
+    }
+  }
+
   for (let i = 0; i < messages.length; i++) {
     if (i > 0) await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
     await client.sendMessage(chatId, messages[i]);
@@ -825,7 +834,7 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
 
     if (rawBlocos.length > 1) {
       // Modelo usou --- corretamente → envia cada bloco como mensagem separada
-      await sendWithDelay(message.from, rawBlocos);
+      await sendWithDelay(message.from, rawBlocos, { phone, intent });
     } else {
       // Fallback: modelo não usou --- → separa diagnóstico do corpo
       const corpo = sugestoes
@@ -866,7 +875,7 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
 
   if (blocos.length > 2) {
     // Modelo usou --- corretamente → envia cada bloco separado com delay
-    await sendWithDelay(message.from, blocos);
+    await sendWithDelay(message.from, blocos, { phone, intent });
     if (phone) {
       getAct3Suffix(phone).then(suffix => {
         if (suffix) client.sendMessage(message.from, suffix).catch(() => {});
@@ -2295,7 +2304,7 @@ client.on('message', async (message) => {
                     const ctxAfterAmbigPrint = userContext.get(phone) || {};
                     userContext.set(phone, { ...ctxAfterAmbigPrint, lastPrintResult: printResultAmbig });
                   }
-                  await sendWithDelay(message.from, pm);
+                  await sendWithDelay(message.from, pm, { phone, intent: 'print_analysis' });
                 } catch (_) {
                   await client.sendMessage(message.from, 'Não consegui ler a conversa. Manda o print de novo 😅');
                 }
@@ -2330,7 +2339,7 @@ client.on('message', async (message) => {
                   const { messages: pm } = await analisarPerfilComHaiku(imgData, imgMime, phone);
                   incrementProfileCount(phone); setProfileLastTime(phone);
                   saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
-                  await sendWithDelay(message.from, pm);
+                  await sendWithDelay(message.from, pm, { phone, intent: 'profile_analysis' });
                 } catch (_) {
                   await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
                 }
@@ -2386,7 +2395,7 @@ client.on('message', async (message) => {
                 incrementProfileCount(phone); setProfileLastTime(phone);
                 await incrementFeatureUsage(phone, 'profile_self_audit');
                 saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
-                await sendWithDelay(message.from, am);
+                await sendWithDelay(message.from, am, { phone, intent: 'profile_self_audit' });
               } catch (_) {
                 await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
               }
@@ -2413,7 +2422,7 @@ client.on('message', async (message) => {
                 incrementProfileCount(phone); setProfileLastTime(phone);
                 await incrementFeatureUsage(phone, 'profile_her_analysis');
                 saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
-                await sendWithDelay(message.from, pm);
+                await sendWithDelay(message.from, pm, { phone, intent: 'profile_her_analysis' });
               } catch (_) {
                 await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
               }
@@ -2494,7 +2503,7 @@ client.on('message', async (message) => {
         try {
           const { messages: tcMsgs } = await analisarTransicaoComHaiku(updatedAnswers, printContext, phone);
           stopTypingTC();
-          await sendWithDelay(message.from, tcMsgs);
+          await sendWithDelay(message.from, tcMsgs, { phone, intent: 'transition_coach' });
           scheduleTransitionCoachOutcome(phone).catch(() => {});
         } catch (_) {
           stopTypingTC();
@@ -2529,7 +2538,7 @@ client.on('message', async (message) => {
         try {
           const mirrorMsgs = await generateMirroringAct25(phone, diagPersona, updatedDiagAnswers);
           stopTypingDiag();
-          await sendWithDelay(message.from, mirrorMsgs);
+          await sendWithDelay(message.from, mirrorMsgs, { phone, intent: 'act_2_5_mirroring' });
           logJourneyEvent(phone, 'narrative_act_2_5_sent', { persona: diagPersona }).catch(() => {});
         } catch (_) {
           stopTypingDiag();
@@ -2573,7 +2582,7 @@ client.on('message', async (message) => {
         try {
           const { messages: pdMsgs, dateParsed } = await analisarPreDateComHaiku(updatedAnswers, girlContextWithDebrief, phone);
           stopTypingPD();
-          await sendWithDelay(message.from, pdMsgs);
+          await sendWithDelay(message.from, pdMsgs, { phone, intent: 'predate_coach' });
           if (dateParsed) {
             schedulePredateReminders(phone, dateParsed).catch(() => {});
             await client.sendMessage(message.from,
@@ -2613,7 +2622,7 @@ client.on('message', async (message) => {
         try {
           const { messages: dbMsgs } = await analisarDebriefComHaiku(updatedAnswers, phone);
           stopTypingDB();
-          await sendWithDelay(message.from, dbMsgs);
+          await sendWithDelay(message.from, dbMsgs, { phone, intent: 'postdate_debrief' });
         } catch (_) {
           stopTypingDB();
           await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');

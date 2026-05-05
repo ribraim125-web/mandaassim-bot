@@ -184,7 +184,8 @@ function formatarRespostaPerfil(result) {
   // ── Msg 2: mensagem principal ─────────────────────────────────────────────
   const sugestao = result.recommended_first_message?.playful_clever;
   if (sugestao) {
-    msgs.push(`Manda isso pra abrir 👇\n\n"${sugestao}"`);
+    msgs.push(`Manda isso pra abrir 👇`);
+    msgs.push(sugestao.trim());
   }
 
   // ── Msg 3: variações + o que não mandar ──────────────────────────────────
@@ -192,23 +193,24 @@ function formatarRespostaPerfil(result) {
   const directCharming = result.recommended_first_message?.direct_charming;
   const naoMandar      = result.what_NOT_to_send || [];
 
-  let msg3 = '';
-
-  if (softCurious || directCharming) {
-    msg3 += `Variações:\n`;
-    if (softCurious)    msg3 += `• _Mais suave:_ "${softCurious}"\n`;
-    if (directCharming) msg3 += `• _Mais direta:_ "${directCharming}"\n`;
+  // Variações: cada opção em bloco próprio (label + mensagem separados)
+  if (softCurious) {
+    msgs.push(`Mais suave:`);
+    msgs.push(softCurious.trim());
+  }
+  if (directCharming) {
+    msgs.push(`Mais direta:`);
+    msgs.push(directCharming.trim());
   }
 
+  // Não manda — isso é orientação, não mensagem a copiar: mantém junto
   if (naoMandar.length > 0) {
-    if (msg3) msg3 += '\n';
-    msg3 += `Não manda:\n`;
+    let msgNao = `Não manda:\n`;
     for (const erro of naoMandar.slice(0, 2)) {
-      msg3 += `• ${erro}\n`;
+      msgNao += `• ${erro}\n`;
     }
+    msgs.push(msgNao.trim());
   }
-
-  if (msg3) msgs.push(msg3.trim());
 
   return msgs;
 }
