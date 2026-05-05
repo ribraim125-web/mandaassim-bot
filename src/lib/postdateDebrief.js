@@ -24,14 +24,15 @@ const { logApiRequest } = require('./tracking');
 const PRICES = { input: 1.00, output: 5.00, cache_write: 1.25, cache_read: 0.10 };
 const USD_TO_BRL = 5.75;
 
-// ── As 6 perguntas da mini-entrevista ────────────────────────────────────────
+// ── As 7 perguntas da mini-entrevista ────────────────────────────────────────
 const INTERVIEW_QUESTIONS_DEBRIEF = [
-  `Como foi o encontro no geral — deu certo, foi ok, ou foi mal? (pode ser curto)`,
-  `Qual foi o clima entre vocês? Ela pareceu animada, fria, educada mas distante, ou outra coisa?`,
-  `Teve algum momento que você sentiu que esfriou — uma coisa que você disse, uma pausa estranha, algo no tom?`,
-  `Vocês já combinaram de se ver de novo, ou ficou em aberto?`,
-  `Você mandou mensagem depois? Se sim, como ela reagiu?`,
-  `O que você acha que foi bem e o que poderia ter sido diferente?`,
+  `Como você se sentiu durante o encontro? De 0 a 10 — e me conta brevemente por quê.`,
+  `Ela pareceu engajada? O que você notou — expressões, perguntas que ela fez, ou ausência delas?`,
+  `Falaram de quê? Teve algum tema que esquentou o papo, ou algo que esfriou?`,
+  `Aconteceu algum momento estranho — silêncio pesado, uma coisa que você disse, uma reação inesperada dela?`,
+  `Como foi a despedida? Quem propôs o encerramento? Teve abraço, beijo, ou foi seco?`,
+  `Ela falou em se ver de novo? Espontaneamente ou você quem perguntou?`,
+  `Você mandou mensagem depois? Se sim, o que ela respondeu — e quando?`,
 ];
 
 // ── System prompt ────────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ Retorne APENAS JSON válido, sem markdown.
 Schema:
 {
   "encounter_quality_assessment": "great" | "good" | "neutral" | "poor" | "unclear",
-  "quality_rationale": "string — 2-3 frases explicando a avaliação",
+  "quality_rationale": "string — 2-3 frases explicando a avaliação de forma direta",
   "her_interest_signals": ["string"] — sinais de interesse que ela demonstrou (lista pode ser vazia),
   "her_disinterest_signals": ["string"] — sinais de desinteresse ou distância (lista pode ser vazia),
   "user_performance_feedback": {
@@ -93,6 +94,11 @@ Schema:
   },
   "next_step_recommendation": "string — 1 ação específica e concreta para as próximas 48h",
   "next_step_timing": "now" | "24h" | "48h-72h" | "wait",
+  "message_suggestions": {
+    "warm_followup": "string — mensagem calorosa de seguimento (1 linha, para usar se foi bem)",
+    "playful_callback": "string — mensagem leve que referencia algo do encontro (1 linha)",
+    "next_invite": "string | null — proposta para se ver de novo, se aplicável"
+  },
   "lessons_for_next_time": ["string"] — 1-2 lições aplicáveis ao próximo encontro (específicas, não genéricas),
   "red_flags_observed": ["string"] — sinais de alerta sobre ela ou a situação (pode ser vazia),
   "honest_truth_if_needed": "string | null" — se há algo importante que ele precisa ouvir mas pode não querer, diz aqui. Se não, null. NUNCA autoajuda genérica."
@@ -314,7 +320,7 @@ function formatarRespostaDebrief(result) {
 
   if (msg2.trim()) msgs.push(msg2.trim());
 
-  // ── Msg 3: Próximo passo ─────────────────────────────────────────────────
+  // ── Msg 3: Próximo passo + sugestões de mensagem ────────────────────────
   if (result.next_step_recommendation) {
     const timingMap = {
       now:        '⏰ *Agora*',
@@ -323,7 +329,26 @@ function formatarRespostaDebrief(result) {
       wait:       '⏰ *Espera por agora*',
     };
     const timing = timingMap[result.next_step_timing] || '⏰ *Próximo passo*';
-    msgs.push(`${timing}\n\n${result.next_step_recommendation}`);
+    let msg3 = `${timing}\n\n${result.next_step_recommendation}`;
+
+    const sugestoes = result.message_suggestions;
+    if (sugestoes) {
+      const quality = result.encounter_quality_assessment || 'unclear';
+      // Só mostra sugestões se o encontro foi positivo ou se há próximo convite
+      if (['great', 'good'].includes(quality) && sugestoes.warm_followup) {
+        msg3 += `\n\nManda algo assim 👇\n"${sugestoes.warm_followup}"`;
+        if (sugestoes.playful_callback) {
+          msg3 += `\n\nOu com referência ao encontro:\n"${sugestoes.playful_callback}"`;
+        }
+      } else if (sugestoes.playful_callback && quality === 'neutral') {
+        msg3 += `\n\nSe quiser tentar algo:\n"${sugestoes.playful_callback}"`;
+      }
+      if (sugestoes.next_invite && ['great', 'good'].includes(quality)) {
+        msg3 += `\n\nPra marcar de novo:\n"${sugestoes.next_invite}"`;
+      }
+    }
+
+    msgs.push(msg3.trim());
   }
 
   // ── Msg 4: Lições pra próxima vez ────────────────────────────────────────

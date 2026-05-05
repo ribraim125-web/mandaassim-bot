@@ -45,6 +45,9 @@ const {
   getAct7Message,
 } = require('./src/narrative/narrativeInline');
 const { startWorker: startNarrativeWorker } = require('./src/narrative/narrativeWorker');
+const { startNarrativeEngine }              = require('./src/narrative/engine');
+const { getActById, parseUserChoice }       = require('./src/narrative/acts');
+const { checkMilestones }                   = require('./src/narrative/journeyEvents');
 const {
   INTERVIEW_QUESTIONS,
   analisarTransicaoComHaiku,
@@ -147,7 +150,7 @@ const LIMITE_FREE_ESGOTADO =
 // ── Mensagens da feature de print analysis ──────────────────────────────────
 
 const PRINT_UPSELL_MESSAGE =
-  `Análise de print é do *Wingman* 🔍\n\n` +
+  `Análise de print é do *Parceiro* 🔍\n\n` +
   `Manda o print da conversa — eu leio o que tá rolando: interesse dela, temperatura, o que fazer agora.\n\n` +
   `⚡ *24h* — R$4,99 → *24h*\n` +
   `📅 *Mensal* — R$29,90 → *mensal*\n` +
@@ -160,56 +163,48 @@ const PRINT_LIMIT_REACHED_TRIAL =
   `Deu 1 análise de print por hoje — limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`;
 
 const PROFILE_UPSELL_MESSAGE =
-  `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\n` +
+  `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
   `Você manda o print do perfil dela — eu leio o que ela está sinalizando e gero a mensagem de abertura certa. Não uma abertura genérica: uma baseada no que está ali.\n\n` +
-  `Wingman Pro inclui:\n` +
-  `• Análise de conversa (5/dia)\n` +
-  `• Análise de perfil (10/dia)\n` +
+  `Parceiro Pro inclui:\n` +
+  `• Análise de conversa (ilimitada)\n` +
+  `• Analisar Perfil Dela (30/dia)\n` +
+  `• Auditar Meu Perfil (30/dia)\n` +
   `• Mensagens ilimitadas\n\n` +
   `Digita *pro* 👇`;
 
 const PROFILE_LIMIT_REACHED_PRO =
-  `Deu 10 análises de perfil hoje — o limite do plano.\n\nAmanhã cedo renova.`;
+  `Deu 30 análises de perfil hoje — o limite do plano.\n\nAmanhã cedo renova.`;
 
 // ── Mensagens da feature de Coach de Transição ───────────────────────────────
 
 const TRANSITION_COACH_UPSELL_FREE =
   `Chamar pra sair no momento certo — com a mensagem certa — é o que separa conversa boa de encontro marcado.\n\n` +
   `Com o *Coach de Transição* eu leio onde a conversa está e te digo quando e como chamar.\n\n` +
-  `Disponível no *Wingman* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
+  `Disponível no *Parceiro* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
   `*mensal* ou *anual* 👇`;
 
 const TRANSITION_COACH_UPSELL_PREMIUM_LIMIT =
   `Você já usou as 2 sessões de transição do mês.\n\n` +
-  `Renova no mês que vem — ou faz upgrade pro *Wingman Pro* (sessões ilimitadas).\n\n` +
+  `Renova no mês que vem — ou faz upgrade pro *Parceiro Pro* (sessões ilimitadas).\n\n` +
   `Digita *pro* se quiser.`;
 
 // ── Mensagens da feature de Coach Pré-Date ───────────────────────────────────
 
 const PREDATE_COACH_UPSELL_FREE =
-  `Preparação de encontro é do *Wingman* 🗓️\n\n` +
-  `Você me conta quando e onde — eu te dou o que você precisa saber: roupa, chegada, o que evitar, como agir quando ela chegar.\n\n` +
-  `Disponível no *Wingman* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
-  `*mensal* ou *anual* 👇`;
+  `Preparação de encontro é do *Parceiro Pro* 🗓️\n\n` +
+  `Você me conta quando, onde e o que te preocupa — eu te dou o plano: roupa certa pro local, o que conversar, o que evitar, como encerrar em alta.\n\n` +
+  `Com sessão de debrief pós-encontro incluída.\n\n` +
+  `*Parceiro Pro* — R$79,90/mês → digita *pro* 👇`;
 
-const PREDATE_COACH_UPSELL_PREMIUM_LIMIT =
-  `Você já usou a sessão pré-date do mês.\n\n` +
-  `Renova no mês que vem — ou faz upgrade pro *Wingman Pro* (ilimitado).\n\n` +
-  `Digita *pro* se quiser.`;
+const PREDATE_COACH_UPSELL_PRO_ONLY = PREDATE_COACH_UPSELL_FREE; // alias semântico
 
 // ── Mensagens da feature de Debrief Pós-Date ─────────────────────────────────
 
 const POSTDATE_DEBRIEF_UPSELL_FREE =
-  `Analisar o encontro é do *Wingman* 🔍\n\n` +
-  `Você me conta como foi — eu leio o que aconteceu, o que sinalizou interesse ou não, e qual o próximo passo certo.\n\n` +
-  `Sem rodeios.\n\n` +
-  `Disponível no *Wingman* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
-  `*mensal* ou *anual* 👇`;
-
-const POSTDATE_DEBRIEF_UPSELL_PREMIUM_LIMIT =
-  `Você já fez o debrief do mês.\n\n` +
-  `Renova no mês que vem — ou faz upgrade pro *Wingman Pro* (ilimitado).\n\n` +
-  `Digita *pro* se quiser.`;
+  `Analisar o encontro é do *Parceiro Pro* 🔍\n\n` +
+  `Você me conta como foi — eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar, e qual o próximo passo certo.\n\n` +
+  `Sem rodeios. Sem bajulação.\n\n` +
+  `*Parceiro Pro* — R$79,90/mês → digita *pro* 👇`;
 
 // ── Mensagens da feature de Mindset Opt-In ───────────────────────────────────
 
@@ -925,8 +920,8 @@ async function upsertUser(phone, name, chatId) {
  * Retorna o status completo do usuário: premium, trial ativo, dias restantes.
  * Fonte única de verdade — usar no lugar de isUserPremium() isolado.
  *
- * Planos novos: 'trial' | 'free' | 'wingman' | 'wingman_pro'
- * Planos legados aceitos: 'premium' (→ wingman), 'pro' (→ wingman_pro)
+ * Planos novos: 'trial' | 'free' | 'parceiro' | 'parceiro_pro'
+ * Planos legados aceitos: 'wingman'/'premium' (→ parceiro), 'wingman_pro'/'pro' (→ parceiro_pro)
  */
 async function getTrialInfo(phone) {
   const supabase = getSupabase();
@@ -940,18 +935,32 @@ async function getTrialInfo(phone) {
 
   const rawPlan = data.plan;
 
-  // Wingman Pro (novo) ou pro (legado)
-  if (rawPlan === 'wingman_pro' || rawPlan === 'pro') {
+  const GRACE_PERIOD_DAYS = 3;
+
+  // Parceiro Pro (novo) ou aliases legados wingman_pro/pro
+  if (rawPlan === 'parceiro_pro' || rawPlan === 'wingman_pro' || rawPlan === 'pro') {
     if (!data.plan_expires_at || new Date(data.plan_expires_at) > new Date()) {
-      return { isPremium: true, isPro: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'wingman_pro' };
+      return { isPremium: true, isPro: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro_pro' };
+    }
+    // Grace period: mantém acesso por 3 dias após expirar antes de regredir
+    const graceCutoff = new Date(data.plan_expires_at);
+    graceCutoff.setDate(graceCutoff.getDate() + GRACE_PERIOD_DAYS);
+    if (new Date() <= graceCutoff) {
+      return { isPremium: true, isPro: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro_pro', inGrace: true };
     }
     return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at, planKey: 'free' };
   }
 
-  // Wingman (novo) ou premium (legado)
-  if (rawPlan === 'wingman' || rawPlan === 'premium') {
+  // Parceiro (novo) ou aliases legados wingman/premium
+  if (rawPlan === 'parceiro' || rawPlan === 'wingman' || rawPlan === 'premium') {
     if (!data.plan_expires_at || new Date(data.plan_expires_at) > new Date()) {
-      return { isPremium: true, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'wingman' };
+      return { isPremium: true, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro' };
+    }
+    // Grace period: mantém acesso por 3 dias após expirar antes de regredir
+    const graceCutoff = new Date(data.plan_expires_at);
+    graceCutoff.setDate(graceCutoff.getDate() + GRACE_PERIOD_DAYS);
+    if (new Date() <= graceCutoff) {
+      return { isPremium: true, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro', inGrace: true };
     }
     return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at, planKey: 'free' };
   }
@@ -1571,10 +1580,11 @@ async function enviarCobrancaPixPro(message, phone) {
     const { qrCodeBase64, qrCodeText } = await criarCobrancaPix(phone, PRECO_PRO);
 
     await message.reply(
-      `*Wingman Pro — R$79,90/mês*\n\n` +
+      `*Parceiro Pro — R$79,90/mês*\n\n` +
       `• Mensagens ilimitadas\n` +
-      `• Análise de conversa (5/dia)\n` +
-      `• Análise de perfil no Tinder, Bumble, Instagram (10/dia)\n\n` +
+      `• Análise de conversa (ilimitada)\n` +
+      `• Analisar Perfil Dela (30/dia)\n` +
+      `• Auditar Meu Perfil (30/dia)\n\n` +
       `_Pix aparece no nome *Rafael Cabral Ibraim* — responsável pelo MandaAssim. Pode pagar normalmente ✅_`
     );
 
@@ -1708,12 +1718,12 @@ client.on('message', async (message) => {
       let statusText;
       if (trial.isPro) {
         const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
-        statusText = `🔥 *Wingman Pro* — mensagens ilimitadas + Análise de Perfil` +
-          (validade ? `\n_Válido até ${validade}_` : '');
+        const graceNote = trial.inGrace ? `\n_⚠️ Venceu — renova pra não perder acesso. Digita *pro*._` : (validade ? `\n_Válido até ${validade}_` : '');
+        statusText = `🔥 *Parceiro Pro* — mensagens ilimitadas + Análise de Perfil${graceNote}`;
       } else if (trial.isPremium) {
         const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
-        statusText = `🌟 *Wingman* — mensagens ilimitadas` +
-          (validade ? `\n_Válido até ${validade}_` : '');
+        const graceNote = trial.inGrace ? `\n_⚠️ Venceu — renova pra não perder acesso. Digita *mensal* ou *anual*._` : (validade ? `\n_Válido até ${validade}_` : '');
+        statusText = `🌟 *Parceiro* — mensagens ilimitadas${graceNote}`;
       } else if (trial.inTrial) {
         const horasLabel = trial.lastHours
           ? `menos de 2h`
@@ -1731,7 +1741,7 @@ client.on('message', async (message) => {
     if (cmd === 'premium') {
       const trial = await getTrialInfo(phone);
       if (trial.isPremium) {
-        await message.reply('Você já é *Wingman* — pode mandar à vontade.');
+        await message.reply('Você já é *Parceiro* — pode mandar à vontade.');
       } else {
         await message.reply(OPCOES_PREMIUM);
       }
@@ -1748,10 +1758,10 @@ client.on('message', async (message) => {
       return;
     }
 
-    if (cmd === 'pro' || cmd === 'wingman pro' || cmd === 'upgrade') {
+    if (cmd === 'pro' || cmd === 'parceiro pro' || cmd === 'wingman pro' || cmd === 'upgrade') {
       const trial = await getTrialInfo(phone);
       if (trial.isPro) {
-        await message.reply('🔥 Você já é *Wingman Pro*! Pode usar todas as features à vontade.');
+        await message.reply('🔥 Você já é *Parceiro Pro*! Pode usar todas as features à vontade.');
         return;
       }
       // Gera Pix Pro (R$79,90 padrão)
@@ -1759,8 +1769,8 @@ client.on('message', async (message) => {
       trackSubscriptionEvent({
         phone,
         eventType:  'upgrade_offered',
-        planFrom:   trial.planKey || (trial.isPremium ? 'wingman' : (trial.inTrial ? 'trial' : 'free')),
-        planTo:     'wingman_pro',
+        planFrom:   trial.planKey || (trial.isPremium ? 'parceiro' : (trial.inTrial ? 'trial' : 'free')),
+        planTo:     'parceiro_pro',
         triggerCtx: 'command_pro',
       });
       return;
@@ -1779,9 +1789,9 @@ client.on('message', async (message) => {
     if (cmd === 'paguei') {
       const supabase = getSupabase();
       const { data: user } = await supabase.from('users').select('plan, plan_expires_at').eq('phone', phone).maybeSingle();
-      const isPaidActive = ['wingman','wingman_pro'].includes(user?.plan) && (!user.plan_expires_at || new Date(user.plan_expires_at) > new Date());
+      const isPaidActive = ['parceiro','parceiro_pro','wingman','wingman_pro'].includes(user?.plan) && (!user.plan_expires_at || new Date(user.plan_expires_at) > new Date());
       if (isPaidActive) {
-        await message.reply('✅ *Wingman ativo* — pode mandar à vontade.');
+        await message.reply('✅ *Parceiro ativo* — pode mandar à vontade.');
         return;
       }
 
@@ -1805,8 +1815,8 @@ client.on('message', async (message) => {
       if (pagamento.status === 'approved') {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
-        await supabase.from('users').update({ plan: 'wingman', plan_expires_at: expiresAt.toISOString() }).eq('phone', phone);
-        await message.reply('✅ *Wingman ativo* — pode mandar à vontade.');
+        await supabase.from('users').update({ plan: 'parceiro', plan_expires_at: expiresAt.toISOString() }).eq('phone', phone);
+        await message.reply('✅ *Parceiro ativo* — pode mandar à vontade.');
         return;
       }
 
@@ -1831,9 +1841,9 @@ client.on('message', async (message) => {
             console.log(`[Paguei] ✅ ${newPlan} ativado via consulta MP para ${phone} (${days}d)`);
             const confirmMsg = days === 1
               ? '✅ *24h ativado* — acesso ilimitado pelas próximas 24 horas. Manda o print.'
-              : newPlan === 'wingman_pro'
-              ? `✅ *Wingman Pro ativado* — Análise de Perfil liberada. Manda o print do perfil dela 👇`
-              : '✅ *Wingman ativado* — mensagens ilimitadas. Manda o próximo print ou descreve a situação.';
+              : newPlan === 'parceiro_pro'
+              ? `✅ *Parceiro Pro ativado* — Análise de Perfil liberada. Manda o print do perfil dela 👇`
+              : '✅ *Parceiro ativado* — mensagens ilimitadas. Manda o próximo print ou descreve a situação.';
             await message.reply(confirmMsg);
           } else {
             await message.reply(
@@ -1852,12 +1862,89 @@ client.on('message', async (message) => {
       return;
     }
 
+    // ── Cancelamento de assinatura ───────────────────────────────────────────
+    if (cmd === 'cancelar' || cmd === '/cancelar') {
+      const trialForCancel = await getTrialInfo(phone);
+      if (!trialForCancel.isPremium) {
+        await message.reply(`Você está no plano *free* — não há assinatura ativa pra cancelar.\n\nSe quiser assinar: *mensal* (R$29,90) ou *anual* (R$299).`);
+        return;
+      }
+
+      userContext.set(phone, { ...(getUserContext(phone) || {}), awaitingCancelReason: true });
+      const expiresMsg = trialForCancel.expiresAt
+        ? `\n\nSeu acesso continua ativo até *${new Date(trialForCancel.expiresAt).toLocaleDateString('pt-BR')}*.`
+        : '';
+
+      await message.reply(
+        `Entendido. Só me conta o motivo:\n\n` +
+        `1️⃣ Preço\n` +
+        `2️⃣ Não uso o suficiente\n` +
+        `3️⃣ Não gostei dos resultados\n` +
+        `4️⃣ Problema técnico\n` +
+        `5️⃣ Outro${expiresMsg}\n\n` +
+        `_Manda o número._`
+      );
+      return;
+    }
+
+    // Resposta ao motivo de cancelamento (quando aguardando)
+    if (getUserContext(phone)?.awaitingCancelReason && /^[1-5]$/.test(text.trim())) {
+      const trialForCancel = await getTrialInfo(phone);
+      const reasons = { '1': 'preco', '2': 'nao_uso', '3': 'nao_gostei', '4': 'problema_tecnico', '5': 'outro' };
+      const finalReason = reasons[text.trim()];
+
+      const supabase = getSupabase();
+      await supabase.from('cancellation_reasons').insert({
+        phone,
+        plan: trialForCancel.planKey,
+        reason: finalReason,
+        plan_expires_at: trialForCancel.expiresAt || null,
+      }).catch(() => {});
+
+      userContext.set(phone, { ...(getUserContext(phone) || {}), awaitingCancelReason: false });
+
+      const expiresMsg = trialForCancel.expiresAt
+        ? `\n\nSeu acesso continua até *${new Date(trialForCancel.expiresAt).toLocaleDateString('pt-BR')}*.`
+        : '';
+
+      await message.reply(
+        `Cancelamento registrado ✅${expiresMsg}\n\n` +
+        `Se mudar de ideia: *mensal*, *anual* ou *pro* 👋`
+      );
+      console.log(`[Cancelamento] ${phone} cancelou (${finalReason})`);
+      return;
+    }
+
+    // ── Resposta ao Ato 1 (escolha 1-4 de persona) ───────────────────────────
+    if (process.env.ENABLE_ACT_01_HOOK_DIAGNOSTICO === 'true') {
+      const choice = parseUserChoice(text);
+      if (choice) {
+        const act01 = getActById('act_01_hook_diagnostico');
+        if (act01?.onResponse) {
+          const { TriggerContext } = require('./src/narrative/triggerContext');
+          const supabaseForAct = getSupabase();
+          const { data: userForAct } = await supabaseForAct
+            .from('users')
+            .select('phone, plan, plan_expires_at, created_at')
+            .eq('phone', phone)
+            .maybeSingle();
+          if (userForAct) {
+            const ctx = new TriggerContext(userForAct);
+            const alreadySent = await ctx.actAlreadySent('act_01_hook_diagnostico');
+            if (alreadySent) {
+              await act01.onResponse(ctx, text);
+            }
+          }
+        }
+      }
+    }
+
     // ── Comandos de Mindset Opt-In ────────────────────────────────────────────
     if (isMindsetCapsulesEnabled(phone)) {
       if (/^(ativar mindset|mindset ativar)$/i.test(cmd)) {
         const trialForMindset = await getTrialInfo(phone);
         if (!trialForMindset.isPro) {
-          await message.reply(`Cápsulas de mindset são exclusivas do *Wingman Pro* 🔥\n\nDigita *pro* pra fazer upgrade.`);
+          await message.reply(`Cápsulas de mindset são exclusivas do *Parceiro Pro* 🔥\n\nDigita *pro* pra fazer upgrade.`);
         } else {
           await activateOptIn(phone);
           await message.reply(MINDSET_ACTIVATED_MESSAGE);
@@ -1884,7 +1971,7 @@ client.on('message', async (message) => {
       if (/^mindset$/i.test(cmd)) {
         const trialForMindset = await getTrialInfo(phone);
         if (!trialForMindset.isPro) {
-          await message.reply(`Cápsulas de mindset são exclusivas do *Wingman Pro* 🔥\n\nDigita *pro* pra fazer upgrade.`);
+          await message.reply(`Cápsulas de mindset são exclusivas do *Parceiro Pro* 🔥\n\nDigita *pro* pra fazer upgrade.`);
         } else {
           const optIn = await getOptIn(phone);
           if (!optIn || !optIn.enabled) {
@@ -2098,7 +2185,7 @@ client.on('message', async (message) => {
           if (needsPlanCheck && !trial.isPro) {
             const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_self_audit');
             await client.sendMessage(message.from, upsellMessage ||
-              `Auditoria de Perfil é do *Wingman Pro* 🔍\n\nDigita *pro* pra conhecer.`
+              `Auditoria de Perfil é do *Parceiro Pro* 🔍\n\nDigita *pro* pra conhecer.`
             );
           } else {
             const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
@@ -2125,7 +2212,7 @@ client.on('message', async (message) => {
           if (needsPlanCheck && !trial.isPro) {
             const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_her_analysis');
             await client.sendMessage(message.from, upsellMessage ||
-              `Análise de Perfil é do *Wingman Pro* 🔍\n\nDigita *pro* pra conhecer.`
+              `Análise de Perfil é do *Parceiro Pro* 🔍\n\nDigita *pro* pra conhecer.`
             );
           } else {
             const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
@@ -2410,7 +2497,7 @@ client.on('message', async (message) => {
           phone,
           eventType:  'upgrade_offered',
           planFrom:   trial.inTrial ? 'trial' : 'free',
-          planTo:     'premium',
+          planTo:     'parceiro',
           triggerCtx: 'transition_coach',
         });
         return;
@@ -2438,27 +2525,21 @@ client.on('message', async (message) => {
       return;
     }
 
-    // ── Trigger A/C: Coach Pré-Date ──────────────────────────────────────────
+    // ── Trigger A/C: Coach Pré-Date (Wingman Pro only) ──────────────────────
     if (isPreDateCoachEnabled(phone) &&
         (PREDATE_COACH_KEYWORDS.test(text) || /^preparar encontro$/i.test(text))) {
-      if (!trial.isPremium) {
+      // Journey event: encontro mencionado (alimenta act_08 da narrativa)
+      logJourneyEvent(phone, 'encounter_mentioned', {}, false).catch(() => {});
+      if (!trial.isPro) {
         await client.sendMessage(message.from, PREDATE_COACH_UPSELL_FREE);
         trackSubscriptionEvent({
           phone,
           eventType:  'upgrade_offered',
-          planFrom:   trial.inTrial ? 'trial' : 'free',
-          planTo:     'premium',
+          planFrom:   trial.planKey,
+          planTo:     'parceiro_pro',
           triggerCtx: 'predate_coach',
         });
         return;
-      }
-      // Premium: 1 sessão/mês como teaser. Pro: ilimitado.
-      if (!trial.isPro) {
-        const pdCount = await getMonthlyPreDateCount(phone);
-        if (pdCount >= 1) {
-          await client.sendMessage(message.from, PREDATE_COACH_UPSELL_PREMIUM_LIMIT);
-          return;
-        }
       }
       const currentCtxPDTrig = userContext.get(phone) || {};
       userContext.set(phone, {
@@ -2471,28 +2552,20 @@ client.on('message', async (message) => {
       return;
     }
 
-    // ── Trigger B/C: Debrief Pós-Date ────────────────────────────────────────
+    // ── Trigger B/C: Debrief Pós-Date (Wingman Pro only) ────────────────────
     if (isPostdateDebriefEnabled(phone) &&
         (POSTDATE_DEBRIEF_KEYWORDS.test(text) || POSTDATE_AUTO_TRIGGER_PATTERNS.test(text) ||
          /^debrief( encontro)?$/i.test(text))) {
-      if (!trial.isPremium) {
+      if (!trial.isPro) {
         await client.sendMessage(message.from, POSTDATE_DEBRIEF_UPSELL_FREE);
         trackSubscriptionEvent({
           phone,
           eventType:  'upgrade_offered',
-          planFrom:   trial.inTrial ? 'trial' : 'free',
-          planTo:     'premium',
+          planFrom:   trial.planKey,
+          planTo:     'parceiro_pro',
           triggerCtx: 'postdate_debrief',
         });
         return;
-      }
-      // Premium: 1 sessão/mês. Pro: ilimitado.
-      if (!trial.isPro) {
-        const dbCount = await getMonthlyDebriefCount(phone);
-        if (dbCount >= 1) {
-          await client.sendMessage(message.from, POSTDATE_DEBRIEF_UPSELL_PREMIUM_LIMIT);
-          return;
-        }
       }
       const currentCtxDBTrig = userContext.get(phone) || {};
       userContext.set(phone, {
@@ -2509,37 +2582,19 @@ client.on('message', async (message) => {
     if (isPostdateDebriefEnabled(phone)) {
       const hasPendingDebrief = await temDebriefPendente(phone);
       if (hasPendingDebrief) {
-        if (!trial.isPremium) {
+        if (!trial.isPro) {
           await client.sendMessage(message.from, POSTDATE_DEBRIEF_UPSELL_FREE);
           return;
         }
-        if (!trial.isPro) {
-          const dbCount = await getMonthlyDebriefCount(phone);
-          if (dbCount >= 1) {
-            // Debrief já feito esse mês — deixa seguir o fluxo normal
-          } else {
-            const currentCtxDBA = userContext.get(phone) || {};
-            userContext.set(phone, {
-              ...currentCtxDBA,
-              postdateDebriefState: { questionIndex: 0, answers: {} },
-            });
-            await client.sendMessage(message.from,
-              `Bora analisar como foi. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
-            );
-            return;
-          }
-        } else {
-          // Pro: sempre inicia o debrief
-          const currentCtxDBA = userContext.get(phone) || {};
-          userContext.set(phone, {
-            ...currentCtxDBA,
-            postdateDebriefState: { questionIndex: 0, answers: {} },
-          });
-          await client.sendMessage(message.from,
-            `Bora analisar como foi. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
-          );
-          return;
-        }
+        const currentCtxDBA = userContext.get(phone) || {};
+        userContext.set(phone, {
+          ...currentCtxDBA,
+          postdateDebriefState: { questionIndex: 0, answers: {} },
+        });
+        await client.sendMessage(message.from,
+          `Bora analisar como foi. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
+        );
+        return;
       }
     }
 
@@ -2802,7 +2857,7 @@ client.on('message', async (message) => {
             if (needsPlanCheck && !trial.isPro) {
               const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_self_audit');
               await client.sendMessage(message.from, upsellMessage ||
-                `Auditoria de Perfil é do *Wingman Pro* 🔍\n\nDigita *pro* pra conhecer.`
+                `Auditoria de Perfil é do *Parceiro Pro* 🔍\n\nDigita *pro* pra conhecer.`
               );
               return;
             }
@@ -2854,13 +2909,13 @@ client.on('message', async (message) => {
             if (needsPlanCheck && !trial.isPro) {
               const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_her_analysis');
               await client.sendMessage(message.from, upsellMessage ||
-                `Análise de Perfil é do *Wingman Pro* 🔍\n\nDigita *pro* pra conhecer.`
+                `Análise de Perfil é do *Parceiro Pro* 🔍\n\nDigita *pro* pra conhecer.`
               );
               trackSubscriptionEvent({
                 phone,
                 eventType:  'upgrade_offered',
-                planFrom:   trial.isPremium ? 'premium' : (trial.inTrial ? 'trial' : 'free'),
-                planTo:     'pro',
+                planFrom:   trial.isPremium ? 'parceiro' : (trial.inTrial ? 'trial' : 'free'),
+                planTo:     'parceiro_pro',
                 triggerCtx: 'profile_her_analysis',
               });
               return;
@@ -2915,8 +2970,8 @@ client.on('message', async (message) => {
             trackSubscriptionEvent({
               phone,
               eventType:  'upgrade_offered',
-              planFrom:   trial.isPremium ? 'premium' : (trial.inTrial ? 'trial' : 'free'),
-              planTo:     'pro',
+              planFrom:   trial.isPremium ? 'parceiro' : (trial.inTrial ? 'trial' : 'free'),
+              planTo:     'parceiro_pro',
               triggerCtx: 'profile_analysis',
             });
             return;
@@ -3044,12 +3099,22 @@ client.on('message', async (message) => {
               await client.sendMessage(message.from, msg);
             }
 
-            // Journey events: first_print_analyzed, third_print_analyzed
+            // Journey events: first_print_analyzed, third_print_analyzed, milestones
             logJourneyEvent(phone, 'first_print_analyzed').catch(() => {});
             incrementFeatureUsage(phone, 'print_count_narrative').catch(() => {});
             getDailyUsage(phone, 'print_analysis').then(usedToday => {
               if (usedToday >= 3) logJourneyEvent(phone, 'third_print_analyzed').catch(() => {});
             }).catch(() => {});
+            // Milestones para engine narrativa
+            checkMilestones(phone, async () => {
+              const { count } = await require('@supabase/supabase-js').createClient(
+                process.env.SUPABASE_URL, process.env.SUPABASE_KEY
+              ).from('print_analyses').select('*', { count: 'exact', head: true }).eq('phone', phone);
+              return count || 0;
+            }, [
+              { threshold: 2, eventType: 'print_count_2' },
+              { threshold: 5, eventType: 'print_count_5' },
+            ]).catch(() => {});
 
             if (trial.isPremium) {
               const { remaining } = checkPrintLimit(phone, true, false);
@@ -3163,7 +3228,7 @@ async function verificarExpiracoes() {
   const { data: expirando } = await supabase
     .from('users')
     .select('phone')
-    .eq('plan', 'premium')
+    .in('plan', ['parceiro', 'parceiro_pro', 'wingman', 'wingman_pro'])
     .eq('renewal_notified', false)
     .gte('plan_expires_at', inicioDia3.toISOString())
     .lte('plan_expires_at', fimDia3.toISOString());
@@ -3176,6 +3241,19 @@ async function verificarExpiracoes() {
     } catch (e) {
       console.warn(`[Cron] Erro ao notificar ${user.phone}:`, e.message);
     }
+  }
+
+  // Journey event: trial encerrado (plano trial → free)
+  // Detecta usuários com plan='trial' que deveriam ter virado free
+  const trialCutoff = new Date(now);
+  trialCutoff.setDate(trialCutoff.getDate() - TRIAL_DAYS);
+  const { data: trialExpired } = await supabase
+    .from('users')
+    .select('phone')
+    .eq('plan', 'trial')
+    .lte('created_at', trialCutoff.toISOString());
+  for (const u of trialExpired ?? []) {
+    logJourneyEvent(u.phone, 'trial_ended', {}, false).catch(() => {});
   }
 
 }
@@ -3210,6 +3288,7 @@ client.on('ready', () => {
   startWorker(client);
   startMindsetWorker(client);
   startNarrativeWorker(client);
+  startNarrativeEngine(client);
   setTimeout(verificarExpiracoes, 15000);
   setInterval(verificarExpiracoes, 6 * 60 * 60 * 1000);
 });

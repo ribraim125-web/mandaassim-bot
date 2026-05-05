@@ -8,7 +8,9 @@
     "dev": "node --watch index.js",
     "create-slug": "node scripts/create-slug.js",
     "acquisition-report": "node scripts/acquisition-report.js",
-    "narrative-stats": "node scripts/narrative-stats.js"
+    "narrative-stats": "node scripts/narrative-stats.js",
+    "narrative-preview": "node scripts/narrative-preview.js",
+    "subscription-stats": "node scripts/subscription-stats.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

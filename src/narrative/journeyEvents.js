@@ -134,10 +134,38 @@ async function countEvents(phone, eventType) {
   }
 }
 
+/**
+ * Alias para logJourneyEvent (nome usado pela engine e pelo spec).
+ * @type {typeof logJourneyEvent}
+ */
+const recordJourneyEvent = logJourneyEvent;
+
+/**
+ * Registra evento de contagem progressiva (response_count_3, print_count_2, etc.).
+ * Chama getCount(), e se atingiu o threshold e evento ainda não foi registrado,
+ * registra. Fire-and-forget seguro.
+ *
+ * @param {string} phone
+ * @param {() => Promise<number>} getCount — função assíncrona que retorna a contagem atual
+ * @param {Array<{ threshold: number, eventType: string }>} milestones
+ */
+async function checkMilestones(phone, getCount, milestones) {
+  try {
+    const count = await getCount();
+    for (const { threshold, eventType } of milestones) {
+      if (count >= threshold) {
+        await logJourneyEvent(phone, eventType, { count }, false);
+      }
+    }
+  } catch (_) {}
+}
+
 module.exports = {
   logJourneyEvent,
+  recordJourneyEvent,
   getJourneyEvents,
   hasEvent,
   getEventData,
   countEvents,
+  checkMilestones,
 };

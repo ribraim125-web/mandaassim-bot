@@ -53,17 +53,17 @@ function getPayment() {
   return new Payment(mpClient);
 }
 
-const CONFIRMACAO_PREMIUM =
-  `✅ *Pagamento confirmado!*\n\n` +
-  `Bem-vindo ao *MandaAssim Premium* 🚀\n\n` +
-  `Você agora tem mensagens *ilimitadas*. Manda o próximo print ou descreve a situação!`;
+const CONFIRMACAO_PARCEIRO =
+  `✅ *Parceiro ativado!* 🚀\n\n` +
+  `Mensagens ilimitadas liberadas. Manda o próximo print ou descreve a situação.`;
 
 const CONFIRMACAO_PRO =
-  `✅ *Wingman Pro ativado!* 🔥\n\n` +
+  `✅ *Parceiro Pro ativado!* 🔥\n\n` +
   `Você agora tem acesso a tudo:\n` +
   `• Mensagens ilimitadas\n` +
-  `• Análise de print de conversa (5/dia)\n` +
-  `• *Análise de Perfil* — manda print do perfil dela que eu gero a primeira mensagem certa (10/dia)\n\n` +
+  `• Análise de print de conversa (ilimitada)\n` +
+  `• *Analisar Perfil Dela* — gero a primeira mensagem certa com base no que está no perfil (30/dia)\n` +
+  `• *Auditar Meu Perfil* — análise foto a foto + bio + top 3 mudanças (30/dia)\n\n` +
   `Testa agora: manda um print do perfil dela no Tinder ou Bumble 👇`;
 
 const CONFIRMACAO_24H =
@@ -143,9 +143,9 @@ function createWebhookApp(waClient) {
       const amount = result.transaction_amount ?? 0;
       const { plan: newPlan, days } = determinarPlano(amount);
       const confirmacaoMsg =
-        days === 1                  ? CONFIRMACAO_24H :
-        newPlan === 'wingman_pro'   ? CONFIRMACAO_PRO :
-        CONFIRMACAO_PREMIUM;
+        days === 1                    ? CONFIRMACAO_24H :
+        newPlan === 'parceiro_pro'    ? CONFIRMACAO_PRO :
+        CONFIRMACAO_PARCEIRO;
 
       const supabase = getSupabase();
 
@@ -167,7 +167,7 @@ function createWebhookApp(waClient) {
           .eq('phone', phoneFromRef)
           .maybeSingle();
         // Acumula: se ainda tem plano pago ativo, soma a partir da data atual de expiração
-        const isPaidFallback = ['wingman', 'wingman_pro'].includes(userRowFallback?.plan);
+        const isPaidFallback = ['parceiro', 'parceiro_pro', 'wingman', 'wingman_pro'].includes(userRowFallback?.plan);
         const baseDate = (isPaidFallback && userRowFallback?.plan_expires_at && new Date(userRowFallback.plan_expires_at) > new Date())
           ? new Date(userRowFallback.plan_expires_at)
           : new Date();
@@ -188,8 +188,10 @@ function createWebhookApp(waClient) {
           amountBrl: amount,
           metadata: { mp_payment_id: paymentId, days },
         });
-        const upgradeEvent = newPlan === 'wingman_pro' ? 'upgraded_pro' : 'upgraded_wingman';
+        const upgradeEvent = newPlan === 'parceiro_pro' ? 'upgraded_pro' : 'upgraded_parceiro';
         logJourneyEvent(phoneFromRef, upgradeEvent, { plan: newPlan, amount }).catch(() => {});
+        const subscribeEvent = newPlan === 'parceiro_pro' ? 'subscribed_parceiro_pro' : 'subscribed_parceiro';
+        logJourneyEvent(phoneFromRef, subscribeEvent, { plan: newPlan, amount }, false).catch(() => {});
         const chatIdFallback = userRowFallback?.wa_chat_id || `${phoneFromRef}@c.us`;
         try {
           await waClient.sendMessage(chatIdFallback, confirmacaoMsg);
@@ -215,7 +217,7 @@ function createWebhookApp(waClient) {
         .maybeSingle();
 
       // Acumula: se ainda tem plano pago ativo, soma a partir da data atual de expiração
-      const isPaid = ['wingman', 'wingman_pro'].includes(userRow?.plan);
+      const isPaid = ['parceiro', 'parceiro_pro', 'wingman', 'wingman_pro'].includes(userRow?.plan);
       const baseDate = (isPaid && userRow?.plan_expires_at && new Date(userRow.plan_expires_at) > new Date())
         ? new Date(userRow.plan_expires_at)
         : new Date();
@@ -250,8 +252,10 @@ function createWebhookApp(waClient) {
         amountBrl: amount,
         metadata: { mp_payment_id: paymentId, days, external_ref: externalRef },
       });
-      const upgradeEvt = newPlan === 'wingman_pro' ? 'upgraded_pro' : 'upgraded_wingman';
+      const upgradeEvt = newPlan === 'parceiro_pro' ? 'upgraded_pro' : 'upgraded_parceiro';
       logJourneyEvent(phone, upgradeEvt, { plan: newPlan, plan_from: planAnterior, amount }).catch(() => {});
+      const subscribeEvt = newPlan === 'parceiro_pro' ? 'subscribed_parceiro_pro' : 'subscribed_parceiro';
+      logJourneyEvent(phone, subscribeEvt, { plan: newPlan, amount }, false).catch(() => {});
 
       // Notifica o usuário no WhatsApp usando o chat ID real (salvo quando o usuário mandou a primeira mensagem)
       const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
@@ -296,7 +300,7 @@ function createWebhookApp(waClient) {
 
     const { data: userRow, error } = await supabase
       .from('users')
-      .update({ plan: 'wingman_pro', plan_expires_at: expiresAt.toISOString(), renewal_notified: false })
+      .update({ plan: 'parceiro_pro', plan_expires_at: expiresAt.toISOString(), renewal_notified: false })
       .eq('phone', phone)
       .select('wa_chat_id, plan')
       .maybeSingle();
@@ -307,12 +311,12 @@ function createWebhookApp(waClient) {
       phone,
       eventType: 'plan_activated',
       planFrom: userRow?.plan || 'unknown',
-      planTo: 'wingman_pro',
+      planTo: 'parceiro_pro',
       triggerCtx: 'manual',
       metadata: { activated_by: 'admin', expires_at: expiresAt.toISOString() },
     });
 
-    console.log(`[Admin] ✅ Wingman Pro ativado manualmente para ${phone}`);
+    console.log(`[Admin] ✅ Parceiro Pro ativado manualmente para ${phone}`);
 
     const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
     try {
@@ -336,18 +340,18 @@ function createWebhookApp(waClient) {
     const supabase = getSupabase();
     const { data: userRow, error } = await supabase
       .from('users')
-      .update({ plan: 'wingman', plan_expires_at: null })
+      .update({ plan: 'parceiro', plan_expires_at: null })
       .eq('phone', phone)
       .select('wa_chat_id')
       .maybeSingle();
 
     if (error) return res.status(500).json({ error: error.message });
 
-    console.log(`[Admin] ✅ Premium ativado manualmente para ${phone}`);
+    console.log(`[Admin] ✅ Parceiro ativado manualmente para ${phone}`);
 
     const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
     try {
-      await waClient.sendMessage(chatId, CONFIRMACAO_PREMIUM);
+      await waClient.sendMessage(chatId, CONFIRMACAO_PARCEIRO);
     } catch (e) {
       console.warn('[Admin] Não conseguiu notificar no WhatsApp:', e.message);
     }
@@ -379,11 +383,11 @@ function createWebhookApp(waClient) {
     const { data: allUsersRaw } = await supabase.from('users').select('phone, plan, plan_expires_at, created_at');
     const usersData = (allUsersRaw ?? []).filter(u => !ADMIN_PHONES.includes(u.phone));
 
-    const PAID_PLANS = ['wingman', 'wingman_pro', 'premium', 'pro']; // legados incluídos
+    const PAID_PLANS = ['parceiro', 'parceiro_pro', 'wingman', 'wingman_pro', 'premium', 'pro']; // legados incluídos
     const now = new Date();
     const totalUsers = usersData.length;
-    const premium = usersData.filter(u => ['wingman','premium'].includes(u.plan) && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
-    const pro     = usersData.filter(u => ['wingman_pro','pro'].includes(u.plan) && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
+    const premium = usersData.filter(u => ['parceiro','wingman','premium'].includes(u.plan) && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
+    const pro     = usersData.filter(u => ['parceiro_pro','wingman_pro','pro'].includes(u.plan) && (!u.plan_expires_at || new Date(u.plan_expires_at) > now)).length;
     const trial = usersData.filter(u => !PAID_PLANS.includes(u.plan) && new Date(u.created_at) >= trialCutoff).length;
     const free  = usersData.filter(u => !PAID_PLANS.includes(u.plan) && new Date(u.created_at) < trialCutoff).length;
     const newToday = usersData.filter(u => new Date(u.created_at) >= todayStart).length;
@@ -481,7 +485,7 @@ function createWebhookApp(waClient) {
       .filter(u => !ADMIN_PHONES.includes(u.phone))
       .map(u => ({
         ...u,
-        is_trial: !['wingman','wingman_pro','premium','pro'].includes(u.plan) && new Date(u.created_at) >= trialCutoff,
+        is_trial: !['parceiro','parceiro_pro','wingman','wingman_pro','premium','pro'].includes(u.plan) && new Date(u.created_at) >= trialCutoff,
         msgs_today: todayMap[u.phone] || 0,
         msgs_total: totalMap[u.phone] || 0,
       }));

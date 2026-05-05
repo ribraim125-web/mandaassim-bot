@@ -1,129 +1,208 @@
-# Narrativa Progressiva — MandaAssim
+# Narrativa Progressiva — MandaAssim (v2)
 
-Sistema de mensagens proativas baseadas em comportamento. Bot descobre features pro usuário no momento certo — não como tutorial, como carta de vendas performada ao longo da jornada.
+Sistema de mensagens proativas baseadas em comportamento. Copy vive em arquivos `.md`, nunca em JS. Engine roda a cada 15min e avalia usuários criados nos últimos 7 dias.
+
+---
 
 ## Arquitetura
 
 ```
 src/narrative/
-  journeyEvents.js    — log de eventos comportamentais (fire-and-forget)
-  narrativeLog.js     — log de atos enviados, variante A/B, outcomes
-  narrativeInline.js  — atos disparados dentro do fluxo de mensagem
-  narrativeWorker.js  — worker de atos agendados (mesmo padrão do followupWorker)
-  acts/
-    act_1_welcome_diagnosis.js   — boas-vindas com diagnóstico de persona
-    act_2_mechanism_intro.js     — apresenta Leitura de Intenção pós-persona
-    act_3_first_analysis.js      — sufixo narrativo na primeira análise
-    act_5_profile_audit_reveal.js — upsell Pro via auditoria de perfil (36-96h)
-    act_6_trial_ending.js        — oferta de upgrade 2h antes do trial acabar
-    act_7_free_friction.js       — A/B de copy no limite diário free
+  engine.js          — cron 15min, avalia todos usuários elegíveis
+  acts.js            — catálogo dos 13 atos com triggers, variantes, templateVars
+  sender.js          — envia array de mensagens com delay 1.5–3s entre cada uma
+  triggerContext.js  — TriggerContext: queries lazy, helpers de contexto
+  copyLoader.js      — lê .md de docs/narrative/, cache 5min, parse vars [CHAVE]
+  journeyEvents.js   — logJourneyEvent (fire-and-forget), checkMilestones
+  narrativeLog.js    — logActSent, recordOutcome, getNarrativeStats
+
+docs/narrative/
+  README.md          — este arquivo
+  acts/              — um .md por variante principal
+  variants/          — variantes B dos atos com A/B test
+
+migrations/
+  013_narrative_system.sql       — tabelas base (user_journey_events, narrative_messages_log)
+  015_narrative_schema_update.sql — índices + colunas copy_used, response_at, conversion_at
 ```
 
-## Feature flags
+---
 
-Todos os atos são OFF por default. Ligue 1 a 1 após testar com seu usuário.
+## Copy — regras do arquivo .md
+
+```
+# comentário de dev — linha inteira ignorada
+// também ignorada
+[CHAVE]           → substituída pelo templateVars do ato
+
+---               → separador: tudo acima = mensagem 1, abaixo = mensagem 2
+```
+
+Cada bloco separado por `---` vira uma mensagem WhatsApp distinta. Delay aleatório de 1.5–3s entre elas.
+
+---
+
+## Planos
+
+| DB (`users.plan`) | Exibido na copy |
+|-------------------|-----------------|
+| `trial`           | trial           |
+| `free`            | free            |
+| `parceiro`        | Parceiro        |
+| `parceiro_pro`    | Parceiro Pro    |
+
+Aliases legados (`wingman`, `wingman_pro`, `premium`, `pro`) são normalizados automaticamente pelo `TriggerContext`. Condições dos atos usam `'parceiro'`/`'parceiro_pro'`.
+
+---
+
+## Catálogo de Atos
+
+| # | ID | Tipo | Janela | Plano alvo | A/B |
+|---|----|------|--------|-----------|-----|
+| 1  | `act_01_hook_diagnostico`         | Proativo | após `first_message_sent` | todos | — |
+| 2  | `act_02_promessa_mecanismo`        | Proativo | 0–30min após Ato 1        | todos | 4 variantes (persona) |
+| 3  | `act_03_first_analysis_template`  | **Inline** | 1ª análise entregue      | todos | — |
+| 4  | `act_04_reveal_papo`              | Proativo | 2–8h após signup, 3+ interações | todos | — |
+| 5  | `act_05_identificacao_amplificada`| Proativo | 12–24h, 5+ interações    | todos | 50/50 |
+| 6  | `act_06_reveal_audit`             | Proativo | 24–36h, 2+ prints, ≠ pro | trial/free/direto | 50/50 |
+| 7  | `act_07_reveal_analise_dela`      | Proativo | 30–48h, após audit ou 30h| ≠ pro | — |
+| 8  | `act_08_reveal_predate`           | Proativo | 36–60h, menção de encontro| ≠ pro | — |
+| 9  | `act_09_sumario_uso`              | Proativo | 60–66h                   | trial/free | — |
+| 10 | `act_10_oferta`                   | Proativo | 66–70h                   | trial/free | 50/50 |
+| 11 | `act_11_objecao_garantia`         | Proativo | 2h após oferta, ou 1h após link | trial/free | — |
+| 12 | `act_12_ultima_chamada`           | Proativo | 71.5–72h (trial)         | trial | — |
+| 13 | `act_13_reoferta_d1`              | Proativo | D+1 do free, ao bater limite | free | — |
+
+Ato 3 é inline: não entra na engine, é chamado diretamente pelo fluxo de análise em `index.js`.
+
+---
+
+## Feature Flags
+
+Todos os atos são **OFF por default**. Ligue 1 a 1 no `.env`:
 
 ```env
-# .env
-ENABLE_ACT_1=false
-ENABLE_ACT_2=false
-ENABLE_ACT_3=false
-ENABLE_ACT_5=false
-ENABLE_ACT_6=false
-ENABLE_ACT_7=false
+ENABLE_ACT_01_HOOK_DIAGNOSTICO=true
+ENABLE_ACT_02_PROMESSA_MECANISMO=true
+ENABLE_ACT_03_FIRST_ANALYSIS_TEMPLATE=true
+ENABLE_ACT_04_REVEAL_PAPO=true
+ENABLE_ACT_05_IDENTIFICACAO_AMPLIFICADA=true
+ENABLE_ACT_06_REVEAL_AUDIT=true
+ENABLE_ACT_07_REVEAL_ANALISE_DELA=true
+ENABLE_ACT_08_REVEAL_PREDATE=true
+ENABLE_ACT_09_SUMARIO_USO=true
+ENABLE_ACT_10_OFERTA=true
+ENABLE_ACT_11_OBJECAO_GARANTIA=true
+ENABLE_ACT_12_ULTIMA_CHAMADA=true
+ENABLE_ACT_13_REOFERTA_D1=true
 ```
 
-Para ligar só pro seu número de teste:
-```env
-ENABLE_ACT_5=true
-# O worker dispara pra todos os usuários elegíveis quando está 'true'
-# Para testar isolado, force pelo Supabase ou crie um flag de phone-test
-```
+---
 
-## Catálogo de atos
-
-| Ato | Tipo | Trigger | Plano alvo |
-|-----|------|---------|-----------|
-| 1 | Inline | Signup (boas-vindas) | Todos |
-| 2 | Inline | Resposta ao Ato 1 (<5min) | Todos |
-| 3 | Inline | Primeira análise entregue | Todos |
-| 5 | Agendado (30min) | 2+ prints, janela 36-96h, plano ≠ pro | trial/free/wingman |
-| 6 | Agendado (5min) | Trial expirando em <2h | trial |
-| 7 | Inline | Free bate limite diário | free |
-
-## Como editar copy
-
-**Nunca toque em `narrativeWorker.js` ou `narrativeInline.js` pra mudar texto.**
-
-Edite diretamente no arquivo do ato:
-```
-src/narrative/acts/act_5_profile_audit_reveal.js → campo variants.A.message
-src/narrative/acts/act_6_trial_ending.js         → campo variants.A.message / variants.B.message
-```
-
-Deploy → PM2 restart → novo copy ativo.
-
-## Worker — como funciona
-
-O `narrativeWorker` é iniciado junto com o bot:
+## Engine — como funciona
 
 ```
-client.on('ready') → startNarrativeWorker(client)
+client.on('ready') → startNarrativeEngine(client)
+  └─ aguarda 2min → tick() a cada 15min
+       └─ busca usuários criados nos últimos 7 dias
+            └─ evaluateUserActs(user) por usuário
+                 ├─ verifica horário seguro (8–21h BRT)
+                 ├─ verifica limite 1 ato/usuário/dia
+                 ├─ verifica conversa ativa (<5min última mensagem → skip)
+                 └─ avalia PROACTIVE_ACTS em ordem
+                      └─ fireAct(user, act, ctx)
+                           ├─ selectVariant (persona ou hash A/B)
+                           ├─ loadAndApplyCopy (substituição [CHAVE])
+                           ├─ logActSent (idempotência — UNIQUE no banco)
+                           ├─ sendNarrativeMessages (delay 1.5–3s)
+                           └─ logJourneyEvent 'narrative_act_sent'
 ```
 
-- **A cada 30min**: avalia usuários elegíveis pro Ato 5 (janela 36-96h)
-- **A cada 5min**: avalia usuários com trial expirando pro Ato 6
-- **Horário**: só envia entre 8h-21h BRT
-- **Cooldown**: nunca envia 2 atos pro mesmo usuário no mesmo dia (20h de gap)
-- **Idempotência**: `UNIQUE(phone, act_id)` na tabela — nunca duplica
+---
 
-## A/B test
+## A/B Test
 
-Variante atribuída deterministicamente pelo hash do telefone:
-- Mesmo usuário sempre recebe A ou B (não muda entre sessões)
-- Com 2 variantes: A para hash par, B para hash ímpar
-- Para ver qual está ganhando: `npm run narrative-stats`
+Variante determinística: `parseInt(phone.slice(-4), 16) % 100 < splitPercent`.
 
-## Relatório
+- Mesmo usuário sempre vê a mesma variante
+- Para atos com `abTestSplit: [50, 50]`: metade A, metade B
+- Resultado: `npm run narrative-stats`
+
+---
+
+## Variante por Persona (Ato 2)
+
+1. Ato 1 envia diagnóstico com 4 opções (1–4)
+2. Usuário responde → `index.js` detecta e chama `act01.onResponse(ctx, text)`
+3. `onResponse` grava evento `act_01_persona_selected { choice: '1'|'2'|'3'|'4' }`
+4. Na próxima tick da engine, Ato 2 lê persona via `ctx.getUserPersona()`
+5. Seleciona variante com `personaCondition === persona`
+
+---
+
+## Eventos de Jornada
+
+| Evento | Quando dispara |
+|--------|----------------|
+| `signup` | Novo usuário na 1ª mensagem |
+| `first_message_sent` | 1ª mensagem do usuário |
+| `first_response_suggestion_received` | 1ª sugestão de mensagem entregue |
+| `first_print_analyzed` | 1º print de conversa analisado |
+| `third_print_analyzed` | 3º print analisado |
+| `first_profile_audit_done` | 1ª auditoria de perfil próprio |
+| `first_her_profile_analyzed` | 1ª análise de perfil dela |
+| `encounter_mentioned` | Usuário mencionou encontro/date |
+| `hit_daily_limit_response` | Free bateu limite de mensagens |
+| `hit_daily_limit_print` | Free bateu limite de print |
+| `trial_ended` | Trial expirou → plano virou free |
+| `upgraded_parceiro` | Plano ativado: Parceiro |
+| `upgraded_pro` | Plano ativado: Parceiro Pro |
+| `subscribed_parceiro` | Alias de upgraded_parceiro (para narrativa) |
+| `subscribed_parceiro_pro` | Alias de upgraded_pro (para narrativa) |
+| `act_01_persona_selected` | Usuário escolheu 1-4 no Ato 1 |
+| `narrative_act_sent` | Qualquer ato proativo disparado |
+
+---
+
+## CLIs
 
 ```bash
-# Últimos 30 dias
-npm run narrative-stats
+# Preview de um ato (sem envio real)
+npm run narrative-preview -- --phone=5511999999999 --act=act_05_identificacao_amplificada
+npm run narrative-preview -- --phone=5511999999999 --act=act_10_oferta --variant=B
+npm run narrative-preview -- --list   # lista todos os atos com status ON/OFF
 
-# Período específico
+# Relatório de performance (últimos 30 dias)
+npm run narrative-stats
 npm run narrative-stats -- --since=2026-05-01
 npm run narrative-stats -- --since=2026-04-01 --until=2026-04-30
 ```
 
-Output inclui:
-- Eventos de jornada registrados no período
-- Por ato: enviados, responderam, response rate
-- Vencedor A/B (quando N ≥ 5 por variante)
-- Distribuição de outcomes
+---
 
-## Migrations necessárias
+## Migrations
 
 Rode no Supabase SQL Editor antes de ligar qualquer ato:
+
 ```
-migrations/013_narrative_system.sql
+migrations/013_narrative_system.sql       — tabelas base
+migrations/015_narrative_schema_update.sql — índices e colunas adicionais
 ```
 
-Tabelas criadas:
-- `user_journey_events` — todos os eventos comportamentais
-- `narrative_messages_log` — atos enviados com variante e outcome
+---
 
-## Eventos de jornada rastreados
+## Como adicionar um ato novo
 
-| Evento | Quando dispara |
-|--------|---------------|
-| `signup` | Novo usuário na primeira mensagem |
-| `first_print_analyzed` | Primeiro print de conversa analisado |
-| `third_print_analyzed` | Terceiro print do dia analisado |
-| `first_profile_audit_done` | Primeira auditoria de perfil próprio |
-| `hit_daily_limit_response` | Free bate limite de mensagens |
-| `hit_daily_limit_print` | Free bate limite de print |
-| `upgraded_wingman` | Pagamento aprovado plano Wingman |
-| `upgraded_pro` | Pagamento aprovado plano Pro |
-| `act_1_persona_selected` | Usuário respondeu 1-4 no Ato 1 |
-| `first_response_suggestion_received` | Ato 3 entregue (primeira análise) |
-| `narrative_act_X_sent` | Ato X enviado com sucesso |
+1. Crie o `.md` em `docs/narrative/acts/act_NN_nome.md`
+2. Adicione a entrada em `src/narrative/acts.js` (ACTS array)
+3. Defina a `featureFlag` e adicione ao `.env` (OFF por default)
+4. Se proativo: engine vai detectar automaticamente via `PROACTIVE_ACTS`
+5. Se inline: chame `loadAndApplyCopy` + `sendNarrativeMessages` diretamente no fluxo
+
+---
+
+## Editar copy
+
+**Nunca edite texto diretamente em `.js`.**
+
+Edite o `.md` correspondente em `docs/narrative/acts/` ou `docs/narrative/variants/`. Deploy e PM2 restart não necessários — cache é de 5min (30s em dev com `NODE_ENV=development`).

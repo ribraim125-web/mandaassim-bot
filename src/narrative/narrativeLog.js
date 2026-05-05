@@ -66,13 +66,16 @@ async function getLastActSentAt(phone) {
  * @param {string} phone
  * @param {string} actId
  * @param {string} variant — 'A' | 'B' | 'C'
+ * @param {string} [copyUsed] — texto exato enviado (para auditoria)
  * @returns {Promise<boolean>} true = novo, false = já existia
  */
-async function logActSent(phone, actId, variant) {
+async function logActSent(phone, actId, variant, copyUsed) {
   try {
+    const row = { phone, act_id: actId, variant };
+    if (copyUsed) row.copy_used = copyUsed.slice(0, 2000); // trunca pra não explodir
     const { error } = await getSupabase()
       .from('narrative_messages_log')
-      .insert({ phone, act_id: actId, variant });
+      .insert(row);
 
     if (error?.code === '23505') return false; // unique violation — já enviado
     if (error) throw error;
