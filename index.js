@@ -1327,15 +1327,29 @@ async function appendWhatWorked(phone, note) {
   );
 }
 
+/**
+ * Sanitiza campo de perfil para prevenir prompt injection.
+ * Remove quebras de linha (previne injeção de novas seções no prompt)
+ * e limita o tamanho.
+ */
+function sanitizeProfileField(str, maxLen = 300) {
+  if (!str) return '';
+  return String(str)
+    .slice(0, maxLen)
+    .replace(/[\n\r]+/g, ' ') // newlines viram espaço — bloqueia injeção multi-linha
+    .replace(/---+/g, '—')    // impede fechar o bloco de contexto prematuramente
+    .trim();
+}
+
 function buildGirlContext(profile) {
   if (!profile) return '';
   const parts = [];
-  if (profile.girl_name) parts.push(`Nome dela: ${profile.girl_name}`);
-  if (profile.girl_context) parts.push(`Quem ela é: ${profile.girl_context}`);
-  if (profile.current_situation) parts.push(`Situação atual: ${profile.current_situation}`);
-  if (profile.what_worked) parts.push(`O que já funcionou com ela anteriormente:\n${profile.what_worked}`);
+  if (profile.girl_name)        parts.push(`Nome dela: ${sanitizeProfileField(profile.girl_name, 100)}`);
+  if (profile.girl_context)     parts.push(`Quem ela é: ${sanitizeProfileField(profile.girl_context, 300)}`);
+  if (profile.current_situation) parts.push(`Situação atual: ${sanitizeProfileField(profile.current_situation, 200)}`);
+  if (profile.what_worked)      parts.push(`O que já funcionou com ela:\n${sanitizeProfileField(profile.what_worked, 300)}`);
   if (!parts.length) return '';
-  return `\n\n--- PERFIL DELA (use para personalizar as respostas) ---\n${parts.join('\n')}\n---`;
+  return `\n\n--- PERFIL DELA (use para personalizar as respostas) ---\n${parts.join('\n')}\n--- FIM DO PERFIL ---`;
 }
 
 // ---------------------------------------------------------------------------

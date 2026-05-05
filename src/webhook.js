@@ -183,7 +183,13 @@ function createWebhookApp(waClient) {
 
       // Determina plano e validade com base no valor pago
       const amount = result.transaction_amount ?? 0;
-      const { plan: newPlan, days } = determinarPlano(amount);
+      let newPlan, days;
+      try {
+        ({ plan: newPlan, days } = determinarPlano(amount));
+      } catch (err) {
+        console.error(`[Webhook] Amount inválido (${amount}) para payment ${paymentId} — ignorando.`);
+        return;
+      }
 
       const supabase = getSupabase();
 
@@ -196,6 +202,12 @@ function createWebhookApp(waClient) {
 
       // Extrai o telefone do external_ref (formato: phone_timestamp)
       const phoneFromRef = externalRef.split('_')[0];
+
+      // Valida que o phone extraído tem formato válido antes de usar
+      if (!/^\d{10,15}$/.test(phoneFromRef)) {
+        console.error(`[Webhook] Phone inválido extraído de external_ref "${externalRef}" — ignorando.`);
+        return;
+      }
 
       if (!paymentRow) {
         console.warn(`[Webhook] Sem registro no banco para ${externalRef} — ativando pelo external_ref`);

@@ -11,6 +11,10 @@ const PRECO_PRO     = 79.90;
  * Planos: 'parceiro' | 'parceiro_pro'
  */
 function determinarPlano(amount) {
+  // Rejeita valores inválidos — previne ativação acidental com amount=null/0
+  if (!amount || amount <= 0) {
+    throw new Error(`[determinarPlano] Amount inválido: ${amount}`);
+  }
   if (amount <= 9.99)                    return { plan: 'parceiro',     days: 1   }; // 24h
   if (Math.abs(amount - PRECO_PRO) < 2) return { plan: 'parceiro_pro', days: 30  }; // Pro mensal
   if (amount >= 100)                     return { plan: 'parceiro',     days: 365 }; // anual
