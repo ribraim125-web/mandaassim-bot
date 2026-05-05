@@ -94,23 +94,23 @@ const FEATURES = {
     },
   },
 
-  // Camada 4 — Coach Pré-Date
+  // Camada 4 — Preparação pra encontro (Parceiro Pro exclusivo)
   predate_coach: {
     trial:        { monthly: 0 },
     free:         { monthly: 0 },
-    parceiro:     { monthly: 1 },
+    parceiro:     { monthly: 0 },    // bloqueado — exclusivo Pro
     parceiro_pro: { monthly: null },
     upsell: {
       free: () =>
-        `Preparação pra encontro é do *Parceiro* 🗓️\n\n` +
+        `Preparação pra encontro é do *Parceiro Pro* (R$79,90/mês) 🗓️\n\n` +
         `Você me conta quando, onde e o que tá te preocupando — eu te dou o plano: roupa, papo, o que evitar, como encerrar em alta.\n\n` +
-        `Digita *mensal* 👇`,
+        `Digita *pro* 👇`,
       trial: () =>
-        `Preparação pra encontro é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
+        `Preparação pra encontro é do *Parceiro Pro* (R$79,90/mês).\n\nDigita *pro* 👇`,
       parceiro: () =>
-        `Você já usou sua preparação de encontro do mês.\n\n` +
-        `Renova mês que vem, ou faz upgrade pro *Parceiro Pro*, que é sem limite.\n\n` +
-        `Digita *pro* se quiser.`,
+        `Preparação pra encontro é do *Parceiro Pro* (R$79,90/mês) 🗓️\n\n` +
+        `Você me conta quando, onde e o que tá te preocupando — eu te dou o plano: roupa, papo, o que evitar, como encerrar em alta.\n\n` +
+        `Digita *pro* 👇`,
     },
   },
 
@@ -154,24 +154,24 @@ const FEATURES = {
     },
   },
 
-  // Camada 7 — Conversa sobre como foi o encontro
+  // Camada 7 — Conversa sobre como foi o encontro (Parceiro Pro exclusivo)
   postdate_debrief: {
     trial:        { monthly: 0 },
     free:         { monthly: 0 },
-    parceiro:     { monthly: 1 },
+    parceiro:     { monthly: 0 },    // bloqueado — exclusivo Pro
     parceiro_pro: { monthly: null },
     upsell: {
       free: () =>
-        `Conversar sobre como foi o encontro é do *Parceiro* 🔍\n\n` +
+        `Conversar sobre como foi o encontro é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
         `Você me conta o que rolou — eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar.\n\n` +
         `Sem rodeio. Honestidade total.\n\n` +
-        `Digita *mensal* 👇`,
+        `Digita *pro* 👇`,
       trial: () =>
-        `Análise de como foi o encontro é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
+        `Conversar sobre como foi o encontro é do *Parceiro Pro* (R$79,90/mês).\n\nDigita *pro* 👇`,
       parceiro: () =>
-        `Você já usou sua análise de encontro do mês.\n\n` +
-        `Renova mês que vem, ou faz upgrade pro *Parceiro Pro*, que é sem limite.\n\n` +
-        `Digita *pro* se quiser.`,
+        `Conversar sobre como foi o encontro é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
+        `Você me conta o que rolou — eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar.\n\n` +
+        `Digita *pro* 👇`,
     },
   },
 };

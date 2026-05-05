@@ -213,20 +213,20 @@ const TRANSITION_COACH_UPSELL_PREMIUM_LIMIT =
 // ── Mensagens da feature de Coach Pré-Date ───────────────────────────────────
 
 const PREDATE_COACH_UPSELL_FREE =
-  `Preparação pra encontro é do *Parceiro Pro* 🗓️\n\n` +
-  `Você me conta quando, onde, e o que tá te preocupando. Eu te dou o plano: roupa certa pro local, o que conversar, o que evitar, como encerrar em alta.\n\n` +
+  `Preparação pra encontro é do *Parceiro Pro* (R$79,90/mês) 🗓️\n\n` +
+  `Você me conta quando, onde e o que tá te preocupando — eu te dou o plano: roupa, papo, o que evitar, como encerrar em alta.\n\n` +
   `E quando voltar do encontro, a gente conversa sobre como foi.\n\n` +
-  `*Parceiro Pro* — R$79,90/mês → digita *pro*`;
+  `Digita *pro* 👇`;
 
 const PREDATE_COACH_UPSELL_PRO_ONLY = PREDATE_COACH_UPSELL_FREE; // alias semântico
 
 // ── Mensagens da feature de Debrief Pós-Date ─────────────────────────────────
 
 const POSTDATE_DEBRIEF_UPSELL_FREE =
-  `Conversar sobre como foi o encontro é do *Parceiro Pro* 🔍\n\n` +
-  `Você me conta o que rolou. Eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que pode melhorar — e qual o próximo passo.\n\n` +
-  `Sem rodeio. Sem bajulação.\n\n` +
-  `*Parceiro Pro* — R$79,90/mês → digita *pro*`;
+  `Conversar sobre como foi o encontro é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
+  `Você me conta o que rolou — eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar.\n\n` +
+  `Sem rodeio. Honestidade total.\n\n` +
+  `Digita *pro* 👇`;
 
 // ── Mensagens da feature de Mindset Opt-In ───────────────────────────────────
 
