@@ -21,16 +21,13 @@ _"tenho encontro sábado."_
 
 *Eu te preparo:*
 
+---
+
 ✓ O que vestir pra aquele lugar, naquele horário
-
 ✓ Sobre o que falar (3-4 tópicos baseados na conversa de vocês)
-
 ✓ Sobre o que *não* falar (ex, política, reclamação de trabalho — destruidores clássicos)
-
 ✓ Quanto beber (2 doses, não 5)
-
 ✓ Quanto tempo ficar (sair em alta, não em declive)
-
 ✓ Como se despedir (e quem propõe a próxima)
 
 ---

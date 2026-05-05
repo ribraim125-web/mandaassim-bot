@@ -10,12 +10,11 @@ Não é 10 segundos. Não é 5.
 
 *Um.*
 
+---
+
 Nesse 1 segundo, ela vê:
-
 ✓ Foto principal
-
 ✓ Idade
-
 ✓ Distância
 
 E decide se desliza pra esquerda ou pra direita.

@@ -12,12 +12,11 @@ Vou ser honesto sobre cada um.
 🚫 *CAMINHO 1 — Free*
 
 Tu continua comigo, mas com limites:
-
 ✗ 3 respostas por dia
-
 ✗ 1 análise de print por dia
-
 ✗ 3 conversas por dia
+
+---
 
 Pra teste casual, dá.
 
@@ -32,12 +31,11 @@ _Honesto: free é pra quem ainda tá decidindo. Não é pra quem quer resolver._
 ✅ *CAMINHO 2 — Parceiro | R$ 29,90/mês*
 
 Tudo que tu já usou no trial. *Ilimitado.*
-
 ✓ Responder mensagem dela, sem limite
-
 ✓ Analisar conversa inteira, sem limite
-
 ✓ Conversar comigo sobre o que tá rolando, sem limite
+
+---
 
 *R$ 29,90/mês.*
 

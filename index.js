@@ -377,15 +377,27 @@ TAMANHO: 2 a 8 palavras por opção. Máx 10. Nunca parágrafos nas mensagens.
 
 Sem introdução. Sem papo. Vai direto.
 
+REGRA CRÍTICA: use `---` (três traços em linha própria) para separar blocos. Cada bloco = 1 mensagem WhatsApp separada.
+
 📍 _[uma linha: o que ela sinalizou — leitura de intenção]_
 
-💡 [O que está acontecendo — 2 a 4 linhas. Direto. Use *negrito* nos pontos críticos. NUNCA **duplo asterisco**.]
+---
+
+💡 [O que está acontecendo — máx 3 linhas. Direto. Use *negrito* nos pontos críticos. NUNCA **duplo asterisco**. Se precisar de 2 ideias distintas, quebra em 2 blocos com --- entre eles.]
+
+---
 
 🔥 "mensagem real aqui"
 
+---
+
 😏 "mensagem real aqui"
 
+---
+
 ⚡ "mensagem real aqui"
+
+---
 
 _por que funciona: uma linha_
 
@@ -518,20 +530,36 @@ EX NAMORADA / EX ESPOSA:
 
 Sem autoajuda. Sem "trabalhe sua autoestima". Direto, como um amigo que já viu isso antes.
 
+REGRA CRÍTICA DE FORMATAÇÃO: use `---` (três traços em linha própria) para separar cada bloco.
+Cada bloco entre `---` = uma mensagem WhatsApp separada. UMA IDEIA POR BLOCO. Máx 4 linhas por bloco.
+
 📍 _[o que realmente tá acontecendo — 1 linha honesta]_
 
-[2-3 parágrafos: o que provavelmente está acontecendo com ela, o que o cara pode estar errando ou acertando, o que realmente está em jogo. Use *negrito* nos pontos críticos. Linguagem direta, sem rodeio.]
+---
+
+[Parágrafo 1: o que provavelmente está acontecendo com ela. *Negrito* nos pontos críticos. Máx 4 linhas.]
+
+---
+
+[Parágrafo 2 (se necessário): o que o cara pode estar errando ou acertando. Máx 4 linhas.]
+
+---
 
 *O que fazer:*
 • [ação concreta 1]
 • [ação concreta 2]
 • [ação concreta 3]
 
+---
+
 *Evita:*
 • [erro comum 1]
 • [erro comum 2]
 
-[Se tiver mensagem específica pra mandar:]
+[Se tiver mensagem específica pra mandar, adiciona mais um bloco:]
+
+---
+
 Quando chegar a hora 👇
 🔥 "mensagem"
 😏 "mensagem"
@@ -653,65 +681,105 @@ function extrairPorQueFunciona(texto) {
   return match ? match[1].trim() : null;
 }
 
+// ── Envio sequencial com delay dopamínico ─────────────────────────────────────
+/**
+ * Envia array de mensagens com delay aleatório de 1.2-2.5s entre cada.
+ * Cria ritmo de conversa — cada mensagem = 1 pico de dopamina.
+ */
+async function sendWithDelay(chatId, messages) {
+  for (let i = 0; i < messages.length; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+    await client.sendMessage(chatId, messages[i]);
+  }
+}
+
+/**
+ * Divide texto pelo separador `---` em linha própria.
+ * Retorna array de strings não-vazias.
+ */
+function splitByDashes(text) {
+  return text.split(/\n[ \t]*---[ \t]*\n/).map(s => s.trim()).filter(Boolean);
+}
+
 async function enviarResposta(message, sugestoes, intent = '', phone = '') {
   const diagnostico = extrairDiagnostico(sugestoes);
   const opcoes = parsearOpcoes(sugestoes);
 
-  // --- Coaching: análise + bullets, sem 3 opções de mensagem (ou com, no fim) ---
+  // --- Coaching: análise em blocos separados por --- ---
   if (intent === 'coaching') {
-    // Remove o diagnóstico do texto antes de enviar o corpo
-    const corpo = sugestoes
-      .replace(/📍\s*_[^_\n]+_\n*/g, '')
-      .trim()
-      .replace(/\n{3,}/g, '\n\n');
+    const rawBlocos = splitByDashes(sugestoes);
 
-    // Bloco 1: diagnóstico
-    if (diagnostico) {
-      await client.sendMessage(message.from, `📍 _${diagnostico}_`);
-    }
-
-    // Bloco 2: análise + plano (tudo junto — é coaching, faz sentido ser mais longo)
-    if (opcoes.length >= 2) {
-      // Tem mensagens específicas no final → separa
-      const semOpcoes = corpo
-        .replace(/Quando chegar a hora.*$/s, '')
-        .replace(/🔥\s*"[^"]+"\n?/g, '')
-        .replace(/😏\s*"[^"]+"\n?/g, '')
-        .replace(/⚡\s*"[^"]+"\n?/g, '')
-        .trim();
-      if (semOpcoes) await client.sendMessage(message.from, semOpcoes);
-
-      // Bloco 3: mensagens
-      const linhas = ['Quando chegar a hora 👇'];
-      for (const { emoji, msg } of opcoes) {
-        linhas.push('');
-        linhas.push(`${emoji}  "${msg}"`);
-      }
-      await client.sendMessage(message.from, linhas.join('\n'));
+    if (rawBlocos.length > 1) {
+      // Modelo usou --- corretamente → envia cada bloco como mensagem separada
+      await sendWithDelay(message.from, rawBlocos);
     } else {
-      await client.sendMessage(message.from, corpo);
+      // Fallback: modelo não usou --- → separa diagnóstico do corpo
+      const corpo = sugestoes
+        .replace(/📍\s*_[^_\n]+_\n*/g, '')
+        .trim()
+        .replace(/\n{3,}/g, '\n\n');
+
+      if (diagnostico) {
+        await client.sendMessage(message.from, `📍 _${diagnostico}_`);
+        await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+      }
+
+      if (opcoes.length >= 2) {
+        const semOpcoes = corpo
+          .replace(/Quando chegar a hora.*$/s, '')
+          .replace(/🔥\s*"[^"]+"\n?/g, '')
+          .replace(/😏\s*"[^"]+"\n?/g, '')
+          .replace(/⚡\s*"[^"]+"\n?/g, '')
+          .trim();
+        if (semOpcoes) await client.sendMessage(message.from, semOpcoes);
+        await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+
+        const linhas = ['Quando chegar a hora 👇'];
+        for (const { emoji, msg } of opcoes) {
+          linhas.push('');
+          linhas.push(`${emoji}  "${msg}"`);
+        }
+        await client.sendMessage(message.from, linhas.join('\n'));
+      } else {
+        await client.sendMessage(message.from, corpo);
+      }
     }
     return;
   }
 
-  // --- Formato padrão: diagnóstico + dica + 3 opções ---
-  const dica = extrairDica(sugestoes);
+  // --- Formato padrão: tenta split por --- primeiro ---
+  const blocos = splitByDashes(sugestoes);
 
-  // Bloco 1 — contexto: diagnóstico + dica juntos
-  if (diagnostico || dica) {
-    const partes = [];
-    if (diagnostico) partes.push(`📍 _${diagnostico}_`);
-    if (dica) partes.push(`💡 ${dica}`);
-    await client.sendMessage(message.from, partes.join('\n\n'));
+  if (blocos.length > 2) {
+    // Modelo usou --- corretamente → envia cada bloco separado com delay
+    await sendWithDelay(message.from, blocos);
+    if (phone) {
+      getAct3Suffix(phone).then(suffix => {
+        if (suffix) client.sendMessage(message.from, suffix).catch(() => {});
+      }).catch(() => {});
+    }
+    return;
   }
 
-  // Bloco 2 — cada opção numa bolha própria: emoji inline + texto (fácil de copiar)
+  // Fallback: parsing manual — diagnóstico + dica + cada opção
+  const dica = extrairDica(sugestoes);
+
+  if (diagnostico) {
+    await client.sendMessage(message.from, `📍 _${diagnostico}_`);
+    await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+  }
+
+  if (dica) {
+    await client.sendMessage(message.from, `💡 ${dica}`);
+    await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+  }
+
   if (opcoes.length >= 2) {
-    for (const { emoji, msg } of opcoes) {
-      await client.sendMessage(message.from, `${emoji}  ${msg}`);
+    for (let i = 0; i < opcoes.length; i++) {
+      if (i > 0) await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+      await client.sendMessage(message.from, `${opcoes[i].emoji}  ${opcoes[i].msg}`);
     }
   } else {
-    // Fallback
     await message.reply(sugestoes.trim().replace(/\n{3,}/g, '\n\n'));
   }
 
@@ -2113,7 +2181,7 @@ client.on('message', async (message) => {
                     const ctxAfterAmbigPrint = userContext.get(phone) || {};
                     userContext.set(phone, { ...ctxAfterAmbigPrint, lastPrintResult: printResultAmbig });
                   }
-                  for (const m of pm) await client.sendMessage(message.from, m);
+                  await sendWithDelay(message.from, pm);
                 } catch (_) {
                   await client.sendMessage(message.from, 'Não consegui ler a conversa. Manda o print de novo 😅');
                 }
@@ -2148,7 +2216,7 @@ client.on('message', async (message) => {
                   const { messages: pm } = await analisarPerfilComHaiku(imgData, imgMime, phone);
                   incrementProfileCount(phone); setProfileLastTime(phone);
                   saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
-                  for (const m of pm) await client.sendMessage(message.from, m);
+                  await sendWithDelay(message.from, pm);
                 } catch (_) {
                   await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
                 }
@@ -2204,7 +2272,7 @@ client.on('message', async (message) => {
                 incrementProfileCount(phone); setProfileLastTime(phone);
                 await incrementFeatureUsage(phone, 'profile_self_audit');
                 saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
-                for (const m of am) await client.sendMessage(message.from, m);
+                await sendWithDelay(message.from, am);
               } catch (_) {
                 await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
               }
@@ -2231,7 +2299,7 @@ client.on('message', async (message) => {
                 incrementProfileCount(phone); setProfileLastTime(phone);
                 await incrementFeatureUsage(phone, 'profile_her_analysis');
                 saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
-                for (const m of pm) await client.sendMessage(message.from, m);
+                await sendWithDelay(message.from, pm);
               } catch (_) {
                 await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
               }
@@ -2312,7 +2380,7 @@ client.on('message', async (message) => {
         try {
           const { messages: tcMsgs } = await analisarTransicaoComHaiku(updatedAnswers, printContext, phone);
           stopTypingTC();
-          for (const m of tcMsgs) await client.sendMessage(message.from, m);
+          await sendWithDelay(message.from, tcMsgs);
           scheduleTransitionCoachOutcome(phone).catch(() => {});
         } catch (_) {
           stopTypingTC();
@@ -2347,7 +2415,7 @@ client.on('message', async (message) => {
         try {
           const mirrorMsgs = await generateMirroringAct25(phone, diagPersona, updatedDiagAnswers);
           stopTypingDiag();
-          for (const m of mirrorMsgs) await client.sendMessage(message.from, m);
+          await sendWithDelay(message.from, mirrorMsgs);
           logJourneyEvent(phone, 'narrative_act_2_5_sent', { persona: diagPersona }).catch(() => {});
         } catch (_) {
           stopTypingDiag();
@@ -2391,7 +2459,7 @@ client.on('message', async (message) => {
         try {
           const { messages: pdMsgs, dateParsed } = await analisarPreDateComHaiku(updatedAnswers, girlContextWithDebrief, phone);
           stopTypingPD();
-          for (const m of pdMsgs) await client.sendMessage(message.from, m);
+          await sendWithDelay(message.from, pdMsgs);
           if (dateParsed) {
             schedulePredateReminders(phone, dateParsed).catch(() => {});
             await client.sendMessage(message.from,
@@ -2431,7 +2499,7 @@ client.on('message', async (message) => {
         try {
           const { messages: dbMsgs } = await analisarDebriefComHaiku(updatedAnswers, phone);
           stopTypingDB();
-          for (const m of dbMsgs) await client.sendMessage(message.from, m);
+          await sendWithDelay(message.from, dbMsgs);
         } catch (_) {
           stopTypingDB();
           await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');
