@@ -1,30 +1,32 @@
 /**
- * engine.js — engine de avaliação da narrativa progressiva
+ * engine.js — engine de narrativa reativa
  *
- * Roda a cada 15min. Para cada usuário ativo (criado nos últimos 7 dias):
- *   1. Verifica se já recebeu 1 ato proativo hoje → se sim, pula
- *   2. Verifica se está em conversa ativa (< 5min desde última msg) → se sim, pula
- *   3. Avalia cada ato em ordem, respeitando feature flags
- *   4. Dispara o PRIMEIRO ato cujas condições são verdadeiras
- *   5. Loga e para (no máximo 1 ato por tick por usuário)
+ * getEligibleAct(user) — chamada após cada mensagem do usuário (index.js)
  *
- * FEATURE FLAGS individuais:
- *   ENABLE_ACT_01_HOOK_DIAGNOSTICO=true
- *   ENABLE_ACT_02_PROMESSA_MECANISMO=true
- *   ... (todos false por default)
+ *   Regras globais:
+ *     1. Janela 24h: só envia se usuário mandou msg nas últimas 24h (free API)
+ *     2. Cooldown: mínimo 4h entre atos consecutivos
+ *     3. Limite diário: máx 2 atos por dia por usuário
+ *     4. Ato 12 ignora cooldown e limite diário (janela crítica H+70-72)
  *
- * Inicializado em index.js via startNarrativeEngine(client).
+ *   Itera PROACTIVE_ACTS em ordem e retorna o primeiro cujas
+ *   trigger.conditions(ctx) retornam true.
+ *
+ * fireActForUser(user, act) — executa o envio após getEligibleAct retornar.
+ *
+ * startNarrativeEngine(client) — mantido por compatibilidade (registra client
+ * para sender.js); não inicia mais cron.
  */
 
 'use strict';
 
-const { createClient }       = require('@supabase/supabase-js');
-const { PROACTIVE_ACTS }     = require('./acts');
-const { TriggerContext }     = require('./triggerContext');
-const { loadAndApplyCopy }   = require('./copyLoader');
+const { createClient }     = require('@supabase/supabase-js');
+const { PROACTIVE_ACTS }   = require('./acts');
+const { TriggerContext }   = require('./triggerContext');
+const { loadAndApplyCopy } = require('./copyLoader');
 const { sendNarrativeMessages, setClient } = require('./sender');
-const { logActSent, getLastActSentAt }     = require('./narrativeLog');
-const { logJourneyEvent }    = require('./journeyEvents');
+const { logActSent, getLastActSentAt, getActsCountToday } = require('./narrativeLog');
+const { logJourneyEvent }  = require('./journeyEvents');
 
 let _supabase = null;
 function getSupabase() {
@@ -32,118 +34,31 @@ function getSupabase() {
   return _supabase;
 }
 
-const TICK_INTERVAL_MS    = 15 * 60_000; // 15 minutos
-const USER_WINDOW_DAYS    = 7;           // avalia usuários criados nos últimos 7 dias
-const ACTIVE_CONV_MINUTES = 5;           // considera conversa ativa se < 5min
-const SAFE_HOUR_START_BRT = 8;           // não envia antes das 8h BRT
-const SAFE_HOUR_END_BRT   = 21;          // não envia depois das 21h BRT
+// ── Constantes ─────────────────────────────────────────────────────────────────
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const COOLDOWN_HOURS      = 4;   // mínimo entre atos consecutivos
+const MAX_ACTS_PER_DAY    = 2;   // máximo de atos por dia
+const WINDOW_24H_MS       = 24 * 3_600_000;
 
-function isSafeHour() {
-  const brt = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false });
-  const hour = parseInt(brt, 10);
-  return hour >= SAFE_HOUR_START_BRT && hour < SAFE_HOUR_END_BRT;
-}
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 /**
- * Verifica se o usuário já recebeu algum ato proativo hoje.
- * Limite: 1 ato por dia por usuário.
+ * Verifica se o usuário mandou mensagem nas últimas 24h.
+ * Sem isso, enviar seria cobrado pela API do WhatsApp.
  */
-async function alreadyReceivedActToday(phone) {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const { data } = await getSupabase()
-    .from('narrative_messages_log')
-    .select('id')
-    .eq('phone', phone)
-    .gte('sent_at', todayStart.toISOString())
-    .limit(1)
-    .maybeSingle();
-
-  return !!data;
-}
-
-/**
- * Retorna usuários candidatos à avaliação (criados nos últimos 7 dias).
- */
-async function getCandidateUsers() {
-  const cutoff = new Date(Date.now() - USER_WINDOW_DAYS * 24 * 3_600_000).toISOString();
-  const { data } = await getSupabase()
-    .from('users')
-    .select('phone, plan, plan_expires_at, created_at')
-    .gte('created_at', cutoff);
-  return data || [];
-}
-
-/**
- * Seleciona a variante correta para um ato com base no usuário.
- * Para atos com personaCondition (ato 2): match pela persona.
- * Para atos com A/B split: hash determinístico.
- * @param {import('./acts').ActDefinition} act
- * @param {TriggerContext} ctx
- * @returns {Promise<import('./acts').Variant>}
- */
-async function selectVariant(act, ctx) {
-  // Ato 2: variante depende da persona
-  if (act.variants.some(v => v.personaCondition)) {
-    const persona = await ctx.getUserPersona();
-    const match   = act.variants.find(v => v.personaCondition === persona);
-    return match || act.variants[0];
-  }
-
-  // A/B com split percentual
-  if (act.abTestSplit && act.abTestSplit.length > 1) {
-    // Hash determinístico pelo phone
-    let hash = 0;
-    for (const c of ctx.phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
-    const pct = Math.abs(hash) % 100;
-    let cumulative = 0;
-    for (let i = 0; i < act.abTestSplit.length; i++) {
-      cumulative += act.abTestSplit[i];
-      if (pct < cumulative) return act.variants[i] || act.variants[0];
-    }
-  }
-
-  return act.variants[0];
-}
-
-/**
- * Dispara um ato para um usuário.
- */
-async function fireAct(user, act, ctx) {
+async function isWithin24hWindow(phone) {
   try {
-    const variant  = await selectVariant(act, ctx);
-    const vars     = await act.templateVars(ctx);
-    const messages = loadAndApplyCopy(variant.copyFile, vars);
+    const { data } = await getSupabase()
+      .from('api_requests')
+      .select('created_at')
+      .eq('phone', phone)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (!messages || messages.length === 0) {
-      console.warn(`[NarrativeEngine] Copy vazia para ${act.id} (${variant.copyFile}) — pulando.`);
-      return false;
-    }
-
-    // Loga primeiro (idempotência: UNIQUE constraint protege de duplicatas)
-    const isNew = await logActSent(user.phone, act.id, variant.id, messages.join('\n---\n'));
-    if (!isNew) {
-      console.log(`[NarrativeEngine] ${act.id} já enviado para ${user.phone} — ignorado.`);
-      return false;
-    }
-
-    // Envia com delays dopamínicos
-    const sent = await sendNarrativeMessages(user.phone, messages);
-    if (!sent) {
-      console.warn(`[NarrativeEngine] Falha no envio de ${act.id} para ${user.phone}.`);
-    }
-
-    // Log de jornada
-    logJourneyEvent(user.phone, `narrative_${act.id}_sent`, { variant: variant.id }).catch(() => {});
-
-    console.log(`[NarrativeEngine] ✅ ${act.id} (${variant.id}) → ${user.phone}`);
-    return true;
-
-  } catch (err) {
-    console.error(`[NarrativeEngine] Erro ao disparar ${act.id} para ${user.phone}:`, err.message);
+    if (!data?.created_at) return false;
+    return (Date.now() - new Date(data.created_at).getTime()) < WINDOW_24H_MS;
+  } catch (_) {
     return false;
   }
 }
@@ -157,74 +72,143 @@ function isActEnabled(act) {
 }
 
 /**
- * Avalia e potencialmente dispara atos para um único usuário.
+ * Seleciona a variante correta para um ato.
+ * Para atos com personaCondition (ato 2): match pela persona.
+ * Para atos com A/B split: hash determinístico pelo phone.
  */
-async function evaluateUserActs(user) {
-  try {
-    // Janela segura de horário
-    if (!isSafeHour()) return;
+async function selectVariant(act, ctx) {
+  if (act.variants.some(v => v.personaCondition)) {
+    const persona = await ctx.getUserPersona();
+    const match   = act.variants.find(v => v.personaCondition === persona);
+    return match || act.variants[0];
+  }
 
-    // Já recebeu ato hoje → pula
-    if (await alreadyReceivedActToday(user.phone)) return;
+  if (act.abTestSplit && act.abTestSplit.length > 1) {
+    let hash = 0;
+    for (const c of ctx.phone) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+    const pct = Math.abs(hash) % 100;
+    let cumulative = 0;
+    for (let i = 0; i < act.abTestSplit.length; i++) {
+      cumulative += act.abTestSplit[i];
+      if (pct < cumulative) return act.variants[i] || act.variants[0];
+    }
+  }
+
+  return act.variants[0];
+}
+
+// ── API pública ────────────────────────────────────────────────────────────────
+
+/**
+ * Retorna o primeiro ato elegível para o usuário, ou null.
+ *
+ * Deve ser chamada após processar a resposta principal ao usuário,
+ * apenas dentro da janela de 24h (mensagem iniciada pelo usuário).
+ *
+ * @param {{ phone: string, plan: string, plan_expires_at: string|null, created_at: string }} user
+ * @returns {Promise<import('./acts').ActDefinition|null>}
+ */
+async function getEligibleAct(user) {
+  try {
+    // 1. Janela de 24h — não envia fora da janela free
+    if (!await isWithin24hWindow(user.phone)) return null;
 
     const ctx = new TriggerContext(user);
+    const hours = ctx.hoursSinceSignup();
 
-    // Conversa ativa → pula (não interrompe)
-    const minsSinceLastMsg = await ctx.minutesSinceLastMessage().catch(() => Infinity);
-    if (minsSinceLastMsg < ACTIVE_CONV_MINUTES) return;
+    // Ato 12 tem prioridade absoluta na janela crítica (H+70-72)
+    // e ignora cooldown e limite diário
+    if (hours >= 71.5 && hours <= 72) {
+      const act12 = PROACTIVE_ACTS.find(a => a.id === 'act_12_ultima_chamada');
+      if (act12 && isActEnabled(act12) && act12.trigger) {
+        try {
+          if (await act12.trigger.conditions(ctx)) return act12;
+        } catch (_) {}
+      }
+    }
 
-    // Avalia atos em ordem (para no primeiro que dispara)
+    // 2. Cooldown entre atos (4h)
+    const lastSentAt = await getLastActSentAt(user.phone);
+    if (lastSentAt) {
+      const hoursSinceLast = (Date.now() - lastSentAt.getTime()) / 3_600_000;
+      if (hoursSinceLast < COOLDOWN_HOURS) return null;
+    }
+
+    // 3. Limite de 2 atos por dia
+    const actsToday = await getActsCountToday(user.phone);
+    if (actsToday >= MAX_ACTS_PER_DAY) return null;
+
+    // 4. Itera em ordem — retorna o primeiro elegível
     for (const act of PROACTIVE_ACTS) {
       if (!isActEnabled(act)) continue;
       if (!act.trigger) continue;
 
       try {
-        const shouldFire = await act.trigger.conditions(ctx);
-        if (!shouldFire) continue;
-
-        const fired = await fireAct(user, act, ctx);
-        if (fired) return; // 1 ato por tick
+        if (await act.trigger.conditions(ctx)) return act;
       } catch (err) {
         console.error(`[NarrativeEngine] Erro ao avaliar ${act.id} para ${user.phone}:`, err.message);
-        // Continua pro próximo ato
       }
     }
 
+    return null;
+
   } catch (err) {
-    console.error(`[NarrativeEngine] Erro ao avaliar usuário ${user.phone}:`, err.message);
+    console.error(`[NarrativeEngine] Erro em getEligibleAct para ${user.phone}:`, err.message);
+    return null;
   }
 }
 
 /**
- * Tick principal da engine.
+ * Executa o envio de um ato para o usuário.
+ * Chamado pelo message handler após getEligibleAct retornar um ato.
+ *
+ * @param {{ phone: string, plan: string, plan_expires_at: string|null, created_at: string }} user
+ * @param {import('./acts').ActDefinition} act
+ * @returns {Promise<boolean>} true = enviado com sucesso
  */
-async function tick() {
+async function fireActForUser(user, act) {
   try {
-    const users = await getCandidateUsers();
-    console.log(`[NarrativeEngine] Tick — ${users.length} usuário(s) candidato(s).`);
+    const ctx      = new TriggerContext(user);
+    const variant  = await selectVariant(act, ctx);
+    const vars     = await act.templateVars(ctx);
+    const messages = loadAndApplyCopy(variant.copyFile, vars);
 
-    for (const user of users) {
-      await evaluateUserActs(user);
+    if (!messages || messages.length === 0) {
+      console.warn(`[NarrativeEngine] Copy vazia para ${act.id} (${variant.copyFile}) — pulando.`);
+      return false;
     }
+
+    // Loga antes de enviar (UNIQUE constraint garante idempotência)
+    const isNew = await logActSent(user.phone, act.id, variant.id, messages.join('\n---\n'));
+    if (!isNew) {
+      console.log(`[NarrativeEngine] ${act.id} já enviado para ${user.phone} — ignorado.`);
+      return false;
+    }
+
+    const sent = await sendNarrativeMessages(user.phone, messages);
+    if (!sent) {
+      console.warn(`[NarrativeEngine] Falha no envio de ${act.id} para ${user.phone}.`);
+    }
+
+    logJourneyEvent(user.phone, `narrative_${act.id}_sent`, { variant: variant.id }).catch(() => {});
+    console.log(`[NarrativeEngine] ✅ ${act.id} (${variant.id}) → ${user.phone}`);
+    return true;
+
   } catch (err) {
-    console.error('[NarrativeEngine] Erro no tick:', err.message);
+    console.error(`[NarrativeEngine] Erro ao disparar ${act.id} para ${user.phone}:`, err.message);
+    return false;
   }
 }
 
 /**
- * Inicia a engine. Chamado em client.on('ready').
+ * Registra o client do whatsapp-web.js.
+ * Chamado em client.on('ready') — obrigatório antes de qualquer envio.
+ *
  * @param {import('whatsapp-web.js').Client} client
  */
 function startNarrativeEngine(client) {
-  if ((process.env.NARRATIVE_PROACTIVE || 'false').toLowerCase() !== 'true') {
-    console.log('[NarrativeEngine] Desabilitado (NARRATIVE_PROACTIVE != true). Atos inline ainda funcionam.');
-    return;
-  }
   setClient(client);
-  console.log('[NarrativeEngine] Engine iniciada — tick a cada 15min.');
-  // Primeiro tick em 2min (deixa o bot estabilizar)
-  setTimeout(tick, 2 * 60_000);
-  setInterval(tick, TICK_INTERVAL_MS);
+  console.log('[NarrativeEngine] Engine reativa pronta — atos disparados por mensagem do usuário.');
 }
 
-module.exports = { startNarrativeEngine, tick, evaluateUserActs };
+module.exports = { startNarrativeEngine, getEligibleAct, fireActForUser };

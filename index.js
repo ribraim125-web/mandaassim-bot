@@ -56,7 +56,7 @@ const {
 } = require('./src/narrative/narrativeInline');
 const { generateMirroringAct25 } = require('./src/narrative/act_2_5_mirroring');
 const { startWorker: startNarrativeWorker } = require('./src/narrative/narrativeWorker');
-const { startNarrativeEngine }              = require('./src/narrative/engine');
+const { startNarrativeEngine, getEligibleAct, fireActForUser } = require('./src/narrative/engine');
 const { getActById, parseUserChoice }       = require('./src/narrative/acts');
 const { checkMilestones }                   = require('./src/narrative/journeyEvents');
 const {
@@ -1243,6 +1243,40 @@ async function getTrialInfo(phone) {
   }
 
   return { isPremium: false, isPro: false, inTrial, trialDaysLeft, trialHoursLeft, isLastDay, lastHours, planKey };
+}
+
+/**
+ * Retorna registro mínimo do usuário para a engine narrativa reativa.
+ * @param {string} phone
+ * @returns {Promise<{phone:string,plan:string,plan_expires_at:string|null,created_at:string}|null>}
+ */
+async function getUserForNarrative(phone) {
+  try {
+    const { data } = await getSupabase()
+      .from('users')
+      .select('phone, plan, plan_expires_at, created_at')
+      .eq('phone', phone)
+      .maybeSingle();
+    return data || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Avalia e dispara um ato narrativo reativo após a resposta principal.
+ * Fire-and-forget — não bloqueia o handler.
+ */
+async function tryReactiveNarrative(phone, chatId) {
+  try {
+    const user = await getUserForNarrative(phone);
+    if (!user) return;
+    const act = await getEligibleAct(user);
+    if (!act) return;
+    await fireActForUser(user, act);
+  } catch (err) {
+    console.error('[ReactiveNarrative] Erro:', err.message);
+  }
 }
 
 /**
@@ -3141,6 +3175,9 @@ client.on('message', async (message) => {
           if (msgs?.length) sendWithDelay(message.from, msgs, { phone, intent: 'act_12_ultima_chamada' }).catch(() => {});
         }).catch(() => {});
       }
+
+      // Narrativa reativa — dispara ato elegível após resposta principal
+      tryReactiveNarrative(phone, message.from).catch(() => {});
     } catch (err) {
       stopTyping3();
       console.error('[OpenRouter] Erro ao analisar texto:', err.message);
@@ -3586,6 +3623,7 @@ client.on('message', async (message) => {
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
+      tryReactiveNarrative(phone, message.from).catch(() => {});
     } catch (err) {
       stopTypingAudio();
       console.error('[Áudio] Erro:', err.message);
@@ -3670,13 +3708,16 @@ server.on('error', (err) => {
 
 client.on('ready', () => {
   console.log('[Bot] Conectado e pronto para receber mensagens!');
-  // Workers proativos desligados — mensagens só saem quando usuário inicia
+
+  // Engine narrativa reativa — registra client para sender.js (sempre ativo)
+  startNarrativeEngine(client);
+
+  // Workers proativos desligados por padrão — mensagens só saem quando usuário inicia
   // Reativar com PROACTIVE_MESSAGES_ENABLED=true se necessário
   if (process.env.PROACTIVE_MESSAGES_ENABLED === 'true') {
     startWorker(client);
     startMindsetWorker(client);
     startNarrativeWorker(client);
-    startNarrativeEngine(client);
     console.log('[Bot] Workers proativos ATIVOS');
   } else {
     console.log('[Bot] Workers proativos DESLIGADOS — modo reativo');

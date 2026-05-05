@@ -152,10 +152,30 @@ async function getNarrativeStats(since, until) {
   }
 }
 
+/**
+ * Conta quantos atos distintos foram enviados ao usuário hoje.
+ * Usado pela engine reativa para impor o limite de 2 atos/dia.
+ */
+async function getActsCountToday(phone) {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { data } = await getSupabase()
+      .from('narrative_messages_log')
+      .select('id')
+      .eq('phone', phone)
+      .gte('sent_at', todayStart.toISOString());
+    return (data || []).length;
+  } catch (_) {
+    return 0;
+  }
+}
+
 module.exports = {
   assignVariant,
   hasActBeenSent,
   getLastActSentAt,
+  getActsCountToday,
   logActSent,
   recordOutcome,
   getNarrativeStats,

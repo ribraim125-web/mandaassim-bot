@@ -147,14 +147,14 @@ const ACTS = [
     featureFlag: 'ENABLE_ACT_04_REVEAL_PAPO',
 
     trigger: {
+      // Reativo: disparado na mensagem do usuário após >= 3 interações e >= 2h de conta
       conditions: async (ctx) => {
         if (await ctx.actAlreadySent('act_04_reveal_papo')) return false;
         const totalInteractions = await ctx.getTotalInteractions();
         if (totalInteractions < 3) return false;
-        const hours = ctx.hoursSinceSignup();
-        return hours >= 2 && hours <= 8;
+        return ctx.hoursSinceSignup() >= 2;
       },
-      cooldown_hours: 24,
+      cooldown_hours: 4,
       only_once:      true,
     },
 
@@ -169,14 +169,14 @@ const ACTS = [
     featureFlag: 'ENABLE_ACT_05_IDENTIFICACAO_AMPLIFICADA',
 
     trigger: {
+      // Reativo: disparado após >= 5 interações e >= 12h de conta
       conditions: async (ctx) => {
         if (await ctx.actAlreadySent('act_05_identificacao_amplificada')) return false;
-        const hours = ctx.hoursSinceSignup();
-        if (hours < 12 || hours > 24) return false;
+        if (ctx.hoursSinceSignup() < 12) return false;
         const totalInteractions = await ctx.getTotalInteractions();
         return totalInteractions >= 5;
       },
-      cooldown_hours: 24,
+      cooldown_hours: 4,
       only_once:      true,
     },
 
@@ -197,15 +197,15 @@ const ACTS = [
     featureFlag: 'ENABLE_ACT_06_REVEAL_AUDIT',
 
     trigger: {
+      // Reativo: disparado após >= 2 prints analisados e >= 24h de conta
       conditions: async (ctx) => {
         if (ctx.user.plan === 'parceiro_pro') return false;
         if (await ctx.actAlreadySent('act_06_reveal_audit')) return false;
         const printCount = await ctx.getPrintCount();
         if (printCount < 2) return false;
-        const hours = ctx.hoursSinceSignup();
-        return hours >= 24 && hours <= 36;
+        return ctx.hoursSinceSignup() >= 24;
       },
-      cooldown_hours: 24,
+      cooldown_hours: 4,
       only_once:      true,
     },
 
@@ -224,14 +224,15 @@ const ACTS = [
     featureFlag: 'ENABLE_ACT_07_REVEAL_ANALISE_DELA',
 
     trigger: {
+      // Reativo: disparado após audit próprio feito OU >= 30h de conta
       conditions: async (ctx) => {
         if (ctx.user.plan === 'parceiro_pro') return false;
         if (await ctx.actAlreadySent('act_07_reveal_analise_dela')) return false;
         const auditDone = await ctx.getAuditCount();
         const hours = ctx.hoursSinceSignup();
-        return (auditDone > 0 || hours >= 30) && hours <= 48;
+        return auditDone > 0 || hours >= 30;
       },
-      cooldown_hours: 24,
+      cooldown_hours: 4,
       only_once:      true,
     },
 
@@ -246,14 +247,15 @@ const ACTS = [
     featureFlag: 'ENABLE_ACT_08_REVEAL_PREDATE',
 
     trigger: {
+      // Reativo: disparado quando encontro foi mencionado OU >= 36h de conta
       conditions: async (ctx) => {
         if (ctx.user.plan === 'parceiro_pro') return false;
         if (await ctx.actAlreadySent('act_08_reveal_predate')) return false;
         const encounterMentioned = await ctx.hasEvent('encounter_mentioned');
         const hours = ctx.hoursSinceSignup();
-        return (encounterMentioned || hours >= 36) && hours <= 60;
+        return encounterMentioned || hours >= 36;
       },
-      cooldown_hours: 24,
+      cooldown_hours: 4,
       only_once:      true,
     },
 
@@ -268,13 +270,13 @@ const ACTS = [
     featureFlag: 'ENABLE_ACT_09_SUMARIO_USO',
 
     trigger: {
+      // Reativo: disparado na primeira mensagem após >= 60h de conta (trial/free)
       conditions: async (ctx) => {
         if (!['trial', 'free'].includes(ctx.user.plan)) return false;
         if (await ctx.actAlreadySent('act_09_sumario_uso')) return false;
-        const hours = ctx.hoursSinceSignup();
-        return hours >= 60 && hours <= 66;
+        return ctx.hoursSinceSignup() >= 60;
       },
-      cooldown_hours: 24,
+      cooldown_hours: 4,
       only_once:      true,
     },
 
@@ -307,13 +309,14 @@ const ACTS = [
     featureFlag: 'ENABLE_ACT_10_OFERTA',
 
     trigger: {
+      // Reativo: disparado após sumário (ato 9 já enviado) e >= 66h de conta
       conditions: async (ctx) => {
         if (!['trial', 'free'].includes(ctx.user.plan)) return false;
         if (await ctx.actAlreadySent('act_10_oferta')) return false;
-        const hours = ctx.hoursSinceSignup();
-        return hours >= 66 && hours <= 70;
+        if (!await ctx.actAlreadySent('act_09_sumario_uso')) return false;
+        return ctx.hoursSinceSignup() >= 66;
       },
-      cooldown_hours: 24,
+      cooldown_hours: 4,
       only_once:      true,
     },
 
@@ -331,33 +334,34 @@ const ACTS = [
   // ── Ato 11 ─────────────────────────────────────────────────────────────────
   {
     id:          'act_11_objecao_garantia',
-    description: 'Quebra de objeções comuns + garantia — 2-4h depois da oferta',
+    description: 'Quebra de objeções comuns + garantia — 2h depois da oferta',
     featureFlag: 'ENABLE_ACT_11_OBJECAO_GARANTIA',
 
     trigger: {
+      // Reativo: disparado após >= 2h da oferta (ato 10), ou se clicou link mas
+      // não converteu (>= 60min desde clique). Ambos exigem mensagem do usuário.
       conditions: async (ctx) => {
         if (!['trial', 'free'].includes(ctx.user.plan)) return false;
         if (await ctx.actAlreadySent('act_11_objecao_garantia')) return false;
         if (!await ctx.actAlreadySent('act_10_oferta')) return false;
-        const hours = ctx.hoursSinceSignup();
 
-        // Dispara 2h depois da oferta, ou se clicou link mas não converteu em 1h
         const act10Time = await ctx.getActSentTime('act_10_oferta');
         if (!act10Time) return false;
         const hoursSinceOffer = (Date.now() - act10Time.getTime()) / 3_600_000;
 
+        // Link clicado mas não converteu — quebrar objeções
         const linkClicked = await ctx.hasEvent('link_clicked');
         if (linkClicked) {
           const clickTime = await ctx.getEventTime('link_clicked');
           if (clickTime) {
             const minutesSinceClick = (Date.now() - clickTime.getTime()) / 60_000;
-            if (minutesSinceClick >= 60 && minutesSinceClick <= 90) return true;
+            if (minutesSinceClick >= 60) return true;
           }
         }
 
-        return hoursSinceOffer >= 2 && hours <= 71;
+        return hoursSinceOffer >= 2;
       },
-      cooldown_hours: 24,
+      cooldown_hours: 4,
       only_once:      true,
     },
 
@@ -368,18 +372,19 @@ const ACTS = [
   // ── Ato 12 ─────────────────────────────────────────────────────────────────
   {
     id:          'act_12_ultima_chamada',
-    description: 'Última chamada 30min antes do trial acabar',
+    description: 'Última chamada quando usuário manda mensagem nos últimos 30min do trial',
     featureFlag: 'ENABLE_ACT_12_ULTIMA_CHAMADA',
-    isProactive: false, // inline-only — disparado quando usuário manda mensagem nos últimos 30min
+    // Ignora cooldown e limite diário — engine verifica janela H+71.5-72 separadamente
 
     trigger: {
+      // Reativo + janela crítica: só dispara se usuário está em H+71.5 a H+72
       conditions: async (ctx) => {
         if (ctx.user.plan !== 'trial') return false;
         if (await ctx.actAlreadySent('act_12_ultima_chamada')) return false;
         const hours = ctx.hoursSinceSignup();
         return hours >= 71.5 && hours <= 72;
       },
-      cooldown_hours: 24,
+      cooldown_hours: 0,
       only_once:      true,
     },
 
@@ -397,6 +402,7 @@ const ACTS = [
     featureFlag: 'ENABLE_ACT_13_REOFERTA_D1',
 
     trigger: {
+      // Reativo: disparado quando free bate qualquer limite, >= 24h após trial terminar
       conditions: async (ctx) => {
         if (ctx.user.plan !== 'free') return false;
         if (await ctx.actAlreadySent('act_13_reoferta_d1')) return false;
@@ -404,11 +410,11 @@ const ACTS = [
         const trialEndedTime = await ctx.getEventTime('trial_ended');
         if (!trialEndedTime) return false;
         const hoursSinceFree = (Date.now() - trialEndedTime.getTime()) / 3_600_000;
-        if (hoursSinceFree < 24 || hoursSinceFree > 72) return false;
+        if (hoursSinceFree < 24) return false;
 
         return ctx.hitAnyLimitToday();
       },
-      cooldown_hours: 48,
+      cooldown_hours: 4,
       only_once:      true,
     },
 
