@@ -26,6 +26,7 @@ const {
   getOptIn,
 } = require('./src/lib/mindsetCapsules');
 const { cancelPendingFollowups, cancelPredateReminders } = require('./src/followup/followupCanceller');
+const { getMessage: getFollowupMessage } = require('./src/followup/followupMessages');
 const { logApiRequest } = require('./src/lib/tracking');
 const { validateResponseArray, logViolations } = require('./src/lib/messageFormatValidator');
 const { canUseFeature, incrementFeatureUsage, getDailyUsage } = require('./src/config/features');
@@ -65,11 +66,13 @@ const {
   registrarOutcome,
   classificarOutcome,
   getMonthlySessionCount,
+  marcarOutcomeSolicitado,
 } = require('./src/lib/transitionCoach');
 const {
   INTERVIEW_QUESTIONS_PREDATE,
   analisarPreDateComHaiku,
   getMonthlyPreDateCount,
+  atualizarDebriefEnviado,
 } = require('./src/lib/predateCoach');
 const {
   INTERVIEW_QUESTIONS_DEBRIEF,
@@ -1891,6 +1894,65 @@ async function enviarCobrancaPix(message, phone, amount = undefined) {
 }
 
 // ---------------------------------------------------------------------------
+// Notificações inline (modo reativo — sem workers proativos)
+// ---------------------------------------------------------------------------
+
+/**
+ * Quando o usuário manda mensagem, entrega qualquer notificação "sticky"
+ * que esteja vencida na fila (predate reminders, debrief, outcome).
+ * Esses itens não são cancelados pelo cancelPendingFollowups normal.
+ * Fire-and-forget seguro — nunca bloqueia o fluxo principal.
+ */
+async function processInlineNotifications(phone, chatId) {
+  try {
+    const supabase = getSupabase();
+    const now = new Date().toISOString();
+
+    const { data: pending } = await supabase
+      .from('followup_queue')
+      .select('*')
+      .eq('user_phone', phone)
+      .lte('scheduled_for', now)
+      .is('sent_at', null)
+      .is('cancelled_at', null)
+      .in('trigger_type', [
+        'predate_reminder_day_before',
+        'predate_reminder_2h_before',
+        'predate_debrief',
+        'transition_coach_outcome',
+      ])
+      .order('scheduled_for', { ascending: true })
+      .limit(2);
+
+    if (!pending || pending.length === 0) return;
+
+    for (const item of pending) {
+      const msg = getFollowupMessage(item.trigger_type);
+      if (!msg) continue;
+
+      await client.sendMessage(chatId, msg);
+      await new Promise(r => setTimeout(r, 800));
+
+      await supabase
+        .from('followup_queue')
+        .update({ sent_at: new Date().toISOString() })
+        .eq('id', item.id);
+
+      if (item.trigger_type === 'transition_coach_outcome') {
+        marcarOutcomeSolicitado(phone).catch(() => {});
+      }
+      if (item.trigger_type === 'predate_debrief') {
+        atualizarDebriefEnviado(phone).catch(() => {});
+      }
+
+      console.log(`[InlineNotif] Entregue ${item.trigger_type} para ${phone}`);
+    }
+  } catch (err) {
+    console.error('[InlineNotif] Erro:', err.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Processamento de mensagens
 // ---------------------------------------------------------------------------
 
@@ -1937,7 +1999,9 @@ client.on('message', async (message) => {
     return;
   }
 
-  // Cancela qualquer follow up pendente quando usuário manda mensagem
+  // Modo reativo: entrega notificações sticky vencidas quando usuário manda mensagem
+  processInlineNotifications(phone, message.from).catch(() => {});
+  // Cancela follow-ups simples (não-sticky) que ficaram pendentes
   cancelPendingFollowups(phone).catch(() => {});
 
   // Detecta slug de aquisição na mensagem (ex: "mandaassim_instagram_reel_001")
@@ -3606,10 +3670,17 @@ server.on('error', (err) => {
 
 client.on('ready', () => {
   console.log('[Bot] Conectado e pronto para receber mensagens!');
-  startWorker(client);
-  startMindsetWorker(client);
-  startNarrativeWorker(client);
-  startNarrativeEngine(client);
+  // Workers proativos desligados — mensagens só saem quando usuário inicia
+  // Reativar com PROACTIVE_MESSAGES_ENABLED=true se necessário
+  if (process.env.PROACTIVE_MESSAGES_ENABLED === 'true') {
+    startWorker(client);
+    startMindsetWorker(client);
+    startNarrativeWorker(client);
+    startNarrativeEngine(client);
+    console.log('[Bot] Workers proativos ATIVOS');
+  } else {
+    console.log('[Bot] Workers proativos DESLIGADOS — modo reativo');
+  }
   setTimeout(verificarExpiracoes, 15000);
   setInterval(verificarExpiracoes, 6 * 60 * 60 * 1000);
 });
