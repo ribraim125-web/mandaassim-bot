@@ -2834,7 +2834,7 @@ client.on('message', async (message) => {
         transitionCoachState: { questionIndex: 0, answers: {}, printContext: printCtxForTC },
       });
       await client.sendMessage(message.from,
-        `Bora. Preciso de algumas informações rápidas pra te dar a análise certa 👇\n\n${INTERVIEW_QUESTIONS[0]}`
+        `Bora. Me responde rapidinho 👇\n\n${INTERVIEW_QUESTIONS[0]}`
       );
       return;
     }
@@ -2861,7 +2861,7 @@ client.on('message', async (message) => {
         predateCoachState: { questionIndex: 0, answers: {} },
       });
       await client.sendMessage(message.from,
-        `Bora te preparar. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_PREDATE[0]}`
+        `Bora te preparar. Me responde rapidinho 👇\n\n${INTERVIEW_QUESTIONS_PREDATE[0]}`
       );
       return;
     }
@@ -2887,7 +2887,7 @@ client.on('message', async (message) => {
         postdateDebriefState: { questionIndex: 0, answers: {} },
       });
       await client.sendMessage(message.from,
-        `Bora analisar como foi. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
+        `Bora. Me conta como foi — algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
       );
       return;
     }
@@ -2906,7 +2906,7 @@ client.on('message', async (message) => {
           postdateDebriefState: { questionIndex: 0, answers: {} },
         });
         await client.sendMessage(message.from,
-          `Bora analisar como foi. Algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
+          `Bora. Me conta como foi — algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
         );
         return;
       }
@@ -3178,7 +3178,7 @@ client.on('message', async (message) => {
             if (needsPlanCheck && !trial.isPro) {
               const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_self_audit');
               await client.sendMessage(message.from, upsellMessage ||
-                `Auditoria de Perfil é do *Parceiro Pro* 🔍\n\nDigita *pro* pra conhecer.`
+                `Olhar seu próprio perfil é do *Parceiro Pro* 🔍\n\nVocê manda print do seu Tinder/Bumble. Eu olho foto por foto, leio a bio, e te falo na lata o que tá funcionando e o que tira match.\n\nDigita *pro* 👇`
               );
               return;
             }

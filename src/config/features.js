@@ -41,15 +41,15 @@ const FEATURES = {
     parceiro_pro: { daily: 5 },
     upsell: {
       free: () =>
-        `Análise de print é uma feature do *Parceiro* 🔍\n\n` +
-        `Com ela: manda qualquer conversa do Tinder, WhatsApp ou Bumble e eu leio o que tá rolando.\n\n` +
+        `Análise de print é do *Parceiro* 🔍\n\n` +
+        `Você manda o print da conversa, eu leio o que tá rolando — interesse dela, temperatura, o que faz sentido responder agora.\n\n` +
         `📅 *Mensal* — R$29,90/mês → digita *mensal*`,
       trial: () =>
-        `Deu 1 análise de print por hoje — esse é o limite do trial.\n\nQuer ilimitado? Digita *mensal* (R$29,90).`,
+        `Deu 1 análise de print por hoje — limite do trial.\n\nQuer ilimitado? Digita *mensal* (R$29,90).`,
       parceiro: () =>
-        `Chegou no limite de 5 análises de print hoje.\n\nAmanhã cedo tem mais 5. Usa texto enquanto isso.`,
+        `Deu 5 análises de print hoje — limite do plano. Amanhã cedo renova.\n\nEnquanto isso, descreve em texto o que ela mandou. Funciona igual.`,
       parceiro_pro: () =>
-        `Chegou no limite de 5 análises de print hoje.\n\nAmanhã cedo tem mais 5.`,
+        `Deu 5 análises de print hoje — limite do plano. Amanhã cedo renova.`,
     },
   },
 
@@ -62,14 +62,14 @@ const FEATURES = {
     upsell: {
       free: () =>
         `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-        `Você manda o print do perfil dela no Tinder, Bumble ou Instagram — eu leio o que ela revela e gero a primeira mensagem certa.\n\n` +
+        `Você manda print do perfil dela. Eu leio o que tá ali — gosto, vibe, o que ela quer mostrar — e te entrego a primeira mensagem feita pra ela.\n\n` +
         `Digita *pro* 👇`,
       trial: () =>
         `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
       parceiro: () =>
         `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
       parceiro_pro: () =>
-        `Chegou no limite de 10 análises de perfil hoje.\n\nAmanhã cedo tem mais 10.`,
+        `Deu 10 análises de perfil hoje — limite do plano. Amanhã cedo renova.`,
     },
   },
 
@@ -81,15 +81,15 @@ const FEATURES = {
     parceiro_pro: { monthly: null },
     upsell: {
       free: () =>
-        `Marcar o primeiro encontro é o momento mais crítico — e a maioria erra aqui.\n\n` +
-        `Com o *Coach de Transição* eu te guio pra hora certa, com a mensagem certa.\n\n` +
-        `Disponível no *Parceiro* (R$29,90/mês).\n\n` +
+        `Tem um momento na conversa em que dá pra chamar pra sair — e tem um momento em que ainda não.\n\n` +
+        `Eu leio onde a conversa tá e te falo quando e como chamar.\n\n` +
+        `Tá no *Parceiro* (R$29,90/mês).\n\n` +
         `Digita *mensal* 👇`,
       trial: () =>
-        `Coach de Transição é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
+        `Saber quando e como chamar pra sair é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
       parceiro: () =>
-        `Você já usou as 2 sessões do Coach de Transição esse mês.\n\n` +
-        `Renova no mês que vem, ou faz upgrade pro *Parceiro Pro* (ilimitado) 🔥\n\n` +
+        `Você já usou as 2 sessões desse recurso esse mês.\n\n` +
+        `Renova mês que vem, ou faz upgrade pro *Parceiro Pro*, que é sem limite.\n\n` +
         `Digita *pro* se quiser.`,
     },
   },
@@ -102,14 +102,14 @@ const FEATURES = {
     parceiro_pro: { monthly: null },
     upsell: {
       free: () =>
-        `Preparação para encontro é do *Parceiro* 🗓️\n\n` +
-        `Você me conta quando e onde — eu te dou o checklist completo.\n\n` +
+        `Preparação pra encontro é do *Parceiro* 🗓️\n\n` +
+        `Você me conta quando, onde e o que tá te preocupando — eu te dou o plano: roupa, papo, o que evitar, como encerrar em alta.\n\n` +
         `Digita *mensal* 👇`,
       trial: () =>
-        `Coach Pré-Date é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
+        `Preparação pra encontro é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
       parceiro: () =>
-        `Você já usou sua sessão pré-date do mês.\n\n` +
-        `Renova no mês que vem, ou faz upgrade pro *Parceiro Pro* (ilimitado) 🔥\n\n` +
+        `Você já usou sua preparação de encontro do mês.\n\n` +
+        `Renova mês que vem, ou faz upgrade pro *Parceiro Pro*, que é sem limite.\n\n` +
         `Digita *pro* se quiser.`,
     },
   },
@@ -122,15 +122,15 @@ const FEATURES = {
     parceiro_pro: { daily: 30 },
     upsell: {
       free: () =>
-        `Auditoria de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-        `Manda print do teu perfil — eu analiso foto a foto, bio e te dou as 3 mudanças mais impactantes.\n\n` +
+        `Olhar seu próprio perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
+        `Você manda print do seu Tinder/Bumble. Eu olho foto por foto, leio a bio, e te falo na lata o que tá funcionando e o que tira match.\n\n` +
         `Digita *pro* 👇`,
       trial: () =>
-        `Auditoria de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+        `Olhar seu próprio perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
       parceiro: () =>
-        `Auditoria de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+        `Olhar seu próprio perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
       parceiro_pro: () =>
-        `Chegou no limite de 30 auditorias hoje.\n\nAmanhã cedo tem mais 30.`,
+        `Deu 30 análises de perfil hoje — limite do plano. Amanhã cedo renova.`,
     },
   },
 
@@ -143,18 +143,18 @@ const FEATURES = {
     upsell: {
       free: () =>
         `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-        `Você manda o print do perfil dela no Tinder, Bumble ou Instagram — eu leio o que ela revela e gero a primeira mensagem certa.\n\n` +
+        `Você manda print do perfil dela. Eu leio o que tá ali — gosto, vibe, o que ela quer mostrar — e te entrego a primeira mensagem feita pra ela.\n\n` +
         `Digita *pro* 👇`,
       trial: () =>
         `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
       parceiro: () =>
         `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
       parceiro_pro: () =>
-        `Chegou no limite de 30 análises de perfil hoje.\n\nAmanhã cedo tem mais 30.`,
+        `Deu 30 análises de perfil hoje — limite do plano. Amanhã cedo renova.`,
     },
   },
 
-  // Camada 7 — Debrief Pós-Date
+  // Camada 7 — Conversa sobre como foi o encontro
   postdate_debrief: {
     trial:        { monthly: 0 },
     free:         { monthly: 0 },
@@ -162,15 +162,15 @@ const FEATURES = {
     parceiro_pro: { monthly: null },
     upsell: {
       free: () =>
-        `Debrief de encontro é do *Parceiro* 🔍\n\n` +
-        `Você me conta como foi — eu analiso o que rolou, o que funcionou, o que errou.\n\n` +
-        `Sem rodeios. Honestidade total.\n\n` +
+        `Conversar sobre como foi o encontro é do *Parceiro* 🔍\n\n` +
+        `Você me conta o que rolou — eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar.\n\n` +
+        `Sem rodeio. Honestidade total.\n\n` +
         `Digita *mensal* 👇`,
       trial: () =>
-        `Debrief Pós-Date é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
+        `Análise de como foi o encontro é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
       parceiro: () =>
-        `Você já fez seu debrief do mês.\n\n` +
-        `Renova no mês que vem, ou faz upgrade pro *Parceiro Pro* (ilimitado) 🔥\n\n` +
+        `Você já usou sua análise de encontro do mês.\n\n` +
+        `Renova mês que vem, ou faz upgrade pro *Parceiro Pro*, que é sem limite.\n\n` +
         `Digita *pro* se quiser.`,
     },
   },
