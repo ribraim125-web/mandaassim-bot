@@ -331,24 +331,28 @@ function formatarRespostaDebrief(result) {
     const timing = timingMap[result.next_step_timing] || '⏰ *Próximo passo*';
     let msg3 = `${timing}\n\n${result.next_step_recommendation}`;
 
+    msgs.push(msg3.trim());
+
     const sugestoes = result.message_suggestions;
     if (sugestoes) {
       const quality = result.encounter_quality_assessment || 'unclear';
-      // Só mostra sugestões se o encontro foi positivo ou se há próximo convite
+      // Cada sugestão: label no próprio bloco, mensagem sozinha no próximo
       if (['great', 'good'].includes(quality) && sugestoes.warm_followup) {
-        msg3 += `\n\nManda algo assim 👇\n"${sugestoes.warm_followup}"`;
+        msgs.push(`Manda algo assim 👇`);
+        msgs.push(sugestoes.warm_followup.trim());
         if (sugestoes.playful_callback) {
-          msg3 += `\n\nOu com referência ao encontro:\n"${sugestoes.playful_callback}"`;
+          msgs.push(`Ou com referência ao encontro:`);
+          msgs.push(sugestoes.playful_callback.trim());
         }
       } else if (sugestoes.playful_callback && quality === 'neutral') {
-        msg3 += `\n\nSe quiser tentar algo:\n"${sugestoes.playful_callback}"`;
+        msgs.push(`Se quiser tentar algo:`);
+        msgs.push(sugestoes.playful_callback.trim());
       }
       if (sugestoes.next_invite && ['great', 'good'].includes(quality)) {
-        msg3 += `\n\nPra marcar de novo:\n"${sugestoes.next_invite}"`;
+        msgs.push(`Pra marcar de novo:`);
+        msgs.push(sugestoes.next_invite.trim());
       }
     }
-
-    msgs.push(msg3.trim());
   }
 
   // ── Msg 4: Lições pra próxima vez ────────────────────────────────────────

@@ -256,11 +256,16 @@ function formatarRespostaPreDate(result) {
   // ── Msg 3: Depois do encontro ─────────────────────────────────────────────
   const postMsg = result.post_date_message_suggestion || `curti muito, bora repetir?`;
   let msg3 = `*Depois do encontro:*\n\n`;
-  msg3 += `Manda em 1-3h 👇\n\n`;
-  msg3 += `"${postMsg}"\n\n`;
-  msg3 += `NÃO manda carta longa\n`;
-  msg3 += `NÃO insiste se ela não responder em 24h`;
+  msg3 += `Manda em 1-3h 👇`;
   msgs.push(msg3.trim());
+
+  // Msg 3b: a mensagem sugerida — sozinha no bloco, sem aspas
+  msgs.push(postMsg.trim());
+
+  // Msg 3c: regras pós-encontro
+  let msg3c = `NÃO manda carta longa\n`;
+  msg3c += `NÃO insiste se ela não responder em 24h`;
+  msgs.push(msg3c.trim());
 
   // ── Msg 4: Incentivo personalizado ───────────────────────────────────────
   if (result.encouragement) {

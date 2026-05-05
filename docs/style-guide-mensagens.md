@@ -148,6 +148,37 @@ Funções relevantes em `index.js`:
 
 ---
 
+## As 4 Propriedades Sagradas (mensagens que o user copia)
+
+> Objetivo: user segura o dedo → toca Copiar → cola no Tinder. 5 segundos. Zero edição.
+
+Qualquer mensagem sugerida para o usuário mandar deve ter **todas as 4**:
+
+| # | Propriedade | Certo | Errado |
+|---|-------------|-------|--------|
+| 1 | **Bloco isolado** — sozinha entre dois `---` | `---\nTô pensando em ti agora.\n---` | `Manda assim: "Tô pensando em ti agora."` |
+| 2 | **ZERO aspas** — nenhum tipo (`"`, `'`, `«`) | `Tô pensando em ti agora.` | `"Tô pensando em ti agora."` |
+| 3 | **ZERO prefixo na mesma linha** — rótulo vai no bloco anterior | `Manda isso 👇\n---\nTexto aqui` | `Manda isso: Texto aqui` |
+| 4 | **ZERO formatação WhatsApp** dentro do texto — sem `*bold*`, `_italic_` | `curti muito, bora repetir?` | `*curti muito*, bora repetir?` |
+
+### Exemplo completo ✅
+
+```
+Manda assim 👇
+
+---
+
+curti muito, bora repetir?
+
+---
+```
+
+### Por que isso importa
+
+O user lê no WhatsApp. Qualquer coisa que precisa editar antes de copiar aumenta fricção. Uma aspa esquecida viraliza como print de bot.
+
+---
+
 ## Checklist antes de criar copy nova
 
 - [ ] Cada bloco tem no máximo 1 ideia
@@ -156,3 +187,4 @@ Funções relevantes em `index.js`:
 - [ ] Listas com ✓/✗ têm máx 6 itens por bloco
 - [ ] Preço/pitch separado das features por `---`
 - [ ] Blocos separados por `---` em linha própria
+- [ ] Mensagens sugeridas: bloco isolado, zero aspas, zero prefixo na mesma linha, zero formatação interna

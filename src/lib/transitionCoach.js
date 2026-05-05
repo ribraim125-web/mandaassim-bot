@@ -280,10 +280,11 @@ function formatarRespostaCoach(result) {
     msgs.push(msg2.trim());
   }
 
-  // ── Msg 3: a mensagem pronta ─────────────────────────────────────────────
+  // ── Msg 3: a mensagem pronta — label em bloco separado, texto sozinho
   const sugestao = result.suggested_message_to_send?.balanced;
   if (sugestao) {
-    msgs.push(`Manda isso 👇\n\n"${sugestao}"`);
+    msgs.push(`Manda isso 👇`);
+    msgs.push(sugestao.trim());
   }
 
   // ── Msg 4: contingência ──────────────────────────────────────────────────
