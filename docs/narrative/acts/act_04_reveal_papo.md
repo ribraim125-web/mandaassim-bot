@@ -21,7 +21,7 @@ Me conta a situação — em texto, sem precisar de print — e a gente lê junt
 
 ---
 
-Sem papo de "respira fundo, conecta com o momento"
+Sem autoajuda, sem guru, sem terapeuta
 
 Sem coach que cobra R$300 pra sessão
 

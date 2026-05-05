@@ -10,6 +10,7 @@
     "acquisition-report": "node scripts/acquisition-report.js",
     "narrative-stats": "node scripts/narrative-stats.js",
     "narrative-preview": "node scripts/narrative-preview.js",
+    "validate-copy": "node scripts/validate-copy.js",
     "subscription-stats": "node scripts/subscription-stats.js"
   },
   "dependencies": {
