@@ -14,13 +14,15 @@
 
 ---
 
-*Manda assim:*
-
-_"[TEXTO_RESPOSTA_SUGERIDA]"_
+*Manda essa 👇*
 
 ---
 
-*Por quê esse texto:*
+[TEXTO_RESPOSTA_SUGERIDA]
+
+---
+
+*Por quê funciona:*
 
 [JUSTIFICATIVA_BREVE]
 
