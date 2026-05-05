@@ -41,9 +41,11 @@ const { recordOutcome }     = require('./src/narrative/narrativeLog');
 const {
   getAct1Message,
   handleAct1Response,
+  getDiagnosticQuestion,
   getAct3Suffix,
   getAct7Message,
 } = require('./src/narrative/narrativeInline');
+const { generateMirroringAct25 } = require('./src/narrative/act_2_5_mirroring');
 const { startWorker: startNarrativeWorker } = require('./src/narrative/narrativeWorker');
 const { startNarrativeEngine }              = require('./src/narrative/engine');
 const { getActById, parseUserChoice }       = require('./src/narrative/acts');
@@ -2243,11 +2245,17 @@ client.on('message', async (message) => {
       userContext.set(phone, { ...currentCtx2, pendingProfileClassification: null });
     }
 
-    // ── Resposta ao Ato 1 (persona 1-4) → dispara Ato 2 ─────────────────────
-    const act2Msg = await handleAct1Response(phone, text).catch(() => null);
-    if (act2Msg) {
-      await client.sendMessage(message.from, act2Msg);
+    // ── Resposta ao Ato 1 (persona 1-4) → dispara Ato 2 + inicia diagnóstico ─
+    const act2Result = await handleAct1Response(phone, text).catch(() => null);
+    if (act2Result) {
+      await client.sendMessage(message.from, act2Result.message);
       logJourneyEvent(phone, 'first_message_sent').catch(() => {});
+      // Inicia estado de diagnóstico: aguarda Q1 response (questionIndex=0)
+      const currentCtxAct2 = userContext.get(phone) || {};
+      userContext.set(phone, {
+        ...currentCtxAct2,
+        diagnosticState: { persona: act2Result.persona, questionIndex: 0, answers: {} },
+      });
       return;
     }
 
@@ -2309,6 +2317,41 @@ client.on('message', async (message) => {
         } catch (_) {
           stopTypingTC();
           await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');
+        }
+      }
+      return;
+    }
+
+    // ── Diagnóstico Ato 2 → 2.5 (espelhamento dinâmico) ─────────────────────
+    const diagCtxCheck = getUserContext(phone);
+    if (diagCtxCheck?.diagnosticState) {
+      const diagState = diagCtxCheck.diagnosticState;
+      const { persona: diagPersona, questionIndex: diagQIdx, answers: diagAnswers } = diagState;
+      const updatedDiagAnswers = { ...diagAnswers, [diagQIdx]: text };
+
+      if (diagQIdx < 2) {
+        // Ainda tem perguntas (0→Q2, 1→Q3)
+        const nextIdx = diagQIdx + 1;
+        const currentCtxDiag = userContext.get(phone) || {};
+        userContext.set(phone, {
+          ...currentCtxDiag,
+          diagnosticState: { persona: diagPersona, questionIndex: nextIdx, answers: updatedDiagAnswers },
+        });
+        await client.sendMessage(message.from, getDiagnosticQuestion(diagPersona, diagQIdx));
+      } else {
+        // 3 respostas coletadas → gera espelhamento
+        const currentCtxDiag = userContext.get(phone) || {};
+        userContext.set(phone, { ...currentCtxDiag, diagnosticState: null });
+
+        const stopTypingDiag = await startTyping(message);
+        try {
+          const mirrorMsgs = await generateMirroringAct25(phone, diagPersona, updatedDiagAnswers);
+          stopTypingDiag();
+          for (const m of mirrorMsgs) await client.sendMessage(message.from, m);
+          logJourneyEvent(phone, 'narrative_act_2_5_sent', { persona: diagPersona }).catch(() => {});
+        } catch (_) {
+          stopTypingDiag();
+          await client.sendMessage(message.from, 'Manda o print ou me descreve a situação — eu leio agora.');
         }
       }
       return;

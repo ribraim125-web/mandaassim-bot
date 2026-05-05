@@ -2,10 +2,11 @@
  * narrativeInline.js — disparo de atos que acontecem dentro do fluxo de mensagem
  *
  * Chamado do index.js nos pontos certos:
- *   fireAct1(phone, chatId)         — na boas-vindas (substituí welcome msg 1)
- *   handleAct1Response(phone, text) — detecta "1"–"4" e retorna act2 message ou null
- *   getAct3Suffix(phone)            — retorna sufixo da primeira análise ou null
- *   getAct7Message(phone, limitType)— retorna mensagem de limite A/B ou null
+ *   getAct1Message(phone)                 — na boas-vindas (substituí welcome msg 1)
+ *   handleAct1Response(phone, text)       — detecta "1"–"4" e retorna { message, persona } ou null
+ *   getDiagnosticQuestion(persona, index) — retorna Q2 ou Q3 do diagnóstico (0=Q2, 1=Q3)
+ *   getAct3Suffix(phone)                  — retorna sufixo da primeira análise ou null
+ *   getAct7Message(phone, limitType)      — retorna mensagem de limite A/B ou null
  *
  * Todas as funções retornam null se a feature flag estiver OFF
  * ou se o ato já foi enviado.
@@ -79,7 +80,22 @@ async function handleAct1Response(phone, text) {
   await logActSent(phone, act2.id, personaData.variant || 'A');
   await logJourneyEvent(phone, 'narrative_act_2_sent', { persona: choice });
 
-  return personaData.message;
+  return { message: personaData.message, persona: choice };
+}
+
+// ── Diagnóstico Ato 2 → 2.5 ──────────────────────────────────────────────────
+
+/**
+ * Retorna a pergunta diagnóstica Q2 (index=0) ou Q3 (index=1) para a persona.
+ * Q1 já está embutida na mensagem do Ato 2.
+ *
+ * @param {string} persona
+ * @param {number} index — 0 para Q2, 1 para Q3
+ * @returns {string}
+ */
+function getDiagnosticQuestion(persona, index) {
+  const questions = act2.diagnosticQuestions[persona] || act2.diagnosticQuestions.outro;
+  return questions[index];
 }
 
 // ── Ato 3 ─────────────────────────────────────────────────────────────────────
@@ -132,6 +148,7 @@ async function getAct7Message(phone, limitType) {
 module.exports = {
   getAct1Message,
   handleAct1Response,
+  getDiagnosticQuestion,
   getAct3Suffix,
   getAct7Message,
 };
