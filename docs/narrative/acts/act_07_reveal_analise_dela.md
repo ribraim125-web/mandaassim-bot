@@ -1,7 +1,7 @@
 // ATO 7 — Revela Análise do Perfil Dela (Parceiro Pro)
 // Função DR: Bencivenga — diferenciação por inversão (não é manipulação, é leitura)
 
-Próximo nível.
+Próximo nível
 
 ---
 
@@ -13,9 +13,9 @@ Faz isso:
 
 ---
 
-*Tira print do perfil dela.*
+*Tira print do perfil dela*
 
-*Manda pra mim.*
+*Manda pra mim*
 
 ---
 
@@ -31,30 +31,28 @@ Eu leio:
 
 ---
 
-E te entrego *a primeira mensagem.*
+E te entrego *a primeira mensagem*
 
-Não uma mensagem genérica.
+Não uma mensagem genérica
 
-*A* mensagem.
+*A* mensagem
 
-A que mostra que tu prestou atenção em quem ela é.
+A que mostra que tu a entende de verdade
 
 ---
 
-Não _"oi linda"_ como os 50 outros.
+Não _"oi linda"_ como os 50 outros
 
-Não _"tudo bem?"_ como os outros 50.
+Não _"tudo bem?"_ como os outros 50
 
 *Algo que faz ela parar e pensar:*
 
-_"esse aqui leu meu perfil de verdade."_
+_"esse aqui me entende de verdade"_
 
 ---
 
-Caras que fazem isso têm taxa de resposta muito maior.
+Não é manipulação
 
-Não é manipulação.
+*É leitura. É respeito performado*
 
-*É leitura. É respeito performado.*
-
-Próximo match: faz e me prova.
+Próximo match: faz e me prova

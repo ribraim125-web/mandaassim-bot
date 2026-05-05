@@ -1,61 +1,60 @@
 // ATO 10 — A OFERTA principal (variant A)
 // Função DR: stack de valor + ancoragem comparativa + identidade por contraste
 
-*Bora falar de continuar.*
+*Bora falar de continuar*
 
-A partir de amanhã tu tem 3 caminhos.
+A partir de amanhã tu tem 3 caminhos
 
-Vou ser honesto sobre cada um.
+Vou ser honesto sobre cada um
 
 ---
 
 🚫 *CAMINHO 1 — Free*
 
-Tu continua comigo, mas com limites:
-✗ 3 respostas por dia
+Tu continua comigo, mas com limite diário:
+✗ 3 análises de conversa por dia
 ✗ 1 análise de print por dia
-✗ 3 conversas por dia
 
 ---
 
-Pra teste casual, dá.
+Pra teste casual, dá
 
-Mas tu já viu que naturalmente usa muito mais que isso.
+Mas tu já viu que naturalmente usa muito mais que isso
 
-Vai bater no limite no primeiro match novo.
+Vai bater no limite no primeiro interesse novo
 
-_Honesto: free é pra quem ainda tá decidindo. Não é pra quem quer resolver._
+_Honesto: free é pra quem ainda tá decidindo. Não é pra quem quer resolver_
 
 ---
 
 ✅ *CAMINHO 2 — Parceiro | R$ 29,90/mês*
 
-Tudo que tu já usou no trial. *Ilimitado.*
-✓ Responder mensagem dela, sem limite
-✓ Analisar conversa inteira, sem limite
-✓ Conversar comigo sobre o que tá rolando, sem limite
+Tudo que tu já usou no trial. *Ilimitado*
+✓ Analisar qualquer conversa, sem limite
+✓ Mandar print pra eu decifrar, sem limite
+✓ Me chamar quando tiver na dúvida, sem limite
 
 ---
 
-*R$ 29,90/mês.*
+*R$ 29,90/mês*
 
-Menos que pizza grande.
+Menos de 1 real por dia
 
-Cancela em 1 mensagem comigo. Sem ligação. Sem retenção. Sem letra miúda.
+Cancela em 1 mensagem. Sem ligação. Sem retenção. Sem letra miúda
 
 ---
 
 🚀 *CAMINHO 3 — Parceiro Pro | R$ 79,90/mês*
 
-Tudo do Parceiro + a parte que muda jogo de verdade:
+Tudo do Parceiro + o que muda jogo de verdade:
 
-✓ Auditar teu perfil — fotos, bio, ordem
+✓ *Analisar teu próprio perfil* — eu olho tuas fotos, tua bio, te falo o que tá afastando mulher e o que trocar
 
-✓ Analisar perfil dela e montar a primeira mensagem matadora
+✓ *Analisar o perfil dela* — tu manda print da pretendente, eu monto a primeira mensagem que faz ela te responder
 
-✓ Te preparar antes de cada encontro
+✓ *Te preparar pro encontro* — roupa, papo, o que evitar, como sair em alta
 
-✓ Analisar como foi depois e te dizer o próximo passo
+✓ *Analisar como foi depois* — eu leio os sinais que tu não viu e te digo o próximo passo
 
 ---
 
@@ -69,25 +68,25 @@ Tudo do Parceiro + a parte que muda jogo de verdade:
 
 ---
 
-Eu sou tudo isso.
+Eu sou tudo isso
 
-*Ilimitado. R$ 79,90/mês.*
+*Ilimitado. R$ 79,90/mês*
 
-Equivale a *R$ 2,66 por dia.*
+Equivale a *R$ 2,66 por dia*
 
-_Pão na chapa caro custa mais._
-
----
-
-👉 Parceiro: [LINK_PARCEIRO]
-
-🚀 Parceiro Pro: [LINK_PARCEIRO_PRO]
+_Pão na chapa custa mais caro_
 
 ---
 
-Pensa hoje.
+Digita *mensal* pro Parceiro ou *pro* pro Parceiro Pro
 
-Te aviso de novo em breve.
+Eu gero o QR Code na hora 👇
+
+---
+
+Pensa hoje
+
+Te aviso de novo em breve
 
 ---
 
