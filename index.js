@@ -1454,6 +1454,7 @@ function isTransitionCoachEnabled(phone) {
 
 function isPreDateCoachEnabled(phone) {
   switch (PREDATE_COACH_MODE) {
+    case 'true':
     case 'all':  return true;
     case 'test': return phone === PREDATE_COACH_TEST_PHONE;
     case 'beta': {
@@ -1469,6 +1470,7 @@ function isPreDateCoachEnabled(phone) {
 
 function isPostdateDebriefEnabled(phone) {
   switch (POSTDATE_DEBRIEF_MODE) {
+    case 'true':
     case 'all':  return true;
     case 'test': return phone === POSTDATE_DEBRIEF_TEST_PHONE;
     case 'beta': {
