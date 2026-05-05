@@ -216,6 +216,10 @@ async function tick() {
  * @param {import('whatsapp-web.js').Client} client
  */
 function startNarrativeEngine(client) {
+  if ((process.env.NARRATIVE_PROACTIVE || 'false').toLowerCase() !== 'true') {
+    console.log('[NarrativeEngine] Desabilitado (NARRATIVE_PROACTIVE != true). Atos inline ainda funcionam.');
+    return;
+  }
   setClient(client);
   console.log('[NarrativeEngine] Engine iniciada — tick a cada 15min.');
   // Primeiro tick em 2min (deixa o bot estabilizar)

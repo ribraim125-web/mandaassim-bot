@@ -174,6 +174,10 @@ async function runScheduledCheck() {
 
 // ── Intervalos ─────────────────────────────────────────────────────────────────
 function startWorker(client) {
+  if ((process.env.NARRATIVE_PROACTIVE || 'false').toLowerCase() !== 'true') {
+    console.log('[NarrativeWorker] Desabilitado (NARRATIVE_PROACTIVE != true). Atos inline ainda funcionam.');
+    return;
+  }
   setClient(client);
   console.log('[NarrativeWorker] Iniciado');
 
