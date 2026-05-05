@@ -1,7 +1,7 @@
 /**
  * features.js — Matriz de features e limites por plano
  *
- * Planos: trial | free | wingman | wingman_pro
+ * Planos: trial | free | parceiro | parceiro_pro
  *
  * Uso:
  *   const { canUseFeature, incrementFeatureUsage } = require('./src/config/features');
@@ -21,158 +21,156 @@ const { createClient } = require('@supabase/supabase-js');
 const FEATURES = {
   // Feature principal: mensagens de conquista
   messages: {
-    trial:       { daily: null },   // ilimitado nos 3 dias
-    free:        { daily: 3    },
-    wingman:     { daily: null },
-    wingman_pro: { daily: null },
+    trial:        { daily: null },   // ilimitado nos 3 dias
+    free:         { daily: 3    },
+    parceiro:     { daily: null },
+    parceiro_pro: { daily: null },
     upsell: {
       free: (remaining) =>
         remaining === 0
-          ? `Deu 3 por hoje. Amanhã renova.\n\nSe a conversa tá quente e não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`
+          ? `Deu 3 por hoje. Amanhã renova.\n\nSe a conversa tá quente e não dá pra esperar: *mensal* (R$29,90).`
           : `_${3 - remaining}/3 análises usadas hoje._`,
     },
   },
 
   // Camada 1 — Análise de print de conversa
   print_analysis: {
-    trial:       { daily: 1 },
-    free:        { daily: 0 },     // bloqueado — upsell
-    wingman:     { daily: 5 },
-    wingman_pro: { daily: 5 },
+    trial:        { daily: 1 },
+    free:         { daily: 0 },     // bloqueado — upsell
+    parceiro:     { daily: 5 },
+    parceiro_pro: { daily: 5 },
     upsell: {
       free: () =>
-        `Análise de print é uma feature do *Wingman* 🔍\n\n` +
+        `Análise de print é uma feature do *Parceiro* 🔍\n\n` +
         `Com ela: manda qualquer conversa do Tinder, WhatsApp ou Bumble e eu leio o que tá rolando.\n\n` +
-        `⚡ *24h ilimitado* — R$4,99 → *24h*\n` +
-        `📅 *Mensal* — R$29,90/mês → *mensal*\n` +
-        `📆 *Anual* — R$299/ano → *anual*`,
+        `📅 *Mensal* — R$29,90/mês → digita *mensal*`,
       trial: () =>
-        `Deu 1 análise de print por hoje — esse é o limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`,
-      wingman: () =>
+        `Deu 1 análise de print por hoje — esse é o limite do trial.\n\nQuer ilimitado? Digita *mensal* (R$29,90).`,
+      parceiro: () =>
         `Chegou no limite de 5 análises de print hoje.\n\nAmanhã cedo tem mais 5. Usa texto enquanto isso.`,
-      wingman_pro: () =>
+      parceiro_pro: () =>
         `Chegou no limite de 5 análises de print hoje.\n\nAmanhã cedo tem mais 5.`,
     },
   },
 
   // Camada 2 — Análise de perfil (Tinder/Bumble)
   profile_analysis: {
-    trial:       { daily: 0 },     // bloqueado — upsell
-    free:        { daily: 0 },
-    wingman:     { daily: 0 },     // bloqueado — exclusivo Pro
-    wingman_pro: { daily: 10 },
+    trial:        { daily: 0 },     // bloqueado — upsell
+    free:         { daily: 0 },
+    parceiro:     { daily: 0 },     // bloqueado — exclusivo Pro
+    parceiro_pro: { daily: 10 },
     upsell: {
       free: () =>
-        `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\n` +
+        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
         `Você manda o print do perfil dela no Tinder, Bumble ou Instagram — eu leio o que ela revela e gero a primeira mensagem certa.\n\n` +
         `Digita *pro* 👇`,
       trial: () =>
-        `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
-      wingman: () =>
-        `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
-      wingman_pro: () =>
+        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      parceiro: () =>
+        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      parceiro_pro: () =>
         `Chegou no limite de 10 análises de perfil hoje.\n\nAmanhã cedo tem mais 10.`,
     },
   },
 
   // Camada 3 — Coach de Transição
   transition_coach: {
-    trial:       { monthly: 0 },   // bloqueado
-    free:        { monthly: 0 },
-    wingman:     { monthly: 2 },
-    wingman_pro: { monthly: null },
+    trial:        { monthly: 0 },   // bloqueado
+    free:         { monthly: 0 },
+    parceiro:     { monthly: 2 },
+    parceiro_pro: { monthly: null },
     upsell: {
       free: () =>
         `Marcar o primeiro encontro é o momento mais crítico — e a maioria erra aqui.\n\n` +
         `Com o *Coach de Transição* eu te guio pra hora certa, com a mensagem certa.\n\n` +
-        `Disponível no *Wingman* (R$29,90/mês) ou *Anual* (R$299).\n\n` +
-        `Digita *mensal* ou *anual* 👇`,
+        `Disponível no *Parceiro* (R$29,90/mês).\n\n` +
+        `Digita *mensal* 👇`,
       trial: () =>
-        `Coach de Transição é do *Wingman* (R$29,90/mês).\n\nDigita *mensal* ou *anual* 👇`,
-      wingman: () =>
+        `Coach de Transição é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
+      parceiro: () =>
         `Você já usou as 2 sessões do Coach de Transição esse mês.\n\n` +
-        `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
+        `Renova no mês que vem, ou faz upgrade pro *Parceiro Pro* (ilimitado) 🔥\n\n` +
         `Digita *pro* se quiser.`,
     },
   },
 
   // Camada 4 — Coach Pré-Date
   predate_coach: {
-    trial:       { monthly: 0 },
-    free:        { monthly: 0 },
-    wingman:     { monthly: 1 },
-    wingman_pro: { monthly: null },
+    trial:        { monthly: 0 },
+    free:         { monthly: 0 },
+    parceiro:     { monthly: 1 },
+    parceiro_pro: { monthly: null },
     upsell: {
       free: () =>
-        `Preparação para encontro é do *Wingman* 🗓️\n\n` +
+        `Preparação para encontro é do *Parceiro* 🗓️\n\n` +
         `Você me conta quando e onde — eu te dou o checklist completo.\n\n` +
-        `Digita *mensal* ou *anual* 👇`,
+        `Digita *mensal* 👇`,
       trial: () =>
-        `Coach Pré-Date é do *Wingman* (R$29,90/mês).\n\nDigita *mensal* ou *anual* 👇`,
-      wingman: () =>
+        `Coach Pré-Date é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
+      parceiro: () =>
         `Você já usou sua sessão pré-date do mês.\n\n` +
-        `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
+        `Renova no mês que vem, ou faz upgrade pro *Parceiro Pro* (ilimitado) 🔥\n\n` +
         `Digita *pro* se quiser.`,
     },
   },
 
-  // Camada 5 — Auditar Meu Perfil (Vision — Wingman Pro)
+  // Camada 5 — Auditar Meu Perfil (Vision — Parceiro Pro)
   profile_self_audit: {
-    trial:       { daily: 0 },
-    free:        { daily: 0 },
-    wingman:     { daily: 0 },
-    wingman_pro: { daily: 30 },
+    trial:        { daily: 0 },
+    free:         { daily: 0 },
+    parceiro:     { daily: 0 },
+    parceiro_pro: { daily: 30 },
     upsell: {
       free: () =>
-        `Auditoria de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\n` +
+        `Auditoria de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
         `Manda print do teu perfil — eu analiso foto a foto, bio e te dou as 3 mudanças mais impactantes.\n\n` +
         `Digita *pro* 👇`,
       trial: () =>
-        `Auditoria de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
-      wingman: () =>
-        `Auditoria de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
-      wingman_pro: () =>
+        `Auditoria de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      parceiro: () =>
+        `Auditoria de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      parceiro_pro: () =>
         `Chegou no limite de 30 auditorias hoje.\n\nAmanhã cedo tem mais 30.`,
     },
   },
 
-  // Camada 6 — Analisar Perfil Dela (Vision — Wingman Pro)
+  // Camada 6 — Analisar Perfil Dela (Vision — Parceiro Pro)
   profile_her_analysis: {
-    trial:       { daily: 0 },
-    free:        { daily: 0 },
-    wingman:     { daily: 0 },
-    wingman_pro: { daily: 30 },
+    trial:        { daily: 0 },
+    free:         { daily: 0 },
+    parceiro:     { daily: 0 },
+    parceiro_pro: { daily: 30 },
     upsell: {
       free: () =>
-        `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\n` +
+        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
         `Você manda o print do perfil dela no Tinder, Bumble ou Instagram — eu leio o que ela revela e gero a primeira mensagem certa.\n\n` +
         `Digita *pro* 👇`,
       trial: () =>
-        `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
-      wingman: () =>
-        `Análise de Perfil é do *Wingman Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
-      wingman_pro: () =>
+        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      parceiro: () =>
+        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      parceiro_pro: () =>
         `Chegou no limite de 30 análises de perfil hoje.\n\nAmanhã cedo tem mais 30.`,
     },
   },
 
   // Camada 7 — Debrief Pós-Date
   postdate_debrief: {
-    trial:       { monthly: 0 },
-    free:        { monthly: 0 },
-    wingman:     { monthly: 1 },
-    wingman_pro: { monthly: null },
+    trial:        { monthly: 0 },
+    free:         { monthly: 0 },
+    parceiro:     { monthly: 1 },
+    parceiro_pro: { monthly: null },
     upsell: {
       free: () =>
-        `Debrief de encontro é do *Wingman* 🔍\n\n` +
+        `Debrief de encontro é do *Parceiro* 🔍\n\n` +
         `Você me conta como foi — eu analiso o que rolou, o que funcionou, o que errou.\n\n` +
         `Sem rodeios. Honestidade total.\n\n` +
-        `Digita *mensal* ou *anual* 👇`,
+        `Digita *mensal* 👇`,
       trial: () =>
-        `Debrief Pós-Date é do *Wingman* (R$29,90/mês).\n\nDigita *mensal* ou *anual* 👇`,
-      wingman: () =>
+        `Debrief Pós-Date é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
+      parceiro: () =>
         `Você já fez seu debrief do mês.\n\n` +
-        `Renova no mês que vem, ou faz upgrade pro *Wingman Pro* (ilimitado) 🔥\n\n` +
+        `Renova no mês que vem, ou faz upgrade pro *Parceiro Pro* (ilimitado) 🔥\n\n` +
         `Digita *pro* se quiser.`,
     },
   },
@@ -231,11 +229,14 @@ async function getMonthlyUsage(phone, featureKey) {
  * @param {string} featureKey — chave da feature em FEATURES
  * @returns {Promise<{ allowed: boolean, reason: string|null, remaining: number|null, upsellMessage: string|null }>}
  */
+const PLAN_NORMALIZE = { wingman: 'parceiro', wingman_pro: 'parceiro_pro', premium: 'parceiro', pro: 'parceiro_pro', direto: 'parceiro', direto_pro: 'parceiro_pro' };
+
 async function canUseFeature(phone, plan, featureKey) {
+  const p = PLAN_NORMALIZE[plan] || plan;
   const feature = FEATURES[featureKey];
   if (!feature) return { allowed: true, reason: null, remaining: null, upsellMessage: null };
 
-  const limits = feature[plan];
+  const limits = feature[p];
   if (!limits) return { allowed: true, reason: null, remaining: null, upsellMessage: null };
 
   const upsells = feature.upsell || {};
@@ -247,7 +248,7 @@ async function canUseFeature(phone, plan, featureKey) {
         allowed: false,
         reason: 'plan_blocked',
         remaining: 0,
-        upsellMessage: upsells[plan]?.() || null,
+        upsellMessage: upsells[p]?.() || null,
       };
     }
     if (limits.daily === null) {
@@ -259,7 +260,7 @@ async function canUseFeature(phone, plan, featureKey) {
         allowed: false,
         reason: 'daily_limit',
         remaining: 0,
-        upsellMessage: upsells[plan]?.() || null,
+        upsellMessage: upsells[p]?.() || null,
       };
     }
     return { allowed: true, reason: null, remaining: limits.daily - used, upsellMessage: null };
@@ -272,7 +273,7 @@ async function canUseFeature(phone, plan, featureKey) {
         allowed: false,
         reason: 'plan_blocked',
         remaining: 0,
-        upsellMessage: upsells[plan]?.() || null,
+        upsellMessage: upsells[p]?.() || null,
       };
     }
     if (limits.monthly === null) {
@@ -284,7 +285,7 @@ async function canUseFeature(phone, plan, featureKey) {
         allowed: false,
         reason: 'monthly_limit',
         remaining: 0,
-        upsellMessage: upsells[plan]?.() || null,
+        upsellMessage: upsells[p]?.() || null,
       };
     }
     return { allowed: true, reason: null, remaining: limits.monthly - used, upsellMessage: null };
@@ -333,14 +334,15 @@ async function incrementFeatureUsage(phone, featureKey) {
 // ---------------------------------------------------------------------------
 
 const PLAN_LABELS = {
-  trial:       '🎉 Trial',
-  free:        '🆓 Free',
-  wingman:     '🌟 Wingman',
-  wingman_pro: '🔥 Wingman Pro',
+  trial:        '🎉 Trial',
+  free:         '🆓 Free',
+  parceiro:     '🌟 Parceiro',
+  parceiro_pro: '🔥 Parceiro Pro',
 };
 
 function getPlanLabel(plan) {
-  return PLAN_LABELS[plan] || '🆓 Free';
+  const p = PLAN_NORMALIZE[plan] || plan;
+  return PLAN_LABELS[p] || '🆓 Free';
 }
 
 module.exports = {
