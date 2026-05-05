@@ -135,6 +135,17 @@ const MINDSET_CAPSULES_TEST_PHONE = process.env.MINDSET_CAPSULES_TEST_PHONE || '
 // Cache in-memory para evitar checar convite de mindset em cada mensagem
 const mindsetInviteChecked = new Set();
 
+// Rate limit do comando "paguei" — máximo 1 consulta ao MP por minuto por phone
+const pagueiLastCall = new Map(); // phone -> timestamp
+function canCallPaguei(phone) {
+  const last = pagueiLastCall.get(phone) || 0;
+  if (Date.now() - last < 60_000) return false;
+  pagueiLastCall.set(phone, Date.now());
+  return true;
+}
+// Limpa o map a cada hora para não crescer indefinidamente
+setInterval(() => pagueiLastCall.clear(), 60 * 60 * 1000);
+
 const MENSAGEM_RENOVACAO =
   `Seu acesso ilimitado vence em *3 dias*.\n\n` +
   `Se quiser renovar antes: *mensal* ou *anual*.`;
@@ -2030,6 +2041,12 @@ client.on('message', async (message) => {
       const isPaidActive = ['parceiro','parceiro_pro','wingman','wingman_pro'].includes(user?.plan) && (!user.plan_expires_at || new Date(user.plan_expires_at) > new Date());
       if (isPaidActive) {
         await message.reply('✅ *Parceiro ativo* — pode mandar à vontade.');
+        return;
+      }
+
+      // Rate limit: 1 consulta ao MP por minuto (evita spam e race condition)
+      if (!canCallPaguei(phone)) {
+        await message.reply('Aguarda 1 minuto e tenta de novo — o banco pode estar processando.');
         return;
       }
 

@@ -104,27 +104,39 @@ async function sendWelcomeSequence(waClient, chatId, messages) {
 
 /**
  * Valida a assinatura do webhook enviada pelo Mercado Pago.
- * Retorna true se válida (ou se o secret não estiver configurado).
+ * Retorna true se válida (ou se o secret não estiver configurado em dev).
+ * Rejeita requisições de payment sem assinatura quando secret está configurado.
  */
 function validarAssinatura(req) {
   const secret = process.env.MP_WEBHOOK_SECRET;
-  if (!secret) return true; // sem secret configurado, aceita tudo (só em dev)
+  if (!secret) return true; // sem secret configurado, aceita (só em dev)
 
   const xSignature = req.headers['x-signature'];
   const xRequestId = req.headers['x-request-id'];
-  // Se não veio assinatura, deixa passar (MP envia pings e notificações sem header)
-  if (!xSignature || !xRequestId) return true;
+
+  // Sem headers de assinatura: aceitar apenas notificações que NÃO são payment
+  // Pings e queries de status do MP não carregam type=payment, então são seguros
+  if (!xSignature || !xRequestId) {
+    const { type } = req.body || {};
+    // Rejeita silenciosamente qualquer coisa que diz ser payment mas não tem assinatura
+    if (type === 'payment') return false;
+    return true; // pings e outros eventos passam
+  }
 
   const dataId = req.body?.data?.id ?? '';
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${xSignature.split(',').find(p => p.startsWith('ts='))?.split('=')[1] ?? ''};`;
-
   const ts = xSignature.split(',').find(p => p.startsWith('ts='))?.split('=')[1];
   const v1 = xSignature.split(',').find(p => p.startsWith('v1='))?.split('=')[1];
   if (!ts || !v1) return false;
 
   const toSign = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
   const hash = crypto.createHmac('sha256', secret).update(toSign).digest('hex');
-  return hash === v1;
+
+  // Comparação timing-safe para prevenir timing attacks
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hash, 'utf8'), Buffer.from(v1, 'utf8'));
+  } catch {
+    return false; // buffers de tamanhos diferentes → inválido
+  }
 }
 
 /**
@@ -229,13 +241,22 @@ function createWebhookApp(waClient) {
         return;
       }
 
-      // Idempotência: evita processar duas vezes
-      if (paymentRow.status === 'approved') {
-        console.log(`[Webhook] Pagamento ${externalRef} já processado — ignorando.`);
+      // Idempotência: tenta marcar como 'approved' APENAS se ainda está 'pending'
+      // Isso funciona como lock otimista — somente uma das requisições concorrentes vai passar
+      const { data: updatedPayment, error: updateErr } = await supabase
+        .from('payments')
+        .update({ status: 'approved', mp_payment_id: paymentId, updated_at: new Date().toISOString() })
+        .eq('external_ref', externalRef)
+        .eq('status', 'pending') // só atualiza se ainda pending
+        .select('phone')
+        .maybeSingle();
+
+      if (updateErr || !updatedPayment) {
+        console.log(`[Webhook] Pagamento ${externalRef} já processado ou inválido — ignorando.`);
         return;
       }
 
-      const phone = paymentRow.phone;
+      const phone = updatedPayment.phone;
 
       // Busca wa_chat_id e expiração atual do usuário
       const { data: userRow } = await supabase
@@ -257,17 +278,11 @@ function createWebhookApp(waClient) {
       // Busca plano anterior para tracking
       const planAnterior = userRow?.plan || 'free';
 
-      // Atualiza pagamento e usuário no banco
-      await Promise.all([
-        supabase
-          .from('payments')
-          .update({ status: 'approved', mp_payment_id: paymentId, updated_at: new Date().toISOString() })
-          .eq('external_ref', externalRef),
-        supabase
-          .from('users')
-          .update({ plan: newPlan, plan_expires_at: expiresAtIso, renewal_notified: false, winback_unlock_at: null })
-          .eq('phone', phone),
-      ]);
+      // Atualiza usuário no banco (payment já foi atualizado no lock acima)
+      await supabase
+        .from('users')
+        .update({ plan: newPlan, plan_expires_at: expiresAtIso, renewal_notified: false, winback_unlock_at: null })
+        .eq('phone', phone);
 
       console.log(`[Webhook] ✅ Usuário ${phone} promovido para ${newPlan} (${days}d)!`);
 
@@ -324,6 +339,7 @@ function createWebhookApp(waClient) {
     if (!validarAdminKey(req)) return res.status(401).json({ error: 'não autorizado' });
     const { phone } = req.body;
     if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+    if (!/^\d{10,15}$/.test(phone)) return res.status(400).json({ error: 'phone inválido' });
 
     const supabase = getSupabase();
     const expiresAt = new Date();
@@ -363,6 +379,7 @@ function createWebhookApp(waClient) {
     }
     const { phone } = req.body;
     if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+    if (!/^\d{10,15}$/.test(phone)) return res.status(400).json({ error: 'phone inválido' });
 
     const supabase = getSupabase();
     const { data: userRow, error } = await supabase
