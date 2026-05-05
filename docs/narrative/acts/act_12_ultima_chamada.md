@@ -6,15 +6,15 @@
 
 ---
 
-Em 30min tu volta pra 3 mensagens por dia.
+Em 30min tu volta pra 3 mensagens por dia
 
 Lembra como era antes do MandaAssim?
 
-Ela mandando "kk" e tu sem saber se era interesse ou dispensa.
-Ela sumindo 3 dias e tu refazendo a mensagem na cabeça.
-Manda errado, queima o match, próximo.
+Ela mandando "kk" e tu sem saber se era interesse ou dispensa
+Ela sumindo 3 dias e tu refazendo a mensagem na cabeça
+Manda errado, queima o match, próximo
 
-Tu já saiu disso.
+Tu já saiu disso
 
 *Não precisa voltar.*
 

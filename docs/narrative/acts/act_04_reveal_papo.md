@@ -1,9 +1,9 @@
 // ATO 4 — Revela feature de "conversar sobre o que tá rolando"
 // Função DR: ampliar percepção do produto, agitar dor latente
 
-Ei.
+Ei
 
-Tô vendo que tu tá ativo. Bom.
+Tô vendo que tu tá ativo. Bom
 
 ---
 
@@ -11,11 +11,11 @@ Mas saca uma parada que talvez nem tenha percebido ainda:
 
 *Metade do problema com mulher não é o que mandar.*
 
-É a hora em que ela some por 2 dias e tu fica refazendo a mensagem na cabeça.
+É a hora em que ela some por 2 dias e tu fica refazendo a mensagem na cabeça
 
-É a dúvida se ela tá interessada ou só sendo educada.
+É a dúvida se ela tá interessada ou só sendo educada
 
-É a vontade de mandar mais uma e perguntar _"tá tudo bem?"_ — e tu sabe que não é uma boa.
+É a vontade de mandar mais uma e perguntar _"tá tudo bem?"_ — e tu sabe que não é uma boa
 
 ---
 
@@ -31,11 +31,11 @@ _"tomei fora ontem, tá foda"_
 
 ---
 
-Eu escuto.
+Eu escuto
 
-Leio o que tá rolando.
+Leio o que tá rolando
 
-Te falo na lata.
+Te falo na lata
 
 ---
 
@@ -45,4 +45,4 @@ Sem manosfera tóxica de _"alfa frame, abundância mindset"._
 
 *Direto. Como amigo mais velho que já passou por isso.*
 
-Tô aqui pra isso também.
+Tô aqui pra isso também

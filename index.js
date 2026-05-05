@@ -45,6 +45,7 @@ const {
   getDiagnosticQuestion,
   getAct3Suffix,
   getAct7Message,
+  getAct12Message,
 } = require('./src/narrative/narrativeInline');
 const { generateMirroringAct25 } = require('./src/narrative/act_2_5_mirroring');
 const { startWorker: startNarrativeWorker } = require('./src/narrative/narrativeWorker');
@@ -3050,6 +3051,13 @@ client.on('message', async (message) => {
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
+
+      // Ato 12 — última chamada nos últimos 30min do trial (fire-and-forget)
+      if (trial.inTrial && trial.trialHoursLeft < 0.5) {
+        getAct12Message(phone, trial.trialHoursLeft).then(msgs => {
+          if (msgs?.length) sendWithDelay(message.from, msgs, { phone, intent: 'act_12_ultima_chamada' }).catch(() => {});
+        }).catch(() => {});
+      }
     } catch (err) {
       stopTyping3();
       console.error('[OpenRouter] Erro ao analisar texto:', err.message);

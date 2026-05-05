@@ -15,10 +15,11 @@
 const { hasActBeenSent, logActSent, assignVariant } = require('./narrativeLog');
 const { logJourneyEvent, hasEvent }                 = require('./journeyEvents');
 
-const act1 = require('./acts/act_1_welcome_diagnosis');
-const act2 = require('./acts/act_2_mechanism_intro');
-const act3 = require('./acts/act_3_first_analysis');
-const act7 = require('./acts/act_7_free_friction');
+const act1  = require('./acts/act_1_welcome_diagnosis');
+const act2  = require('./acts/act_2_mechanism_intro');
+const act3  = require('./acts/act_3_first_analysis');
+const act7  = require('./acts/act_7_free_friction');
+const { loadAndApplyCopy } = require('./copyLoader');
 
 function isEnabled(envKey) {
   const val = (process.env[envKey] || 'false').toLowerCase();
@@ -145,10 +146,41 @@ async function getAct7Message(phone, limitType) {
   return act7.getMessage(limitType, variant);
 }
 
+// ── Ato 12 ────────────────────────────────────────────────────────────────────
+
+/**
+ * Retorna as mensagens do Ato 12 se o usuário está nos últimos 30min do trial,
+ * ou null. Disparado inline quando o usuário manda qualquer mensagem.
+ *
+ * @param {string} phone
+ * @param {number} trialHoursLeft — horas restantes do trial (de getTrialInfo)
+ * @returns {Promise<string[]|null>}
+ */
+async function getAct12Message(phone, trialHoursLeft) {
+  if (!isEnabled('ENABLE_ACT_12_ULTIMA_CHAMADA')) return null;
+  if (trialHoursLeft >= 0.5) return null; // fora dos últimos 30min
+
+  const alreadySent = await hasActBeenSent(phone, 'act_12_ultima_chamada');
+  if (alreadySent) return null;
+
+  const links = {
+    LINK_PARCEIRO:     process.env.LINK_PARCEIRO     || 'Digita *mensal* aqui mesmo 👇',
+    LINK_PARCEIRO_PRO: process.env.LINK_PARCEIRO_PRO || process.env.LINK_PRO || 'Digita *pro* aqui mesmo 👇',
+  };
+
+  const messages = loadAndApplyCopy('acts/act_12_ultima_chamada.md', links);
+
+  await logActSent(phone, 'act_12_ultima_chamada', 'A');
+  await logJourneyEvent(phone, 'narrative_act_12_sent', {});
+
+  return messages;
+}
+
 module.exports = {
   getAct1Message,
   handleAct1Response,
   getDiagnosticQuestion,
   getAct3Suffix,
   getAct7Message,
+  getAct12Message,
 };

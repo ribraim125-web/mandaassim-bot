@@ -1,5 +1,5 @@
 // ATO 9 — Sumário de uso (prova performada acumulada)
-// Função DR: Hopkins — especificidade prova competência. Bencivenga — fato vence claim.
+// Função DR: Hopkins — especificidade prova competência. Bencivenga — fato vence claim
 
 *Saca o que rolou nessas ~60h:*
 

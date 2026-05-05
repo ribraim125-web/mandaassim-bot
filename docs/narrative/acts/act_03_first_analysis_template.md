@@ -30,8 +30,8 @@
 
 *Isso é Leitura de Intenção.*
 
-Toda mensagem que tu trouxer pra mim, eu leio primeiro o que tá rolando.
+Toda mensagem que tu trouxer pra mim, eu leio primeiro o que tá rolando
 
-_Aí sim_ sugiro o que falar.
+_Aí sim_ sugiro o que falar
 
-Manda mais quando aparecer. Tô aqui.
+Manda mais quando aparecer. Tô aqui

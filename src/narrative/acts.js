@@ -370,6 +370,7 @@ const ACTS = [
     id:          'act_12_ultima_chamada',
     description: 'Última chamada 30min antes do trial acabar',
     featureFlag: 'ENABLE_ACT_12_ULTIMA_CHAMADA',
+    isProactive: false, // inline-only — disparado quando usuário manda mensagem nos últimos 30min
 
     trigger: {
       conditions: async (ctx) => {

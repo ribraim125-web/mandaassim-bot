@@ -6,7 +6,7 @@ Saca um número que pouco cara te conta:
 
 ---
 
-Não é 10 segundos. Não é 5.
+Não é 10 segundos. Não é 5
 
 *Um.*
 
@@ -17,31 +17,31 @@ Nesse 1 segundo, ela vê:
 ✓ Idade
 ✓ Distância
 
-E decide se desliza pra esquerda ou pra direita.
+E decide se desliza pra esquerda ou pra direita
 
 ---
 
-Tudo o que tu manda *depois* — toda mensagem perfeita, todo papo bom — só importa se ela passou desse 1 segundo.
+Tudo o que tu manda *depois* — toda mensagem perfeita, todo papo bom — só importa se ela passou desse 1 segundo
 
-A maioria dos caras gasta 95% da energia escrevendo mensagem boa pra audiência que nunca vai existir.
+A maioria dos caras gasta 95% da energia escrevendo mensagem boa pra audiência que nunca vai existir
 
 ---
 
 No teu trial, agora, tu tem uma coisa que pouco cara faz:
 
-Manda print do teu Tinder/Bumble pra mim.
+Manda print do teu Tinder/Bumble pra mim
 
 Eu olho *foto por foto.*
 
-Leio a bio.
+Leio a bio
 
-Vejo a ordem.
+Vejo a ordem
 
-E te falo na lata o que tá custando teu match.
+E te falo na lata o que tá custando teu match
 
 ---
 
-Não é opinião.
+Não é opinião
 
 É leitura técnica:
 
@@ -53,8 +53,8 @@ _"Bio: genérica, parece copiada — reescreve assim:"_
 
 ---
 
-Coisa que amigo nenhum faz contigo. Eu faço.
+Coisa que amigo nenhum faz contigo. Eu faço
 
-Manda print do teu perfil.
+Manda print do teu perfil
 
 _Liberado por enquanto._
