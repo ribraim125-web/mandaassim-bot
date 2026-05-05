@@ -56,8 +56,15 @@ function applyTemplate(messages, vars = {}) {
     for (const [key, value] of Object.entries(vars)) {
       result = result.replace(new RegExp(`\\[${key}\\]`, 'g'), value ?? '');
     }
-    return result;
-  });
+    // Safety net: remove any placeholder that wasn't substituted
+    // Prevents [CHAVE_NAO_SUBSTITUIDA] from leaking to the user
+    const remaining = result.match(/\[[A-Z][A-Z0-9_]*\]/g);
+    if (remaining) {
+      console.warn(`[CopyLoader] Placeholders não substituídos removidos: ${remaining.join(', ')}`);
+      result = result.replace(/\[[A-Z][A-Z0-9_]*\]/g, '');
+    }
+    return result.trim();
+  }).filter(Boolean);
 }
 
 // ── Loader ────────────────────────────────────────────────────────────────────
