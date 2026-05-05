@@ -53,24 +53,51 @@ function getPayment() {
   return new Payment(mpClient);
 }
 
-const CONFIRMACAO_PARCEIRO =
-  `✅ *Parceiro ativado!* 🚀\n\n` +
-  `Mensagens ilimitadas liberadas. Manda o próximo print ou descreve a situação.`;
+// Mensagens de boas-vindas — enviadas em sequência (post-purchase reinforcement)
+const CONFIRMACAO_PARCEIRO = [
+  `🎉 *Beleza, parceiro.*`,
+  `Tu acabou de virar *Parceiro*.`,
+  `A partir de agora:`,
+  `✓ Responder mensagem dela — *ilimitado*\n✓ Analisar conversa inteira — *ilimitado*\n✓ Conversar comigo sobre o que tá rolando — *ilimitado*`,
+  `Sem limite diário. Sem fricção. Toda vez que precisar, tô aqui.`,
+  `Manda o próximo print, ou me conta a próxima situação.\n\nBora arrebentar.`,
+];
 
-const CONFIRMACAO_PRO =
-  `✅ *Parceiro Pro ativado!* 🔥\n\n` +
-  `Você agora tem acesso a tudo:\n` +
-  `• Mensagens ilimitadas\n` +
-  `• Análise de print de conversa (ilimitada)\n` +
-  `• *Analisar Perfil Dela* — gero a primeira mensagem certa com base no que está no perfil (30/dia)\n` +
-  `• *Auditar Meu Perfil* — análise foto a foto + bio + top 3 mudanças (30/dia)\n\n` +
-  `Testa agora: manda um print do perfil dela no Tinder ou Bumble 👇`;
+const CONFIRMACAO_PRO = [
+  `🚀 *Parceiro Pro ativado.*`,
+  `Tu acabou de subir pro nível mais completo.`,
+  `Tudo do Parceiro tá liberado. E mais:`,
+  `✓ *Auditar teu perfil* — manda print do teu Tinder/Bumble que eu olho foto por foto, leio a bio, vejo a ordem, e te falo na lata o que trocar\n✓ *Analisar perfil dela* — manda print do perfil de quem tu deu match e eu monto a primeira mensagem matadora\n✓ *Preparar pro encontro* — quando tu marcar date, me avisa que eu te preparo (roupa, lugar, tópicos, lembrete)\n✓ *Analisar como foi* — depois do encontro, conversa comigo que eu leio os sinais que tu não viu`,
+  `Tu tá no nível que poucos caras chegam.`,
+  `Bora começar? Manda print do teu próprio perfil — quero ver como tá te vendendo no app.`,
+];
 
-const CONFIRMACAO_24H =
-  `✅ *24h ativado!*\n\n` +
-  `Acesso *ilimitado pelas próximas 24 horas* 🚀\n\n` +
-  `Aproveita — manda o print agora!\n\n` +
-  `_Se quiser continuar depois, digita *mensal* ou *anual*_`;
+const CONFIRMACAO_UPGRADE_PRO = [
+  `🚀 *Subiu pro Pro.*`,
+  `Tudo que tu já usava continua. Mas agora destrava:`,
+  `✓ Auditar teu perfil\n✓ Analisar perfil dela\n✓ Preparar pro encontro + analisar como foi`,
+  `Esse é o pacote completo da jornada — antes do match até o pós-encontro.`,
+  `Manda print do teu próprio perfil aí. Vou começar te falando o que tá errado nele.`,
+];
+
+const CONFIRMACAO_24H = [
+  `✅ *24h ativado!*`,
+  `Acesso *ilimitado pelas próximas 24 horas* 🚀\n\nAproveita — manda o print agora!\n\n_Se quiser continuar depois, digita *mensal* ou *anual*_`,
+];
+
+/**
+ * Envia sequência de mensagens de boas-vindas com delay entre cada uma.
+ */
+async function sendWelcomeSequence(waClient, chatId, messages) {
+  for (let i = 0; i < messages.length; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1000)));
+    try {
+      await waClient.sendMessage(chatId, messages[i]);
+    } catch (e) {
+      console.warn(`[Webhook] Erro ao enviar msg ${i + 1} da sequência de boas-vindas:`, e.message);
+    }
+  }
+}
 
 /**
  * Valida a assinatura do webhook enviada pelo Mercado Pago.
@@ -142,10 +169,6 @@ function createWebhookApp(waClient) {
       // Determina plano e validade com base no valor pago
       const amount = result.transaction_amount ?? 0;
       const { plan: newPlan, days } = determinarPlano(amount);
-      const confirmacaoMsg =
-        days === 1                    ? CONFIRMACAO_24H :
-        newPlan === 'parceiro_pro'    ? CONFIRMACAO_PRO :
-        CONFIRMACAO_PARCEIRO;
 
       const supabase = getSupabase();
 
@@ -193,11 +216,13 @@ function createWebhookApp(waClient) {
         const subscribeEvent = newPlan === 'parceiro_pro' ? 'subscribed_parceiro_pro' : 'subscribed_parceiro';
         logJourneyEvent(phoneFromRef, subscribeEvent, { plan: newPlan, amount }, false).catch(() => {});
         const chatIdFallback = userRowFallback?.wa_chat_id || `${phoneFromRef}@c.us`;
-        try {
-          await waClient.sendMessage(chatIdFallback, confirmacaoMsg);
-        } catch (e) {
-          console.warn(`[Webhook] Não conseguiu notificar ${phoneFromRef} no WhatsApp:`, e.message);
-        }
+        const planAnteriorFallback = userRowFallback?.plan || 'free';
+        const confirmacaoMsgFallback =
+          days === 1 ? CONFIRMACAO_24H :
+          newPlan === 'parceiro_pro' && planAnteriorFallback === 'parceiro' ? CONFIRMACAO_UPGRADE_PRO :
+          newPlan === 'parceiro_pro' ? CONFIRMACAO_PRO :
+          CONFIRMACAO_PARCEIRO;
+        await sendWelcomeSequence(waClient, chatIdFallback, confirmacaoMsgFallback);
         return;
       }
 
@@ -257,13 +282,16 @@ function createWebhookApp(waClient) {
       const subscribeEvt = newPlan === 'parceiro_pro' ? 'subscribed_parceiro_pro' : 'subscribed_parceiro';
       logJourneyEvent(phone, subscribeEvt, { plan: newPlan, amount }, false).catch(() => {});
 
+      // Seleciona sequência de boas-vindas com base no plano e no anterior
+      const confirmacaoSeq =
+        days === 1 ? CONFIRMACAO_24H :
+        newPlan === 'parceiro_pro' && planAnterior === 'parceiro' ? CONFIRMACAO_UPGRADE_PRO :
+        newPlan === 'parceiro_pro' ? CONFIRMACAO_PRO :
+        CONFIRMACAO_PARCEIRO;
+
       // Notifica o usuário no WhatsApp usando o chat ID real (salvo quando o usuário mandou a primeira mensagem)
       const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
-      try {
-        await waClient.sendMessage(chatId, confirmacaoMsg);
-      } catch (e) {
-        console.warn(`[Webhook] Não conseguiu notificar ${phone} no WhatsApp:`, e.message);
-      }
+      await sendWelcomeSequence(waClient, chatId, confirmacaoSeq);
 
     } catch (err) {
       console.error('[Webhook] Erro ao processar notificação:', err.message);

@@ -2070,12 +2070,34 @@ client.on('message', async (message) => {
               supabase.from('payments').update({ status: 'approved' }).eq('mp_payment_id', pagamento.mp_payment_id),
             ]);
             console.log(`[Paguei] ✅ ${newPlan} ativado via consulta MP para ${phone} (${days}d)`);
-            const confirmMsg = days === 1
-              ? '✅ *24h ativado* — acesso ilimitado pelas próximas 24 horas. Manda o print.'
-              : newPlan === 'parceiro_pro'
-              ? `✅ *Parceiro Pro ativado* — Análise de Perfil liberada. Manda o print do perfil dela 👇`
-              : '✅ *Parceiro ativado* — mensagens ilimitadas. Manda o próximo print ou descreve a situação.';
-            await message.reply(confirmMsg);
+            const planAnterior = user?.plan || 'free';
+            const welcomeSeq =
+              days === 1 ? [
+                '✅ *24h ativado* — acesso ilimitado pelas próximas 24 horas.',
+                'Aproveita — manda o print agora!\n\n_Se quiser continuar depois, digita *mensal* ou *anual*_',
+              ] :
+              newPlan === 'parceiro_pro' && planAnterior === 'parceiro' ? [
+                '🚀 *Subiu pro Pro.*',
+                'Tudo que tu já usava continua. Mas agora destrava:',
+                '✓ Auditar teu perfil\n✓ Analisar perfil dela\n✓ Preparar pro encontro + analisar como foi',
+                'Esse é o pacote completo da jornada — antes do match até o pós-encontro.',
+                'Manda print do teu próprio perfil aí. Vou começar te falando o que tá errado nele.',
+              ] :
+              newPlan === 'parceiro_pro' ? [
+                '🚀 *Parceiro Pro ativado.*',
+                'Tu acabou de subir pro nível mais completo.',
+                'Tudo do Parceiro tá liberado. E mais:',
+                '✓ *Auditar teu perfil* — manda print do teu Tinder/Bumble que eu olho foto por foto, leio a bio, vejo a ordem, e te falo na lata o que trocar\n✓ *Analisar perfil dela* — manda print do perfil de quem tu deu match e eu monto a primeira mensagem matadora\n✓ *Preparar pro encontro* — quando tu marcar date, me avisa que eu te preparo\n✓ *Analisar como foi* — depois do encontro, conversa comigo que eu leio os sinais que tu não viu',
+                'Tu tá no nível que poucos caras chegam.',
+                'Bora começar? Manda print do teu próprio perfil — quero ver como tá te vendendo no app.',
+              ] : [
+                '🎉 *Beleza, parceiro.*',
+                'Tu acabou de virar *Parceiro*.',
+                '✓ Responder mensagem dela — *ilimitado*\n✓ Analisar conversa inteira — *ilimitado*\n✓ Conversar comigo sobre o que tá rolando — *ilimitado*',
+                'Sem limite diário. Sem fricção. Toda vez que precisar, tô aqui.',
+                'Manda o próximo print, ou me conta a próxima situação.\n\nBora arrebentar.',
+              ];
+            await sendWithDelay(message.from, welcomeSeq, { phone, intent: 'upgrade_welcome' });
           } else {
             await message.reply(
               `Pix ainda não confirmado pelo banco.\n\nNormalmente cai em menos de 1 minuto. Tenta de novo em instantes.`
