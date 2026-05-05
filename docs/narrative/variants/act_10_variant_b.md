@@ -56,8 +56,6 @@ Eu sou ilimitado. R$ 2,66/dia no Pro.
 
 ---
 
-Não vou te empurrar.
-
 Tu já provou o produto. Tu sabe o que ele é.
 
 A decisão é se tu quer continuar tendo isso, ou voltar pra antes.
@@ -68,4 +66,6 @@ A decisão é se tu quer continuar tendo isso, ou voltar pra antes.
 
 🚀 Parceiro Pro: [LINK_PARCEIRO_PRO]
 
-_Decide com calma._
+---
+
+_PS: tu já provou que funciona essas 70 horas. A pergunta agora não é "vai funcionar?" — é "quanto vai custar fazer isso sozinho de novo?"_

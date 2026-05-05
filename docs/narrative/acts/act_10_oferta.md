@@ -85,6 +85,10 @@ _Pão na chapa caro custa mais._
 
 ---
 
-*Sem pressa.* Pensa hoje.
+Pensa hoje.
 
-Te aviso de novo amanhã antes de virar free.
+Te aviso de novo em breve.
+
+---
+
+_PS: tu já provou que funciona essas 70 horas. A pergunta agora não é "vai funcionar?" — é "quanto vai custar fazer isso sozinho de novo?"_
