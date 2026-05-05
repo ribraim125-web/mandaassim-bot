@@ -1,40 +1,40 @@
 // ATO 2 — Promessa + Mecanismo (versão pra quem voltou pro mercado)
 // Função DR: estabelecer mecanismo único e identificação imediata
 
-Beleza.
+Beleza
 
-*Tu voltou pro mercado depois de tempo. Saca uma coisa:*
+*Tu voltou pro mercado depois de tempo — e o jogo mudou completamente*
 
-Tudo mudou.
+Os apps mudaram, o jeito de conversar mudou, o que funcionava antes hoje espanta
 
-Os apps mudaram. O jeito de conversar mudou. O que funcionava em 2010 hoje espanta.
-
-E ninguém te avisou.
+E ninguém te avisou disso
 
 ---
 
-É exatamente nisso que eu sirvo.
+O ChatGPT não sabe quem é ela
 
-Olha a diferença entre eu e qualquer ChatGPT que tu já testou:
+Não sabe o que aquele "kk" seco quis dizer naquele momento
 
-ChatGPT te dá *uma resposta.*
+Não sabe se a conversa tá fria, morna ou quente
 
-Eu faço *Leitura de Intenção.*
-
----
-
-Eu leio o que ela quis dizer.
-
-Eu leio o que tá rolando na conversa.
-
-_Aí sim_ sugiro o que falar.
-
-*ChatGPT chuta. Eu decifro.*
+Joga uma resposta genérica que serve pra qualquer mulher — e vai soar exatamente assim: genérica
 
 ---
 
-Manda print da conversa que tá te dando dor de cabeça.
+Eu faço *Leitura de Intenção*
 
-Ou descreve a situação aqui.
+Antes de sugerir qualquer coisa, leio o que ela sinalizou
 
-_Bora._
+O que tá por trás da mensagem dela, a temperatura da conversa, o que ela quis dizer de verdade
+
+*Aí sim* te digo o que falar — e por quê funciona naquele momento específico
+
+*ChatGPT chuta. Eu decifro*
+
+---
+
+Manda print da conversa que tá te dando dor de cabeça
+
+Ou descreve a situação aqui
+
+_Bora_

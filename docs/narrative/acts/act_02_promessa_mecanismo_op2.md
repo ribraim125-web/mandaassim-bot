@@ -1,39 +1,39 @@
 // ATO 2 — Promessa + Mecanismo (versão pra quem tá nos apps há tempo)
 
-Beleza.
+Beleza
 
-*Tu tá nos apps há tempo. E não tá convertendo o que devia.*
+*Tu tá nos apps há tempo e nada engata — posso te falar uma verdade dura?*
 
-Posso te falar uma verdade dura?
+90% das vezes não é teu perfil, não é teu físico, não é tua idade
 
-90% das vezes não é teu perfil. Não é teu físico. Não é tua idade.
-
-É o que tu manda nos primeiros 30 segundos depois do match.
+É o que tu manda nos primeiros 30 segundos depois do match
 
 ---
 
-E é exatamente nisso que eu mudo o jogo.
+O ChatGPT não sabe quem é ela
 
-Olha a diferença entre eu e qualquer ChatGPT que tu já testou:
+Não sabe o que aquele "kk" seco quis dizer naquele momento
 
-ChatGPT te dá *uma resposta.*
+Não sabe se a conversa tá fria, morna ou quente
 
-Eu faço *Leitura de Intenção.*
-
----
-
-Eu leio o que ela quis dizer.
-
-Eu leio o que tá rolando na conversa.
-
-_Aí sim_ sugiro o que falar.
-
-*ChatGPT chuta. Eu decifro.*
+Joga uma resposta genérica que serve pra qualquer mulher — e vai soar exatamente assim: genérica
 
 ---
 
-Manda print da conversa que tá te dando dor de cabeça.
+Eu faço *Leitura de Intenção*
 
-Ou descreve a situação aqui.
+Antes de sugerir qualquer coisa, leio o que ela sinalizou
 
-_Bora._
+O que tá por trás da mensagem dela, a temperatura da conversa, o que ela quis dizer de verdade
+
+*Aí sim* te digo o que falar — e por quê funciona naquele momento específico
+
+*ChatGPT chuta. Eu decifro*
+
+---
+
+Manda print da conversa que tá te dando dor de cabeça
+
+Ou descreve a situação aqui
+
+_Bora_
