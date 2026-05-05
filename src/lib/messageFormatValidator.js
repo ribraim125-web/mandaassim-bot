@@ -25,8 +25,8 @@ const QUOTE_WRAP = /^["'"«][\s\S]*["'"»]$/;
 // Label inline: "Manda assim: texto" ou "🔥 "texto"" na mesma linha
 const INLINE_PREFIX = /^(Manda|Cola|Envia|Use|Tenta|Aquece|Provoca|Seca)\b.*[:\uFF1A].+/i;
 
-// Emoji de opção seguido de aspas na mesma linha
-const EMOJI_QUOTE = /^[🔥😏⚡]\s*["'"]/;
+// Emoji de opção seguido de aspas (em qualquer posição da linha)
+const EMOJI_QUOTE = /[🔥😏⚡]\s*["'"`«»]/;
 
 // Formatação WhatsApp *dentro* do texto (asterisco ou underline no meio da frase)
 // Só conta se estiver dentro de palavras (não em início de linha como marcador de lista)

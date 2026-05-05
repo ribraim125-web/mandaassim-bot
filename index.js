@@ -476,14 +476,41 @@ const SYSTEM_PROMPT_MINIMAL = `Você é o MandaAssim. Gera 3 respostas curtíssi
 
 Resposta curta = confiança. Quem não precisa provar nada responde pouco e bem.
 
-EXEMPLOS:
-- ela: "oi" → "e aí" / "apareceu" / "oi"
-- ela: "😍" → "perigosa" / "sabia" / "deve"
-- ela: "tô bem" → "boa" / "aparecendo né" / "e aí"
-- ela: "saudade" → "quando?" / "aparece então" / "resolve isso"
-- ela: "kkk" seco → muda de ângulo completamente
+REGRAS DE OURO:
+- Máx 5 palavras. Contar: "e aí" = 2 palavras ✅ / "que bacana que você apareceu" = 5 palavras ✅
+- NUNCA repete a mesma energia nas 3 opções — cada uma tem ângulo diferente
+- NUNCA elogio genérico ("que bom", "que legal", "que foto linda")
+- "kkk" seco dela → muda de ângulo completamente, não insiste no mesmo tema
+- ZERO aspas, ZERO asteriscos, ZERO underscores nas respostas
 
-Formato (cada bloco separado por --- = 1 mensagem WhatsApp):
+EXEMPLOS COMPLETOS (formato exato a seguir):
+
+ela: "oi"
+🔥 → apareceu
+😏 → e aí
+⚡ → oi
+
+ela: "😍"
+🔥 → perigosa essa reação
+😏 → sabia que ia
+⚡ → deve
+
+ela: "saudade"
+🔥 → quando?
+😏 → aparece então
+⚡ → resolve isso
+
+ela: "tô bem"
+🔥 → aparecendo né
+😏 → boa, e aí?
+⚡ → boa
+
+ela: "kkk" (seco, sem engajamento)
+🔥 → mudando de assunto
+😏 → tô te devendo uma
+⚡ → essa semana você tá livre?
+
+FORMATO (cada bloco = 1 mensagem WhatsApp separada por ---):
 
 Aquece 🔥
 
@@ -507,7 +534,7 @@ Seca ⚡
 
 [resposta — SEM aspas, máx 5 palavras]
 
-REGRA: cada resposta fica SOZINHA no bloco. ZERO aspas. ZERO rótulo na mesma linha.`;
+CRÍTICO: cada resposta fica SOZINHA no bloco. ZERO aspas. ZERO rótulo na mesma linha. ZERO formatação.`;
 
 const SYSTEM_PROMPT_OUSADIA = `Você é o MandaAssim. A conversa já tá no clima quente. Gera 3 opções com flerte, malícia ou duplo sentido elegante.
 
@@ -601,15 +628,18 @@ RECONQUISTA (ela sumiu, terminou, esfriou):
 - Nunca explica o término de novo, nunca pede desculpa de novo
 - Se ela não responde depois de 2 tentativas espaçadas → deixa ir
 
-RELACIONAMENTO ESFRIANDO:
-- Frieza não é sempre fim de interesse — pode ser cansaço, estresse, rotina
-- Para de tentar resolver com conversa — resolve com comportamento diferente
-- Menos textos, mais qualidade quando estão juntos
+RELACIONAMENTO ESFRIANDO (ela ainda responde, mas fria ou distante):
+- Frieza não é sempre fim — pode ser cansaço, estresse, rotina, algo externo
+- Diferente de ghosting: ela ainda responde. Isso muda tudo.
+- Não afasta por semanas — isso acelera o fim
+- Afasta por 24-48h, muda o assunto completamente no retorno
+- Proposta concreta no retorno: "bora [atividade específica] nessa semana?" — nunca mensagem longa explicando o esfriamento
+- Para de tentar resolver com conversa — resolve com comportamento e presença
 
-ELA SUMIU / GHOSTING:
-- Não manda sequência de mensagens
-- Se quiser tentar: uma mensagem, casual, depois de alguns dias
-- Dois tentativas espaçadas sem resposta → segue em frente
+ELA SUMIU / GHOSTING (parou de responder, desapareceu):
+- Não manda sequência de mensagens — cada mensagem sem resposta piora a posição
+- Se quiser tentar: UMA mensagem casual após 5-7 dias, sem referência ao sumiço
+- Duas tentativas espaçadas sem resposta → segue em frente, não insiste
 
 ELA PERGUNTOU ALGO PESSOAL (filhos, separação, ex, idade):
 - Responde direto, sem defensiva, sem over-share
@@ -837,6 +867,7 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
       await sendWithDelay(message.from, rawBlocos, { phone, intent });
     } else {
       // Fallback: modelo não usou --- → separa diagnóstico do corpo
+      console.warn(`[enviarResposta] Fallback ativado — modelo não usou --- | intent:${intent} | phone:${phone}`);
       const corpo = sugestoes
         .replace(/📍\s*_[^_\n]+_\n*/g, '')
         .trim()
@@ -857,12 +888,14 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
         if (semOpcoes) await client.sendMessage(message.from, semOpcoes);
         await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
 
-        const linhas = ['Quando chegar a hora 👇'];
+        // Envia label + mensagem em blocos separados (zero aspas, zero paredão)
+        await client.sendMessage(message.from, 'Quando chegar a hora 👇');
         for (const { emoji, msg } of opcoes) {
-          linhas.push('');
-          linhas.push(`${emoji}  "${msg}"`);
+          await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 800)));
+          await client.sendMessage(message.from, emoji);
+          await new Promise(r => setTimeout(r, 700 + Math.floor(Math.random() * 500)));
+          await client.sendMessage(message.from, msg);
         }
-        await client.sendMessage(message.from, linhas.join('\n'));
       } else {
         await client.sendMessage(message.from, corpo);
       }
@@ -885,6 +918,7 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
   }
 
   // Fallback: parsing manual — diagnóstico + dica + cada opção
+  console.warn(`[enviarResposta] Fallback padrão ativado — modelo não usou --- | intent:${intent} | phone:${phone}`);
   const dica = extrairDica(sugestoes);
 
   if (diagnostico) {
@@ -899,8 +933,10 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
 
   if (opcoes.length >= 2) {
     for (let i = 0; i < opcoes.length; i++) {
-      if (i > 0) await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
-      await client.sendMessage(message.from, `${opcoes[i].emoji}  ${opcoes[i].msg}`);
+      await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 800)));
+      await client.sendMessage(message.from, opcoes[i].emoji);
+      await new Promise(r => setTimeout(r, 700 + Math.floor(Math.random() * 500)));
+      await client.sendMessage(message.from, opcoes[i].msg);
     }
   } else {
     await message.reply(sugestoes.trim().replace(/\n{3,}/g, '\n\n'));
@@ -1862,7 +1898,7 @@ client.on('message', async (message) => {
 
   // Limite de tamanho — mensagens absurdamente longas são ignoradas
   if (message.type === 'chat' && message.body && message.body.length > 2000) {
-    await message.reply('Mensagem muito longa. Resume em até 2000 caracteres e manda de novo 😅');
+    await message.reply('Tá longo demais. Resume o essencial em até 2000 caracteres e manda de novo.');
     return;
   }
 
@@ -2291,7 +2327,7 @@ client.on('message', async (message) => {
               const lc = checkPrintLimit(phone, trial.isPremium, trial.inTrial);
               if (!lc.allowed) {
                 const msg = lc.reason === 'cooldown'
-                  ? `Aguarda ${lc.remaining}s 😅`
+                  ? `Aguarda ${lc.remaining}s antes de mandar outro print.`
                   : (trial.isPremium ? PRINT_LIMIT_REACHED_PREMIUM : PRINT_LIMIT_REACHED_TRIAL);
                 await client.sendMessage(message.from, msg);
               } else {
@@ -2306,7 +2342,7 @@ client.on('message', async (message) => {
                   }
                   await sendWithDelay(message.from, pm, { phone, intent: 'print_analysis' });
                 } catch (_) {
-                  await client.sendMessage(message.from, 'Não consegui ler a conversa. Manda o print de novo 😅');
+                  await client.sendMessage(message.from, 'Print tá difícil de ler. Manda um mais nítido, mostrando as últimas 5-10 mensagens.');
                 }
               }
             }
@@ -2330,7 +2366,7 @@ client.on('message', async (message) => {
               const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
               if (!pl.allowed) {
                 const msg = pl.reason === 'cooldown'
-                  ? `Aguarda ${pl.remaining}s 😅`
+                  ? `Aguarda ${pl.remaining}s antes de mandar outro perfil.`
                   : PROFILE_LIMIT_REACHED_PRO;
                 await client.sendMessage(message.from, msg);
               } else {
@@ -2341,7 +2377,7 @@ client.on('message', async (message) => {
                   saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
                   await sendWithDelay(message.from, pm, { phone, intent: 'profile_analysis' });
                 } catch (_) {
-                  await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
+                  await client.sendMessage(message.from, 'Print do perfil tá difícil de ler. Manda um mais claro — com nome, bio e ao menos uma foto.');
                 }
               }
             }
@@ -2352,7 +2388,7 @@ client.on('message', async (message) => {
               saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
               await enviarResposta(message, sugestoes);
             } catch (_) {
-              await client.sendMessage(message.from, 'Não consegui analisar o perfil. Manda de novo 😅');
+              await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda um print mais claro — com nome, bio e pelo menos uma foto.');
             }
           }
         }
@@ -2386,7 +2422,7 @@ client.on('message', async (message) => {
             const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
             if (!pl.allowed) {
               await client.sendMessage(message.from,
-                pl.reason === 'cooldown' ? `Aguarda ${pl.remaining}s 😅` : PROFILE_LIMIT_REACHED_PRO
+                pl.reason === 'cooldown' ? `Aguarda ${pl.remaining}s antes de mandar outro perfil.` : PROFILE_LIMIT_REACHED_PRO
               );
             } else {
               await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
@@ -2397,7 +2433,7 @@ client.on('message', async (message) => {
                 saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
                 await sendWithDelay(message.from, am, { phone, intent: 'profile_self_audit' });
               } catch (_) {
-                await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
+                await client.sendMessage(message.from, 'Print do perfil tá difícil de ler. Manda um mais claro — com nome, bio e ao menos uma foto.');
               }
             }
           }
@@ -2413,7 +2449,7 @@ client.on('message', async (message) => {
             const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
             if (!pl.allowed) {
               await client.sendMessage(message.from,
-                pl.reason === 'cooldown' ? `Aguarda ${pl.remaining}s 😅` : PROFILE_LIMIT_REACHED_PRO
+                pl.reason === 'cooldown' ? `Aguarda ${pl.remaining}s antes de mandar outro perfil.` : PROFILE_LIMIT_REACHED_PRO
               );
             } else {
               await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
@@ -2424,7 +2460,7 @@ client.on('message', async (message) => {
                 saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
                 await sendWithDelay(message.from, pm, { phone, intent: 'profile_her_analysis' });
               } catch (_) {
-                await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda o print de novo 😅');
+                await client.sendMessage(message.from, 'Print do perfil tá difícil de ler. Manda um mais claro — com nome, bio e ao menos uma foto.');
               }
             }
           }
@@ -2507,7 +2543,7 @@ client.on('message', async (message) => {
           scheduleTransitionCoachOutcome(phone).catch(() => {});
         } catch (_) {
           stopTypingTC();
-          await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');
+          await client.sendMessage(message.from, 'Deu problema aqui. Tenta de novo em alguns minutos.');
         }
       }
       return;
@@ -2591,7 +2627,7 @@ client.on('message', async (message) => {
           }
         } catch (_) {
           stopTypingPD();
-          await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');
+          await client.sendMessage(message.from, 'Deu problema aqui. Tenta de novo em alguns minutos.');
         }
       }
       return;
@@ -2625,7 +2661,7 @@ client.on('message', async (message) => {
           await sendWithDelay(message.from, dbMsgs, { phone, intent: 'postdate_debrief' });
         } catch (_) {
           stopTypingDB();
-          await client.sendMessage(message.from, 'Deu ruim aqui 😅 Tenta de novo daqui a pouco.');
+          await client.sendMessage(message.from, 'Deu problema aqui. Tenta de novo em alguns minutos.');
         }
       }
       return;
@@ -2854,7 +2890,7 @@ client.on('message', async (message) => {
       } catch (err) {
         stopTyping1();
         console.error('[OpenRouter] Erro ao gerar variações:', err.message);
-        await message.reply('Deu ruim, tenta mandar de novo 😅');
+        await message.reply('Não consegui processar. Manda de novo.');
       }
       return;
     }
@@ -2881,7 +2917,7 @@ client.on('message', async (message) => {
       } catch (err) {
         stopTyping2();
         console.error('[OpenRouter] Erro ao ajustar tom:', err.message);
-        await message.reply('Deu ruim aqui, tenta de novo 😅');
+        await message.reply('Não consegui processar. Tenta de novo.');
       }
       return;
     }
@@ -2928,7 +2964,7 @@ client.on('message', async (message) => {
         } catch (err) {
           stopTypingFinal();
           console.error('[Coaching] Erro na análise final:', err.message);
-          await message.reply('Deu ruim aqui, tenta de novo 😅');
+          await message.reply('Não consegui processar. Tenta de novo.');
         }
       }
       return;
@@ -2995,7 +3031,7 @@ client.on('message', async (message) => {
     } catch (err) {
       stopTyping3();
       console.error('[OpenRouter] Erro ao analisar texto:', err.message);
-      await message.reply('Deu ruim aqui, tenta de novo 😅');
+      await message.reply('Não consegui processar. Tenta de novo.');
     }
 
   } else if (message.type === 'image') {
@@ -3027,7 +3063,7 @@ client.on('message', async (message) => {
       } catch (err) {
         stopTypingStory();
         console.error('[Stories] Erro:', err.message);
-        await message.reply('Não consegui analisar o stories, tenta mandar de novo 😅');
+        await message.reply('Não consegui ler o stories. Manda um print mais claro.');
       }
 
     } else {
@@ -3102,7 +3138,7 @@ client.on('message', async (message) => {
             if (!profileLimit.allowed) {
               if (profileLimit.reason === 'cooldown') {
                 await client.sendMessage(message.from,
-                  `Aguarda ${profileLimit.remaining}s antes da próxima análise 😅`
+                  `Aguarda ${profileLimit.remaining}s antes da próxima análise.`
                 );
               } else {
                 const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_self_audit');
@@ -3134,7 +3170,7 @@ client.on('message', async (message) => {
                 await client.sendMessage(message.from, `Esse print tá muito pesado. Tira um screenshot menor.`);
               } else {
                 await client.sendMessage(message.from,
-                  `Não consegui ler esse perfil direito 😅\n\nManda um print mais claro — com fotos e bio visíveis.`
+                  `Não consegui ler esse perfil. Manda um print mais claro — com fotos e bio visíveis.`
                 );
               }
             }
@@ -3161,7 +3197,7 @@ client.on('message', async (message) => {
             if (!profileLimit.allowed) {
               if (profileLimit.reason === 'cooldown') {
                 await client.sendMessage(message.from,
-                  `Aguarda ${profileLimit.remaining}s antes de analisar outro perfil 😅`
+                  `Aguarda ${profileLimit.remaining}s antes de analisar outro perfil.`
                 );
               } else {
                 const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_her_analysis');
@@ -3192,7 +3228,7 @@ client.on('message', async (message) => {
                 await client.sendMessage(message.from, `Esse print tá muito pesado. Tira um screenshot menor.`);
               } else {
                 await client.sendMessage(message.from,
-                  `Não consegui ler esse perfil direito 😅\n\nManda um print mais claro — com nome, bio e pelo menos uma foto.`
+                  `Não consegui ler esse perfil. Manda um print mais claro — com nome, bio e pelo menos uma foto.`
                 );
               }
             }
@@ -3217,7 +3253,7 @@ client.on('message', async (message) => {
           if (!profileLimit.allowed) {
             if (profileLimit.reason === 'cooldown') {
               await client.sendMessage(message.from,
-                `Aguarda ${profileLimit.remaining}s antes de analisar outro perfil 😅`
+                `Aguarda ${profileLimit.remaining}s antes de analisar outro perfil.`
               );
             } else if (profileLimit.reason === 'limit_reached') {
               await client.sendMessage(message.from, PROFILE_LIMIT_REACHED_PRO);
@@ -3260,7 +3296,7 @@ client.on('message', async (message) => {
               await client.sendMessage(message.from, `Esse print tá muito pesado. Tira um screenshot menor.`);
             } else {
               await client.sendMessage(message.from,
-                `Não consegui ler esse perfil direito 😅\n\nManda um print mais claro — com nome, bio e pelo menos uma foto.`
+                `Não consegui ler esse perfil. Manda um print mais claro — com nome, bio e pelo menos uma foto.`
               );
             }
           }
@@ -3280,7 +3316,7 @@ client.on('message', async (message) => {
           } catch (err) {
             stopTypingPerfilOld();
             console.error('[Perfil] Erro:', err.message);
-            await message.reply('Não consegui analisar o perfil, tenta mandar de novo 😅');
+            await message.reply('Não consegui ler o perfil. Manda um print mais claro.');
           }
         }
 
@@ -3299,7 +3335,7 @@ client.on('message', async (message) => {
           if (!limitCheck.allowed) {
             if (limitCheck.reason === 'cooldown') {
               await client.sendMessage(message.from,
-                `Aguarda ${limitCheck.remaining}s antes de mandar outro print 😅`
+                `Aguarda ${limitCheck.remaining}s antes de mandar outro print.`
               );
             } else if (limitCheck.reason === 'limit_reached') {
               const msg = trial.isPremium ? PRINT_LIMIT_REACHED_PREMIUM : PRINT_LIMIT_REACHED_TRIAL;
@@ -3412,7 +3448,7 @@ client.on('message', async (message) => {
 
       if (!transcricao || transcricao.length < 3) {
         stopTypingAudio();
-        await message.reply('Não consegui entender o áudio 😅 Tenta descrever em texto.');
+        await message.reply('Não consegui entender o áudio. Descreve em texto o que ela disse.');
         return;
       }
 
@@ -3440,7 +3476,7 @@ client.on('message', async (message) => {
     } catch (err) {
       stopTypingAudio();
       console.error('[Áudio] Erro:', err.message);
-      await message.reply('Não consegui processar o áudio 😅 Tenta descrever em texto.');
+      await message.reply('Não consegui processar o áudio. Descreve em texto o que ela disse.');
     }
 
   } else {

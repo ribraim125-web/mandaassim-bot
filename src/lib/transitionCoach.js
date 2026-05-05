@@ -60,7 +60,7 @@ Schema:
   "readiness_assessment": "ready" | "wait_a_bit" | "not_yet" | "red_flags",
   "rationale": "...",
   "suggested_approach": "casual" | "semi_planned" | "structured",
-  "suggested_format": "...",
+  "suggested_format": "string — como a proposta deve soar. Exemplos concretos: 'café ou drink rápido no bairro dela', 'atividade com pretexto (show, exposição, lugar específico)', 'algo casual que deixa ela decidir o horário'. NUNCA: 'proposta casual' genérico — seja específico ao contexto.",
   "suggested_location_type": "público_movimentado" | "semi_privado" | "atividade",
   "suggested_message_to_send": {
     "soft": "...",
@@ -248,8 +248,9 @@ const READINESS_LABEL = {
  * @returns {string[]}
  */
 function formatarRespostaCoach(result) {
+  if (!result) return [];
   const msgs = [];
-  const emoji = READINESS_EMOJI[result.readiness_assessment] || '📍';
+  const emoji = READINESS_EMOJI[result?.readiness_assessment] || '📍';
   const label = READINESS_LABEL[result.readiness_assessment] || '';
 
   // ── Msg 1: leitura de prontidão ──────────────────────────────────────────
@@ -386,7 +387,7 @@ async function analisarTransicaoComHaiku(answers, printContext, phone = '') {
   if (!result) {
     return {
       messages: [
-        `Não consegui fazer a análise completa 😅\n\nTenta me contar a situação de forma diferente — o que você sabe sobre ela e há quanto tempo vocês conversam.`,
+        `Não consegui processar. Tenta de novo — me conta o que você sabe sobre ela e há quanto tempo vocês conversam.`,
       ],
       result: null, metrics, sessionId: null,
     };

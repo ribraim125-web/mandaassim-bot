@@ -351,7 +351,7 @@ async function analisarPreDateComHaiku(answers, girlContext = '', phone = '') {
   if (!result) {
     return {
       messages: [
-        `Não consegui fazer a análise completa 😅\n\nTenta de novo — me fala quando é, onde vai ser, e se é a primeira vez que vocês se encontram.`,
+        `Não consegui processar. Tenta de novo — me fala quando é o encontro, onde vai ser, e se é a primeira vez.`,
       ],
       result: null, metrics, sessionId: null, dateParsed: null,
     };

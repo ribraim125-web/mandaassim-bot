@@ -183,15 +183,7 @@ function formatarRespostaPrint(result) {
     msgs.push(sugestao.trim());
   }
 
-  // ── Msg 3 (opcional): oferta de alternativas se a conversa tiver leitura clara ──
-  const temAlternativas =
-    result.suggested_next_message?.safe &&
-    result.suggested_next_message?.bold &&
-    result.conversation_temperature !== 'unknown';
-
-  if (temAlternativas) {
-    msgs.push(`Quer uma _mais segura_ ou uma _mais ousada_? Só falar 😏`);
-  }
+  // Oferta de variações removida — sem handler para "mais segura/ousada" no fluxo atual
 
   // ── Msg extra (Forma B): sugestão proativa quando conversa está hot ──────
   const isHot = result.conversation_temperature === 'hot';
@@ -326,7 +318,7 @@ async function analisarPrintConversaComHaiku(base64Data, mimeType, phone = '') {
     // Fallback: imagem ilegível
     return {
       messages: [
-        `Hmm, não consegui ler bem essa imagem. Tenta um print mais nítido da conversa, mostrando as últimas 5-10 mensagens.\n\nPode ser do Tinder, WhatsApp, Bumble, Instagram — qualquer um.`,
+        `Não consegui ler esse print. Tenta um print mais nítido da conversa, mostrando as últimas 5-10 mensagens.\n\nPode ser do Tinder, WhatsApp, Bumble, Instagram — qualquer um.`,
       ],
       structuredResult: null,
       metrics,
@@ -339,7 +331,7 @@ async function analisarPrintConversaComHaiku(base64Data, mimeType, phone = '') {
   if (messages.length === 0) {
     return {
       messages: [
-        `Hmm, não consegui ler bem essa imagem. Tenta um print mais nítido da conversa, mostrando as últimas 5-10 mensagens.\n\nPode ser do Tinder, WhatsApp, Bumble, Instagram — qualquer um.`,
+        `Não consegui ler esse print. Tenta um print mais nítido da conversa, mostrando as últimas 5-10 mensagens.\n\nPode ser do Tinder, WhatsApp, Bumble, Instagram — qualquer um.`,
       ],
       structuredResult,
       metrics,

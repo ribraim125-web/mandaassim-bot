@@ -437,7 +437,7 @@ async function analisarDebriefComHaiku(answers, phone = '') {
   if (!result) {
     return {
       messages: [
-        `Não consegui fazer a análise completa 😅\n\nTenta me contar de forma diferente — como foi o clima, o que ela disse e o que você fez.`,
+        `Não consegui processar. Tenta me contar de forma diferente — como foi o clima, o que ela disse e o que você fez.`,
       ],
       result: null, metrics, sessionId: null,
     };

@@ -330,7 +330,7 @@ async function analisarPerfilComHaiku(base64Data, mimeType, phone = '') {
   if (!structuredResult) {
     return {
       messages: [
-        `Não consegui ler esse perfil direito 😅\n\nManda um print mais claro — com nome, bio e pelo menos uma foto. Funciona pra Tinder, Bumble, Hinge ou Instagram.`,
+        `Não consegui ler esse perfil.\n\nManda um print mais claro — com nome, bio e pelo menos uma foto. Funciona pra Tinder, Bumble, Hinge ou Instagram.`,
       ],
       structuredResult: null,
       metrics,
@@ -342,7 +342,7 @@ async function analisarPerfilComHaiku(base64Data, mimeType, phone = '') {
   if (messages.length === 0) {
     return {
       messages: [
-        `Não consegui ler esse perfil direito 😅\n\nManda um print mais claro — com nome, bio e pelo menos uma foto.`,
+        `Não consegui ler esse perfil.\n\nManda um print mais claro — com nome, bio e pelo menos uma foto.`,
       ],
       structuredResult,
       metrics,

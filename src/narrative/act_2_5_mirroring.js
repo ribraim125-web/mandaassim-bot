@@ -108,7 +108,7 @@ async function generateMirroringAct25(phone, persona, answers) {
   try {
     response = await anthropic.messages.create({
       model:      'claude-haiku-4-5-20251001',
-      max_tokens: 400,
+      max_tokens: 500,
       system: [{ type: 'text', text: SYSTEM_PROMPT_MIRRORING, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userContent }],
     });
@@ -146,9 +146,9 @@ async function generateMirroringAct25(phone, persona, answers) {
 
   const raw = (response.content[0]?.text || '').trim();
 
-  // Divide por separador --- em mensagens separadas
+  // Divide por separador --- em mensagens separadas (aceita espaços ao redor)
   const messages = raw
-    .split(/\n---\n/)
+    .split(/\n[ \t]*---[ \t]*\n/)
     .map(m => m.trim())
     .filter(Boolean);
 

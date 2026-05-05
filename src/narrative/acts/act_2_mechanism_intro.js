@@ -73,8 +73,8 @@ module.exports = {
       `*3.* Como você tá lendo a situação agora — ela parece interessada, fria, ou você simplesmente não consegue ler?`,
     ],
     outro: [
-      `*2.* Faz quanto tempo essa situação tá assim?`,
-      `*3.* O que você sente que tá faltando pra avançar?`,
+      `*2.* O que você tá tentando agora — apps, reconquista, ou resolver uma situação que complicou?`,
+      `*3.* Qual é o maior bloqueio: não sabe como agir, não consegue ler o interesse dela, ou tá travado na indecisão?`,
     ],
   },
 };
