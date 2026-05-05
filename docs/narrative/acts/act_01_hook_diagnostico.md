@@ -3,6 +3,12 @@
 
 Antes de te explicar como funciono, me responde uma coisa.
 
+---
+
+Aqui vai do primeiro oi até o encontro real — análise de conversa, perfil, quando chamar pra sair, preparação pro encontro, como foi depois.
+
+---
+
 Em qual desses momentos você tá?
 
 1️⃣ Voltando pro mercado depois de muito tempo casado

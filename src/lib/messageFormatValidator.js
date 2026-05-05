@@ -14,6 +14,25 @@
  *   4. ZERO formatação WhatsApp dentro do texto pronto (*bold*, _italic_)
  */
 
+// ── Vocabulário banido ────────────────────────────────────────────────────────
+
+const BANNED_VOCABULARY = [
+  { pattern: /\bfricção\b/i,                  term: 'fricção' },
+  { pattern: /\bfeatures\b/i,                 term: 'features' },
+  { pattern: /\bdestravar?\b/i,               term: 'destrava/destravar' },
+  { pattern: /bora arrebentar/i,              term: 'Bora arrebentar' },
+  { pattern: /auditoria de perfil/i,          term: 'Auditoria de Perfil' },
+  { pattern: /coach de transi[cç][aã]o/i,     term: 'Coach de Transição' },
+  { pattern: /pr[eé]-date coach/i,            term: 'Pré-Date Coach' },
+  { pattern: /\bdebrief\b/i,                  term: 'debrief' },
+  { pattern: /\bperformad[oa]\b/i,            term: 'performado/a' },
+  { pattern: /\bperformar\b/i,                term: 'performar' },
+  { pattern: /\bcringe\b/i,                   term: 'cringe' },
+  { pattern: /sente a fric[cç][aã]o/i,        term: 'Sente a fricção' },
+  { pattern: /tu tá no n[ií]vel/i,            term: 'tu tá no nível' },
+  { pattern: /conquistar qualquer mulher/i,   term: 'conquistar qualquer mulher' },
+];
+
 // ── Padrões de violação ───────────────────────────────────────────────────────
 
 // Mensagem que começa com aspas (qualquer tipo)
@@ -83,6 +102,20 @@ function validateBlock(text) {
     violations.push({ type: 'whatsapp_format_inside', snippet: trimmed.slice(0, 100) });
   }
 
+  // Vocabulário banido
+  for (const { pattern, term } of BANNED_VOCABULARY) {
+    if (pattern.test(trimmed)) {
+      violations.push({ type: 'banned_vocabulary', term, snippet: trimmed.slice(0, 100) });
+    }
+  }
+
+  // Inconsistência de pronome: mistura "você" e "tu" na mesma mensagem
+  const hasTu   = /\btu\b/i.test(trimmed);
+  const hasVoce = /\bvocê\b/i.test(trimmed);
+  if (hasTu && hasVoce) {
+    violations.push({ type: 'pronoun_inconsistency', snippet: trimmed.slice(0, 100) });
+  }
+
   return violations;
 }
 
@@ -122,7 +155,7 @@ async function logViolations(phone, intent, violations, supabase) {
         phone:          phone || 'unknown',
         intent:         intent || 'unknown',
         violation_type: v.type,
-        snippet:        v.snippet || '',
+        snippet:        v.term ? `[${v.term}] ${v.snippet || ''}` : (v.snippet || ''),
         block_index:    v.blockIndex ?? null,
       }))
     );
