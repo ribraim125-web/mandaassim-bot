@@ -55,29 +55,32 @@ function getPayment() {
 
 // Mensagens de boas-vindas — enviadas em sequência (post-purchase reinforcement)
 const CONFIRMACAO_PARCEIRO = [
-  `🎉 *Beleza, parceiro.*`,
-  `Tu acabou de virar *Parceiro*.`,
+  `🎉 *Beleza, parceiro*`,
+  `Tu acabou de virar *Parceiro*`,
   `A partir de agora:`,
   `✓ Responder mensagem dela — *ilimitado*\n✓ Analisar conversa inteira — *ilimitado*\n✓ Conversar comigo sobre o que tá rolando — *ilimitado*`,
-  `Sem limite diário. Sem fricção. Toda vez que precisar, tô aqui.`,
-  `Manda o próximo print, ou me conta a próxima situação.\n\nBora arrebentar.`,
+  `Sem limite diário, sem fricção — toda vez que precisar, tô aqui`,
+  `Manda o próximo print, ou me conta a próxima situação\n\nBora arrebentar`,
 ];
 
 const CONFIRMACAO_PRO = [
-  `🚀 *Parceiro Pro ativado.*`,
-  `Tu acabou de subir pro nível mais completo.`,
+  `🚀 *Parceiro Pro ativado*`,
+  `Tu acabou de subir pro nível mais completo`,
   `Tudo do Parceiro tá liberado. E mais:`,
-  `✓ *Auditar teu perfil* — manda print do teu Tinder/Bumble que eu olho foto por foto, leio a bio, vejo a ordem, e te falo na lata o que trocar\n✓ *Analisar perfil dela* — manda print do perfil de quem tu deu match e eu monto a primeira mensagem matadora\n✓ *Preparar pro encontro* — quando tu marcar date, me avisa que eu te preparo (roupa, lugar, tópicos, lembrete)\n✓ *Analisar como foi* — depois do encontro, conversa comigo que eu leio os sinais que tu não viu`,
-  `Tu tá no nível que poucos caras chegam.`,
-  `Bora começar? Manda print do teu próprio perfil — quero ver como tá te vendendo no app.`,
+  `✓ *Auditar teu perfil* — manda print do teu Tinder/Bumble que eu olho foto por foto, leio a bio, vejo a ordem, e te falo na lata o que trocar`,
+  `✓ *Analisar perfil dela* — manda print do perfil de quem tu deu match e eu monto a primeira mensagem que faz ela responder`,
+  `✓ *Preparar pro encontro* — quando tu marcar date, me avisa que eu te preparo: roupa, papo, o que evitar, como sair em alta`,
+  `✓ *Analisar como foi depois* — eu leio os sinais que tu não viu e te digo o próximo passo`,
+  `Tu tá no nível que poucos caras chegam`,
+  `Bora começar?\n\nManda print do teu próprio perfil — quero ver como tá te vendendo no app`,
 ];
 
 const CONFIRMACAO_UPGRADE_PRO = [
-  `🚀 *Subiu pro Pro.*`,
+  `🚀 *Subiu pro Pro*`,
   `Tudo que tu já usava continua. Mas agora destrava:`,
   `✓ Auditar teu perfil\n✓ Analisar perfil dela\n✓ Preparar pro encontro + analisar como foi`,
-  `Esse é o pacote completo da jornada — antes do match até o pós-encontro.`,
-  `Manda print do teu próprio perfil aí. Vou começar te falando o que tá errado nele.`,
+  `Esse é o pacote completo da jornada — antes do match até o pós-encontro`,
+  `Manda print do teu próprio perfil aí\n\nVou começar te falando o que tá errado nele`,
 ];
 
 const CONFIRMACAO_24H = [
@@ -347,11 +350,7 @@ function createWebhookApp(waClient) {
     console.log(`[Admin] ✅ Parceiro Pro ativado manualmente para ${phone}`);
 
     const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
-    try {
-      await waClient.sendMessage(chatId, CONFIRMACAO_PRO);
-    } catch (e) {
-      console.warn('[Admin] Não conseguiu notificar no WhatsApp:', e.message);
-    }
+    await sendWelcomeSequence(waClient, chatId, CONFIRMACAO_PRO);
 
     res.json({ ok: true, phone, expires_at: expiresAt.toISOString() });
   });
@@ -378,11 +377,7 @@ function createWebhookApp(waClient) {
     console.log(`[Admin] ✅ Parceiro ativado manualmente para ${phone}`);
 
     const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
-    try {
-      await waClient.sendMessage(chatId, CONFIRMACAO_PARCEIRO);
-    } catch (e) {
-      console.warn('[Admin] Não conseguiu notificar no WhatsApp:', e.message);
-    }
+    await sendWelcomeSequence(waClient, chatId, CONFIRMACAO_PARCEIRO);
 
     res.json({ ok: true, phone });
   });
@@ -524,4 +519,10 @@ function createWebhookApp(waClient) {
   return app;
 }
 
-module.exports = { createWebhookApp };
+module.exports = {
+  createWebhookApp,
+  CONFIRMACAO_PARCEIRO,
+  CONFIRMACAO_PRO,
+  CONFIRMACAO_UPGRADE_PRO,
+  CONFIRMACAO_24H,
+};
