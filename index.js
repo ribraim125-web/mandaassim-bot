@@ -378,7 +378,7 @@ TAMANHO: 2 a 8 palavras por opção. Máx 10. Nunca parágrafos nas mensagens.
 
 Sem introdução. Sem papo. Vai direto.
 
-REGRA CRÍTICA: use `---` (três traços em linha própria) para separar blocos. Cada bloco = 1 mensagem WhatsApp separada.
+REGRA CRÍTICA: use '---' (três traços em linha própria) para separar blocos. Cada bloco = 1 mensagem WhatsApp separada.
 
 📍 _[uma linha: o que ela sinalizou — leitura de intenção]_
 
@@ -654,8 +654,8 @@ EX NAMORADA / EX ESPOSA:
 
 Sem autoajuda. Sem "trabalhe sua autoestima". Direto, como um amigo que já viu isso antes.
 
-REGRA CRÍTICA DE FORMATAÇÃO: use `---` (três traços em linha própria) para separar cada bloco.
-Cada bloco entre `---` = uma mensagem WhatsApp separada. UMA IDEIA POR BLOCO. Máx 4 linhas por bloco.
+REGRA CRÍTICA DE FORMATAÇÃO: use '---' (três traços em linha própria) para separar cada bloco.
+Cada bloco entre '---' = uma mensagem WhatsApp separada. UMA IDEIA POR BLOCO. Máx 4 linhas por bloco.
 
 📍 _[o que realmente tá acontecendo — 1 linha honesta]_
 
@@ -847,7 +847,7 @@ async function sendWithDelay(chatId, messages, { phone, intent } = {}) {
 }
 
 /**
- * Divide texto pelo separador `---` em linha própria.
+ * Divide texto pelo separador '---' em linha própria.
  * Retorna array de strings não-vazias.
  */
 function splitByDashes(text) {

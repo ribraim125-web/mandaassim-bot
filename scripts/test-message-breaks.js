@@ -48,14 +48,7 @@ function validate(label, response, { minBlocks = 3, maxLinesPerBlock = 6 } = {})
   return pass;
 }
 
-// ── System prompts importados direto do index.js via require ──────────────────
-// Não importamos o index.js inteiro (ele inicia o servidor).
-// Replicamos apenas os prompts para teste.
-
-const SYSTEM_PROMPT_COACH = require('../index.js').__TEST_SYSTEM_PROMPT_COACH;
-
-// Se o index não exporta, pegamos diretamente do arquivo.
-// Abordagem alternativa: lê o arquivo e extrai o prompt.
+// ── System prompts extraídos do index.js por regex (sem instanciar o servidor) ─
 
 async function testPrompt(label, systemPrompt, userMessage, options = {}) {
   try {
