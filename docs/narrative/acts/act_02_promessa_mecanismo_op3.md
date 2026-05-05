@@ -1,39 +1,17 @@
 // ATO 2 — Promessa + Mecanismo (versão pra quem tá em conversa quente)
 
-Beleza
+Você chegou no momento que importa: a conversa já foi longe o suficiente pra ter peso.
 
-*Tu chegou no momento mais crítico — a conversa foi longe o suficiente pra importar*
+Boa notícia: ela tá interessada o bastante pra continuar respondendo.
 
-Boa sinal
-
-E agora cada mensagem tem mais peso do que parecia
+Notícia honesta: cada mensagem agora pesa mais do que pesava no começo. Uma resposta morna mata. Uma resposta seca também.
 
 ---
 
-O ChatGPT não sabe quem é ela
+Por isso eu leio o que ela tá sinalizando antes de te dizer o que mandar.
 
-Não sabe o que aquele "kk" seco quis dizer naquele momento
-
-Não sabe se a conversa tá fria, morna ou quente
-
-Joga uma resposta genérica que serve pra qualquer mulher — e vai soar exatamente assim: genérica
+*O ChatGPT chuta. Eu decifro.*
 
 ---
 
-Eu faço *Leitura de Intenção*
-
-Antes de sugerir qualquer coisa, leio o que ela sinalizou
-
-O que tá por trás da mensagem dela, a temperatura da conversa, o que ela quis dizer de verdade
-
-*Aí sim* te digo o que falar — e por quê funciona naquele momento específico
-
-*ChatGPT chuta. Eu decifro*
-
----
-
-Manda print da conversa que tá rolando
-
-Ou descreve a situação aqui
-
-_Bora_
+Manda o print de onde tá. A gente lê e decide a próxima junto.

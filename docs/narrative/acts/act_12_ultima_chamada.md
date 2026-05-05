@@ -6,24 +6,21 @@
 
 ---
 
-Em 30min tu volta pra 3 mensagens por dia
+Em meia hora seu trial fecha e você volta pras 3 análises por dia.
 
-Lembra como era antes do MandaAssim?
-
-Ela mandando "kk" e tu sem saber se era interesse ou dispensa
-Ela sumindo 3 dias e tu refazendo a mensagem na cabeça
-Manda errado, queima o match, próximo
-
-Tu já saiu disso
-
-*Não precisa voltar.*
+Se nesses três dias você usou e funcionou, agora é a hora de decidir se quer manter o ritmo ou voltar pra cota reduzida.
 
 ---
 
-👉 Parceiro: [LINK_PARCEIRO]
-
-🚀 Parceiro Pro: [LINK_PARCEIRO_PRO]
+Pra continuar:
+• *mensal* — R$29,90
+• *anual* — R$299
+• *pro* — R$79,90
 
 ---
 
-_PS: o cara que tu era 72h atrás não sabia ler intenção. Esse cara não existe mais. A escolha agora é se essa evolução continua ou para aqui._
+Sem decisão, cai no Free. Tudo bem também.
+
+---
+
+_PS: quem você era 72h atrás não sabia ler a conversa antes de responder. Esse cara já não existe mais. A escolha agora é se essa mudança continua._

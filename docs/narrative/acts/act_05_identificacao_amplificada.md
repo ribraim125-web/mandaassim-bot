@@ -1,44 +1,30 @@
 // ATO 5 — Identificação amplificada (variant A)
 // Função DR: Schwartz puro — agitar dor latente que cara mal sabe que tem
 
-Vou te falar uma coisa direta agora
+Tem uma diferença entre o cara que consegue evoluir conversa e o cara que não consegue.
 
 ---
 
-*A diferença entre o cara que pega mulher gata e o que não pega não é dinheiro*
+Não é dinheiro, não é físico, não é idade.
 
-*Não é físico*
+É o que ele faz nos *30 segundos* depois dela mandar "kk".
 
-*Não é idade*
+Esses 30 segundos definem se a próxima mensagem entra com peso ou se a conversa morre ali.
 
----
-
-É o que ele faz nos *30 segundos* depois dela mandar _"kk"_
-
-90% dos caras manda o errado
-
-E uma vez mandado, *não tem desfazer*
+E a maioria dos caras manda exatamente o tipo de mensagem que mata.
 
 ---
 
-Ela leu
-
-Sentiu o tom
-
-E o que era interesse vira indiferença em 4 segundos
+Eu sei o que mata e o que mantém. É pra isso que eu tô aqui.
 
 ---
 
-Tu já mandou *[N]* mensagens essas últimas horas comigo
+Você já trouxe *[N]* situações comigo essas últimas horas.
 
 *Pergunta honesta:*
 
-_Quantas dessas tu mandaria errado se eu não tivesse aqui pra ler a intenção primeiro?_
+_Quantas dessas você teria mandado errado sem eu ler a intenção primeiro?_
 
 ---
 
-Pensa
-
-_(Esse é o motivo do MandaAssim existir. E o motivo da maioria dos caras travar e nunca entender por quê.)_
-
-Bora continuar
+Manda o último "kk" que você recebeu. Vou te mostrar o que mudaria.

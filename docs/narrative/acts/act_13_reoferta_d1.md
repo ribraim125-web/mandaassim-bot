@@ -1,22 +1,14 @@
 // ATO 13 — Re-oferta no D+1 do free (após bater limite)
 // Função DR: Halbert — frame de "perda já sentida"
 
-E aí
+E aí.
 
 ---
 
-Tu já bateu no limite hoje
-
-*Sente a fricção?*
+Você bateu o limite de hoje — e a sensação de _"queria mandar mais um print agora"_ é exatamente a hora em que o Parceiro faz diferença.
 
 ---
 
-No Parceiro é ilimitado
+R$29,90/mês. Sem limite. Cancela quando quiser.
 
-R$ 29,90
-
-👉 [LINK_PARCEIRO]
-
----
-
-_Sem stress. Mas tava melhor antes, né?_
+Pra ativar: digita *mensal*

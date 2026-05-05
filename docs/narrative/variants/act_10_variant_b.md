@@ -1,71 +1,39 @@
 // ATO 10 — Variant B (mais Halbert — story-first, oferta no fim)
 
-Tu tá há ~68h comigo
+Você tá há ~68h comigo. Em ~4h o trial fecha.
 
-Em ~4h tu vai ter que decidir: continua como tá, ou volta pra ser o cara que tu era antes do MandaAssim
+Aí você vai ter três opções:
 
-Vou te ajudar a decidir
-
----
-
-*A real do que tu viveu essas 68h:*
-
-Cada print que tu mandou, eu li a intenção antes
-
-Cada vez que tu ficou em dúvida, eu te falei na lata o que rolava
-
-Cada mensagem errada que tu *não* mandou, foi porque eu te puxei pelo braço a tempo
+1. Voltar pro Free (3 análises por dia)
+2. Continuar ilimitado no *Parceiro* (R$29,90/mês)
+3. Subir pro *Parceiro Pro* (R$79,90/mês), que inclui análise de perfil e preparação pra encontro
 
 ---
 
-*Pensa nos próximos 30 dias:*
-
-Vai ter mulher nova interessante
-
-Vai ter conversa esfriando
-
-Vai ter mensagem que tu ia mandar errado e ia se arrepender por dias
-
-Vai ter encontro que tu ia chegar despreparado
-
----
-
-Tu pode escolher fazer isso *sozinho* (de novo)
-
-Ou pode escolher fazer isso *comigo do lado* — todo dia, sem limite
+A maioria das conversas que vale a pena salvar acontecem em janelas curtas — e o limite de 3/dia geralmente bate exatamente quando importa.
 
 ---
 
 *Os caminhos:*
 
-🚫 Free: 3 análises por dia, 1 print por dia. Pra teste, ok. Pra resolver, vai te frustrar
+🚫 Free: 3 análises por dia. Funciona pras situações pontuais. Vai te frustrar quando a conversa quente aparecer.
 
-✅ Parceiro — R$ 29,90/mês: tudo do trial, ilimitado. Menos de 1 real por dia. Cancela em 1 mensagem
+✅ Parceiro — R$ 29,90/mês: tudo do trial, sem limite. Menos de 1 real por dia. Cancela em 1 mensagem.
 
-🚀 Parceiro Pro — R$ 79,90/mês: tudo do Parceiro + análise do teu próprio perfil + análise da pretendente pra montar a primeira mensagem certa + preparação pré-encontro + análise pós
+🚀 Parceiro Pro — R$ 79,90/mês: tudo do Parceiro + olhar seu perfil + analisar o perfil dela + preparação pra encontro + conversa depois de como foi.
 
 ---
 
 Pra referência:
 
-Coach de homem sério: R$ 300-800/sessão
-
-Consultoria de perfil: R$ 200-500
-
-Eu sou ilimitado. R$ 2,66/dia no Pro
+Coach de homem sério: R$ 300-800/sessão.
+Consultoria de perfil: R$ 200-500.
+Eu sou ilimitado. R$ 2,66/dia no Pro.
 
 ---
 
-Tu já provou o produto. Tu sabe o que ele é
-
-A decisão é se tu quer continuar tendo isso, ou voltar pra antes
+Pra escolher: *mensal*, *anual* ou *pro*
 
 ---
 
-Digita *mensal* pro Parceiro ou *pro* pro Parceiro Pro
-
-Eu gero o QR Code na hora 👇
-
----
-
-_PS: tu já provou que funciona essas 70 horas. A pergunta agora não é "vai funcionar?" — é "quanto vai custar fazer isso sozinho de novo?"_
+_PS: você já provou que funciona nessas 70 horas. A pergunta agora não é "vai funcionar?" — é "quanto vai custar fazer isso sozinho de novo?"_

@@ -1,58 +1,26 @@
 // ATO 7 — Revela Análise do Perfil Dela (Parceiro Pro)
 // Função DR: Bencivenga — diferenciação por inversão (não é manipulação, é leitura)
 
-Próximo nível
+Próximo nível.
 
 ---
 
-*Toda vez que tu der match com alguém:*
-
-Antes de mandar _"oi tudo bem"_ como os outros 50 caras na inbox dela...
+Toda vez que você der match, antes de mandar _"oi tudo bem"_ como os outros 50 caras na inbox dela...
 
 Faz isso:
 
 ---
 
-*Tira print do perfil dela*
+Manda pra mim o print do perfil dela.
 
-*Manda pra mim*
+Eu olho as fotos, leio a bio, vejo o que ela escolheu mostrar e o que escolheu esconder.
 
----
-
-Eu leio:
-
-✓ O que ela curte
-
-✓ O que as fotos comunicam
-
-✓ O que a bio sinaliza
-
-✓ O que ela _evita_ dizer mas tá implícito
+E te entrego a primeira mensagem — uma feita pra ela, não um modelo genérico.
 
 ---
 
-E te entrego *a primeira mensagem*
-
-Não uma mensagem genérica
-
-*A* mensagem
-
-A que mostra que tu a entende de verdade
+Quem manda mensagem específica, baseada no que tá ali no perfil, fica num grupo bem menor de caras.
 
 ---
 
-Não _"oi linda"_ como os 50 outros
-
-Não _"tudo bem?"_ como os outros 50
-
-*Algo que faz ela parar e pensar:*
-
-_"esse aqui me entende de verdade"_
-
----
-
-Não é manipulação
-
-*É leitura. É respeito performado*
-
-Próximo match: faz e me prova
+Tá no Pro. Pra liberar: digita *pro*

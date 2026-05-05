@@ -1,24 +1,18 @@
 // ATO 1 — Hook + Diagnóstico inicial
 // Função DR: identificar nível de consciência, segmentar pra personalização
 
-E aí
+Antes de te explicar como funciono, me responde uma coisa.
 
-Sou o *MandaAssim*, a IA que te ajuda do primeiro oi até conquistar qualquer mulher que você quiser
+Em qual desses momentos você tá?
 
----
+1️⃣ Voltando pro mercado depois de muito tempo casado
 
-Antes de te explicar como funciono, me responde:
+2️⃣ Solteiro há um tempão, nos apps, mas nada decola
 
-*Em qual desses momentos tu tá?*
-
-1️⃣ Voltando pro mercado depois de tempo casado
-
-2️⃣ Solteiro há um tempo, nos apps, mas nada engata
-
-3️⃣ Conversando com alguém agora — cada mensagem importa
+3️⃣ Numa conversa específica agora — e cada mensagem importa
 
 4️⃣ Outro
 
 ---
 
-_Manda só o número_
+Só o número.

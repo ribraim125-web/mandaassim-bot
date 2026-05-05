@@ -1,41 +1,17 @@
 // ATO 2 — Promessa + Mecanismo (versão genérica pra "outro")
 
-Beleza
+Independente de qual seja seu momento, em alguma hora vai bater a dúvida.
 
-*Independente de qual seja teu momento, em alguma hora vai aparecer a dúvida*
-
-Vai ter mensagem que tu não vai saber o que mandar
-
-Conversa que tu não vai saber se tá indo bem
-
-Aquele "o que ela quis dizer com isso?" que fica batendo na cabeça
+Vai ter mensagem que você não vai saber o que mandar. Conversa que não vai saber se tá indo bem. Encontro que não vai saber se vale insistir.
 
 ---
 
-O ChatGPT não sabe quem é ela
+Pra essas horas — me chama.
 
-Não sabe o que aquele "kk" seco quis dizer naquele momento
+Manda o print, descreve a situação, ou só me conta o que tá te incomodando. Eu leio com você.
 
-Não sabe se a conversa tá fria, morna ou quente
-
-Joga uma resposta genérica que serve pra qualquer mulher — e vai soar exatamente assim: genérica
+*O ChatGPT chuta. Eu decifro.*
 
 ---
 
-Eu faço *Leitura de Intenção*
-
-Antes de sugerir qualquer coisa, leio o que ela sinalizou
-
-O que tá por trás da mensagem dela, a temperatura da conversa, o que ela quis dizer de verdade
-
-*Aí sim* te digo o que falar — e por quê funciona naquele momento específico
-
-*ChatGPT chuta. Eu decifro*
-
----
-
-Manda print da conversa que tá te dando dor de cabeça
-
-Ou descreve a situação aqui
-
-_Bora_
+Manda o que tiver rolando. A gente lê junto.

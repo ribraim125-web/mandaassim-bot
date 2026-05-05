@@ -1,48 +1,30 @@
 // ATO 4 — Revela feature de "conversar sobre o que tá rolando"
 // Função DR: ampliar percepção do produto, agitar dor latente
 
-Ei
-
-Tô vendo que tu tá ativo. Bom
+Metade do problema com mulher não é o que mandar.
 
 ---
 
-Mas saca uma parada que talvez nem tenha percebido ainda:
+É a hora em que ela some por 2 dias e você não sabe se foi alguma coisa que você falou, se ela perdeu o interesse, ou se ela só tá ocupada.
 
-*Metade do problema com mulher não é o que mandar.*
+É a hora em que ela manda "kk" e você fica olhando pra tela tentando entender se aquilo é boa onda ou desinteresse.
 
-É a hora em que ela some por 2 dias e tu fica refazendo a mensagem na cabeça
-
-É a dúvida se ela tá interessada ou só sendo educada
-
-É a vontade de mandar mais uma e perguntar _"tá tudo bem?"_ — e tu sabe que não é uma boa
+É a hora em que rolou um beijo e a próxima mensagem não pode soar carente, mas também não pode soar fria.
 
 ---
 
-*Pra isso eu também sirvo.*
+Pra essas horas, me chama.
 
-Quando bater dúvida — qualquer dúvida — me escreve normal:
+*Conversar comigo* tá liberado pra você.
 
-_"ela não responde há 3 dias, o que faço"_
-
-_"será que tô insistindo demais"_
-
-_"tomei fora ontem, tá foda"_
+Me conta a situação — em texto, sem precisar de print — e a gente lê junto.
 
 ---
 
-Eu escuto
+Sem papo de "respira fundo, conecta com o momento"
 
-Leio o que tá rolando
-
-Te falo na lata
-
----
-
-Sem papo cringe de _"respira fundo, conecta com sua criança interior"._
-
-Sem manosfera tóxica de _"alfa frame, abundância mindset"._
+Sem coach que cobra R$300 pra sessão
 
 *Direto. Como amigo mais velho que já passou por isso.*
 
-Tô aqui pra isso também
+Tô aqui pra isso também.
