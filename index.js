@@ -198,7 +198,7 @@ const PROFILE_UPSELL_MESSAGE =
   `Pra liberar: digita *pro*`;
 
 const PROFILE_LIMIT_REACHED_PRO =
-  `Deu 30 análises de perfil hoje — o limite do plano.\n\nAmanhã cedo renova.`;
+  `Deu 10 análises de perfil hoje — o limite do plano.\n\nAmanhã cedo renova.`;
 
 // ── Mensagens da feature de Coach de Transição ───────────────────────────────
 
@@ -3617,7 +3617,7 @@ client.on('message', async (message) => {
       const result = await analisarTextoComClaude(transcricao, '', girlContextAudio + reconquistaExtraAudio, phone);
       stopTypingAudio();
       saveUserContext(phone, transcricao, 'text');
-      if (recentSuccessAudio) {
+      if (ctx?.recentSuccess) {
         const updCtx = userContext.get(phone) || {};
         userContext.set(phone, { ...updCtx, recentSuccess: false });
       }

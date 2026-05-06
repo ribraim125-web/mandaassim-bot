@@ -349,16 +349,6 @@ const ACTS = [
         if (!act10Time) return false;
         const hoursSinceOffer = (Date.now() - act10Time.getTime()) / 3_600_000;
 
-        // Link clicado mas não converteu — quebrar objeções
-        const linkClicked = await ctx.hasEvent('link_clicked');
-        if (linkClicked) {
-          const clickTime = await ctx.getEventTime('link_clicked');
-          if (clickTime) {
-            const minutesSinceClick = (Date.now() - clickTime.getTime()) / 60_000;
-            if (minutesSinceClick >= 60) return true;
-          }
-        }
-
         return hoursSinceOffer >= 2;
       },
       cooldown_hours: 4,
