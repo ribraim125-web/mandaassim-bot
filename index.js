@@ -1273,6 +1273,8 @@ async function tryReactiveNarrative(phone, chatId) {
     if (!user) return;
     const act = await getEligibleAct(user);
     if (!act) return;
+    // Delay antes de enviar — parece que o bot "lembrou de algo" em vez de roteiro
+    await new Promise(r => setTimeout(r, 45_000));
     await fireActForUser(user, act);
   } catch (err) {
     console.error('[ReactiveNarrative] Erro:', err.message);
