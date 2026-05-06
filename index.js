@@ -772,7 +772,7 @@ const HAIKU_MODEL = 'anthropic/claude-haiku-4-5-20251001';
 const HAIKU_FALLBACK = 'google/gemini-2.0-flash-001';
 
 const INTENT_MODEL_CONFIG = {
-  one_liner: { model: HAIKU_MODEL, maxTokens: 100, temperature: 0.90, systemType: 'minimal'  },
+  one_liner: { model: HAIKU_MODEL, maxTokens: 200, temperature: 0.90, systemType: 'minimal'  },
   volume:    { model: HAIKU_MODEL, maxTokens: 550, temperature: 0.85, systemType: 'degraded' },
   premium:   { model: HAIKU_MODEL, maxTokens: 500, temperature: 0.80, systemType: 'full'     },
   coaching:  { model: HAIKU_MODEL, maxTokens: 650, temperature: 0.75, systemType: 'coach'    },
@@ -1093,6 +1093,9 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
         cacheReadTokens  = msg.usage?.cache_read_input_tokens     || null;
         cacheWriteTokens = msg.usage?.cache_creation_input_tokens || null;
         console.log(`[Haiku] ${modelId} | cache_read:${cacheReadTokens || 0} cache_write:${cacheWriteTokens || 0} out:${outputTokens}`);
+        if (msg.stop_reason === 'max_tokens') {
+          console.warn(`[Truncamento] ${modelId} atingiu max_tokens=${config.maxTokens} | intent:${intent} | phone:${phone}`);
+        }
       } else {
         const response = await openrouter.chat.completions.create({
           model,
@@ -1106,6 +1109,9 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
         text = response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
         inputTokens  = response.usage?.prompt_tokens     || null;
         outputTokens = response.usage?.completion_tokens || null;
+        if (response.choices[0]?.finish_reason === 'length') {
+          console.warn(`[Truncamento] ${model} atingiu max_tokens=${config.maxTokens} | intent:${intent} | phone:${phone}`);
+        }
       }
     } catch (err) {
       trackingError = err.message;
@@ -1618,7 +1624,7 @@ _[uma linha: por que essa abordagem funciona pra esse perfil específico]_`;
 async function transcreverAudio(base64Data, mimetype) {
   const response = await openrouter.chat.completions.create({
     model: 'google/gemini-2.0-flash-lite-001',
-    max_tokens: 400,
+    max_tokens: 800,
     temperature: 0,
     messages: [{
       role: 'user',
