@@ -1,30 +1,63 @@
-// ATO 5 — Identificação amplificada (variant A)
-// Função DR: Schwartz puro — agitar dor latente que cara mal sabe que tem
+// ATO 5 — Identificação amplificada com especificidade Halbert
+// Trigger: >= 5 interações, >= 12h de conta
+// Princípio: Halbert specificity + Schwartz problem-aware + Makepeace dominant emotion
 
-Tem uma diferença entre o cara que consegue evoluir conversa e o cara que não consegue.
-
----
-
-Não é dinheiro, não é físico, não é idade.
-
-É o que ele faz nos *30 segundos* depois dela mandar "kk".
-
-Esses 30 segundos definem se a próxima mensagem entra com peso ou se a conversa morre ali.
-
-E a maioria dos caras manda exatamente o tipo de mensagem que mata.
+Te conto rápido sobre o Marcelo.
 
 ---
 
-Eu sei o que mata e o que mantém. É pra isso que eu tô aqui.
+39 anos, gerente de TI em Curitiba.
+Casado 12 anos, separou em março de 2024.
+Dois filhos: Júlia (9) e Tomás (6).
 
 ---
 
-Você já trouxe *[N]* situações comigo essas últimas horas.
-
-*Pergunta honesta:*
-
-_Quantas dessas você teria mandado errado sem eu ler a intenção primeiro?_
+Em janeiro voltou pro Tinder pela primeira vez.
+Ficou 3 semanas sem dar match.
+Quando veio o primeiro, travou em "Oi, tudo bem?".
 
 ---
 
-Manda o último "kk" que você recebeu. Vou te mostrar o que mudaria.
+Ela respondeu uma vez. Sumiu.
+
+---
+
+Ele me mandou o print: _"Cara, ela tá só sendo educada ou tem chance?"_
+
+---
+
+Não era educação. Era teste.
+
+Ela tinha mandado um áudio de 14 segundos terminando com "...mas a gente vê, né".
+
+---
+
+Aquele "a gente vê" é uma porta meio aberta.
+Não é "vai" nem "não vai".
+É "me dá um motivo".
+
+---
+
+O Marcelo tinha respondido "Beleza, qualquer coisa me chama".
+
+Que é a frase exata pra fechar a porta.
+
+---
+
+Reescrevi pra ele.
+Ela respondeu em 4 minutos.
+Sairam quinta passada.
+
+---
+
+Não é mágica. É leitura.
+
+A maioria dos caras não tá errado por culpa.
+Tá errado porque ficou 12 anos fora do jogo e tentou jogar com regras de 2012.
+
+---
+
+Se você reconheceu alguma parte do Marcelo aí em cima,
+me manda agora a última mensagem que ela te mandou e ficou estranho.
+
+Vou te mostrar o que ela quis dizer.

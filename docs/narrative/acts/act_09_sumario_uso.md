@@ -32,3 +32,8 @@ Você fez tudo isso em 60h. De graça. No teste.
 ---
 
 Faltam ~12h pro trial acabar. Em breve te mostro como continuar tendo isso.
+
+---
+
+Amanhã eu te apresento os planos.
+Hoje só queria que você visse o que já aconteceu.

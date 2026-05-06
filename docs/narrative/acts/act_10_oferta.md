@@ -1,51 +1,58 @@
-// ATO 10 — A OFERTA principal (variant A)
-// Função DR: stack de valor + ancoragem comparativa + identidade por contraste
+// ATO 10 — A Oferta Principal
+// Trigger: >= 60h de conta, trial ou free
+// Princípio: Kennedy stack + Sugarman slippery slope + Bencivenga proof
 
-Bora falar de continuar.
-
-A partir de amanhã você tem três caminhos. Vou ser honesto sobre cada um.
-
----
-
-🚫 *Caminho 1 — Free*
-
-3 análises por dia. Funciona pras situações pontuais. Se você usa 1 ou 2 conversas no mês, dá conta.
-
-Mas você já viu que naturalmente usa mais que isso. O limite bate exatamente quando importa.
+Você usou o trial por 60 horas.
 
 ---
 
-✅ *Caminho 2 — Parceiro (R$29,90/mês)*
-
-Sem limite. É o que faz sentido pra quem tá ativo nos apps ou tem conversas constantes rolando.
-
-Menos de 1 real por dia. Cancela em 1 mensagem. Sem ligação. Sem retenção.
+Em 3 dias você acertou mais do que tinha acertado em meses tentando sozinho.
 
 ---
 
-🚀 *Caminho 3 — Parceiro Pro (R$79,90/mês)*
-
-Tudo do Parceiro. E mais o que muda jogo de verdade:
-
-✓ *Olhar seu perfil* — foto por foto, bio, o que tira match e o que trocar
-✓ *Analisar o perfil dela* — print do match vira primeira mensagem feita pra ela
-✓ *Antes do encontro* — roupa, papo, o que evitar, como sair em alta
-✓ *Depois do encontro* — eu leio os sinais e a gente decide o próximo passo
+Agora vai virar uma escolha sua.
 
 ---
 
-*Pra te dar referência de mercado real:*
-
-🔸 Conselheiro sério no Brasil: R$ 300-800/sessão _(ilimitado seria R$ 6k+/mês)_
-🔸 Consultoria de perfil com humano: R$ 200-500 _(uma vez)_
-🔸 Mentoria mensal de relacionamento: R$ 500-2.000
-
-Eu sou tudo isso. Ilimitado. R$ 79,90/mês. Equivale a *R$ 2,66 por dia*.
+*Free* — sem pagar nada
+3 análises por dia.
+Pra usar quando aparecer alguém importante.
 
 ---
 
-Pra escolher: digita *mensal*, *anual* ou *pro*. Gero o QR Code na hora 👇
+*Parceiro — R$29,90/mês*
+Análises ilimitadas.
+Você pode mandar 50 mensagens num domingo de manhã sem se preocupar com limite.
+
+Junto, 3 coisas que só Parceiro recebe:
+→ análise da conversa inteira (você manda o print do chat, eu leio do começo)
+→ modo "conversa comigo" — quando você quer pensar em voz alta antes de responder
+→ sem fila — resposta em menos de 10 segundos
 
 ---
 
-_PS: você já provou que funciona nessas 70 horas. A pergunta agora não é "vai funcionar?" — é "quanto vai custar fazer isso sozinho de novo?"_
+*Parceiro Pro — R$79,90/mês*
+Tudo do Parceiro, mais 4 ferramentas pra quem leva a sério:
+→ auditoria do seu perfil (pelo que ela vê, não pelo que você acha)
+→ análise do perfil dela antes da primeira mensagem
+→ preparação pra encontro presencial
+→ conversa depois — o que rolou, o que vai continuar, o que cortar
+
+---
+
+Garantia: 7 dias.
+Não gostou, manda *cancelar* aqui mesmo.
+Devolvo na hora. Sem formulário, sem ligação, sem "mas por quê?".
+
+---
+
+Pra escolher, responde:
+*1* → Free (não faz nada)
+*2* → Parceiro
+*3* → Pro
+
+---
+
+Se você tá em dúvida entre Parceiro e Pro:
+se você tá voltando ao mercado e tem 1 ou 2 matches por mês, Parceiro resolve.
+Se você tá saindo com gente e quer não estragar nos primeiros encontros, Pro vale mais que cinema com pipoca.

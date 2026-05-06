@@ -1,26 +1,37 @@
-// ATO 12 — Última Chamada (30min antes do trial acabar)
-// Função DR: Halbert + Makepeace — escassez real + aversão à perda
-// Tom: frases curtas, brasileiro maduro, ativa perda — NÃO conforto
+// ATO 12 — Última Chamada
+// Trigger: H+71.5 a H+72, plano trial, usuário manda mensagem
+// Princípio: Makepeace urgência verdadeira + Hopkins reason why + Kennedy trivialize the choice
 
-*30 minutos.*
+Em 30 minutos seu trial acaba.
 
 ---
 
-Em meia hora seu trial fecha e você volta pras 3 análises por dia.
+Depois disso você vai pro Free automaticamente.
+3 análises por dia. Sem cobrar nada.
+Sem cobrança automática, sem pegadinha.
 
-Se nesses três dias você usou e funcionou, agora é a hora de decidir se quer manter o ritmo ou voltar pra cota reduzida.
+---
+
+Se você quer continuar ilimitado a partir de hoje,
+é nos próximos 30 minutos.
+
+---
+
+Por que agora e não depois?
+
+Porque depois você vai esquecer.
+E daqui a 2 semanas, quando aparecer uma mensagem importante,
+você vai bater no limite.
 
 ---
 
 Pra continuar:
-• *mensal* — R$29,90
-• *anual* — R$299
-• *pro* — R$79,90
+*1* → Free (não faz nada, vai automaticamente)
+*2* → Parceiro R$29,90/mês
+*3* → Pro R$79,90/mês
 
 ---
 
-Sem decisão, cai no Free. Tudo bem também.
-
----
-
-_PS: quem você era 72h atrás não sabia ler a conversa antes de responder. Esse cara já não existe mais. A escolha agora é se essa mudança continua._
+Se ficou em dúvida e não respondeu nada agora, sem problema.
+Amanhã de manhã o bot te manda um resumo do que rolou nesses 3 dias.
+Aí você decide com mais calma.

@@ -1,42 +1,55 @@
-// ATO 11 — Quebra de Objeções + Garantia
-// Função DR: Hopkins — cada objeção respondida com fato. Bencivenga — credibilidade > pressão
+// ATO 11 — Quebra de Objeções
+// Trigger: >= 2h após Ato 10, trial ou free
+// Princípio: Bencivenga Yeah-Sure alarm + objeções reais do ICP + Sugarman ansiedade pós-decisão
 
-Algumas coisas que provavelmente passam pela sua cabeça agora:
-
----
-
-_"E se não funcionar pra mim?"_
-
-Você teve 3 dias ilimitados. Se nada do que rolou nesse tempo te convenceu, talvez não seja pra você — e tudo bem. Mas se teve um print que te ajudou, dois, três, então o produto já provou o que tinha que provar.
+Antes de você decidir, 5 coisas que outros caras me perguntaram:
 
 ---
 
-_"E se eu cancelar?"_
+*"Isso é coach disfarçado?"*
 
-Cancela na hora, sem ligação, sem retenção forçada. Digita *cancelar* aqui dentro mesmo.
-
-Eu prefiro perder cliente bem do que segurar à força.
-
----
-
-_"E se o ChatGPT já faz isso?"_
-
-Faz alguma coisa parecida. Mas eu tenho contexto da sua situação, lembro das conversas anteriores, e fui calibrado especificamente pra ler intenção em contexto brasileiro. ChatGPT genérico não tem nada disso.
-
-Cola o mesmo print lá e aqui. Você vai sentir a diferença em 1 troca.
+Não. Coach te diz pra "ser confiante" e "ter abundância".
+Eu leio a mensagem dela e te mostro o que ela quis dizer.
+É ferramenta, não é palestra.
 
 ---
 
-_"R$ 79,90 é caro"_
+*"E se eu não quiser que ninguém saiba?"*
 
-Pro Parceiro: R$ 29,90 é R$ 1 por dia.
-
-Pro Pro: R$ 79,90 é menos que dois drinks num bar de São Paulo num sábado. Se uma conversa salvar virar encontro, já se paga.
-
-Se em 7 dias você não achar que valeu, cancela. Não pergunto o motivo.
-
-*O risco é R$ 0.*
+Ninguém vai saber.
+Suas conversas comigo ficam comigo.
+Aqui é WhatsApp normal — não aparece em rede social, não notifica ninguém.
 
 ---
 
-_PS: se nada disso te convenceu, o produto provavelmente não é pra você, e tudo bem. Mas se a única coisa segurando é "será que vale?", essa pergunta você já respondeu nessas últimas 71 horas._
+*"30 reais por mês não é caro pra usar uma vez por semana?"*
+
+Pode ser. Por isso o plano gratuito existe — 3 análises por dia.
+Parceiro só vale a pena se você usa toda semana.
+Se não é o caso agora, fica no Free mesmo.
+
+---
+
+*"E se eu cancelar?"*
+
+Manda *cancelar* aqui no chat.
+A cobrança para no mês seguinte.
+Você continua usando o que pagou até o fim do período.
+Sem ligação. Sem "tem certeza?".
+
+---
+
+*"Como sei que funciona?"*
+
+Você já testou 3 dias.
+Se as respostas que você mandou não foram melhores do que mandaria sozinho,
+é só sair.
+
+---
+
+A pergunta que importa não é "será que funciona?"
+
+É "vale R$1 por dia pra não ficar 40 minutos olhando pro celular sem saber o que escrever?"
+
+Se a resposta é sim: *2* pra Parceiro ou *3* pro Pro.
+Se é não: fica no Free, sem culpa.

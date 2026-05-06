@@ -24,3 +24,8 @@ Quem manda mensagem específica, baseada no que tá ali no perfil, fica num grup
 ---
 
 Tá no Pro. Pra liberar: digita *pro*
+
+---
+
+Se você tem o perfil dela na tela agora e quer saber o que escrever pra ela,
+manda o print. Parceiro Pro faz isso — digita *pro*.

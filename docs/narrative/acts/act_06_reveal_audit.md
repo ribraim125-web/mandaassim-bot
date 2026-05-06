@@ -30,3 +30,8 @@ Coisa que amigo nenhum faz contigo de verdade. Eu faço.
 Tá no Pro. Quer ver? Manda print do seu perfil aí.
 
 Digita *pro* pra liberar 👇
+
+---
+
+Se quiser ver o que ela enxerga quando abre seu perfil agora,
+isso tá no *Parceiro Pro* — digita *pro* e eu explico.

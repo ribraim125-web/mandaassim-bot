@@ -27,3 +27,8 @@ _(E existem muitos sinais que a gente não vê na hora)_
 ---
 
 Tá tudo no Pro. Quando chegar o momento, me chama.
+
+---
+
+Se tiver um encontro marcado e quiser chegar preparado — não ansioso, preparado —
+digita *encontro* e a gente monta o plano.
