@@ -1248,7 +1248,7 @@ async function getTrialInfo(phone) {
     }).eq('phone', phone).then(() => {}).catch(() => {});
   }
 
-  return { isPremium: false, isPro: false, inTrial, trialDaysLeft, trialHoursLeft, isLastDay, lastHours, planKey };
+  return { isPremium: false, isPro: false, inTrial, trialDaysLeft, trialHoursLeft, isLastDay, lastHours, planKey, createdAt: data.created_at };
 }
 
 /**
@@ -2060,13 +2060,13 @@ client.on('message', async (message) => {
     // Ato 1 — Boas-vindas com diagnóstico (substitui WELCOME_MESSAGES[1] quando ativo)
     const act1Msg = await getAct1Message(phone).catch(() => null);
 
-    for (let i = 0; i < WELCOME_MESSAGES.length; i++) {
-      if (i === 1 && act1Msg) {
-        await client.sendMessage(message.from, act1Msg); // Ato 1 no lugar da msg[1]
-      } else {
-        await client.sendMessage(message.from, WELCOME_MESSAGES[i]);
-      }
-    }
+    // Msg 0: apresentação
+    await client.sendMessage(message.from, WELCOME_MESSAGES[0]);
+    await new Promise(r => setTimeout(r, 2000 + Math.floor(Math.random() * 1000)));
+
+    // Msg 1: diagnóstico de persona (Ato 1) ou pergunta padrão
+    // Não envia WELCOME_MESSAGES[2] — a pergunta de persona já convida o usuário a agir
+    await client.sendMessage(message.from, act1Msg || WELCOME_MESSAGES[1]);
 
     console.log(`[Boas-vindas] Enviada para: ${phone}${act1Msg ? ' (Ato 1 ativo)' : ''}`);
     scheduleInactiveFollowup(phone).catch(() => {});
@@ -2408,7 +2408,11 @@ client.on('message', async (message) => {
   incrementDailyCount(phone).catch(() => {});
 
   // Trial ativo: aviso informativo na 1ª msg do dia
-  if (trial.inTrial && todayCount === 1) {
+  // Ignora nos primeiros 10min — usuário ainda está no onboarding
+  const minutesSinceSignup = trial.createdAt
+    ? (Date.now() - new Date(trial.createdAt).getTime()) / 60_000
+    : 999;
+  if (trial.inTrial && todayCount === 1 && minutesSinceSignup > 10) {
     if (trial.lastHours) {
       await message.reply(
         `O acesso ilimitado fecha em menos de *2h*.\n\n` +
