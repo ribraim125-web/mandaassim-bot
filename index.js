@@ -2081,7 +2081,8 @@ client.on('message', async (message) => {
 
   // Comandos: "premium" e "status"
   if (message.type === 'chat') {
-    const cmd = message.body.trim().toLowerCase();
+    const text = message.body.trim();
+    const cmd = text.toLowerCase();
 
     if (cmd === 'status') {
       const trial = await getTrialInfo(phone);
