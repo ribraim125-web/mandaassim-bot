@@ -1325,6 +1325,50 @@ async function getUserForNarrative(phone) {
 }
 
 /**
+ * Retorna contexto de persona para injetar no prompt de análise.
+ * Calibra a leitura para o momento específico do usuário.
+ */
+function getPersonaContext(persona) {
+  const contexts = {
+    voltou_pro_mercado:
+      `\n\nCONTEXTO DO USUÁRIO: voltou pro mercado recentemente após relacionamento longo ou tempo fora. ` +
+      `Pode estar desatualizado com apps e dinâmicas atuais. Calibra a leitura para quem precisa de clareza e segurança, não de teoria. ` +
+      `Filhos, separação e passado são dados neutros, não problemas. O fato de estar de volta já é o passo certo.`,
+    nos_apps_sem_conversao:
+      `\n\nCONTEXTO DO USUÁRIO: nos apps há algum tempo mas as conversas não convertem. ` +
+      `Foca em onde a conversa pode estar quebrando: resposta sem gancho, timing errado, leitura equivocada de sinal. ` +
+      `A análise precisa identificar o padrão, não só dar a próxima mensagem.`,
+    conversa_ativa:
+      `\n\nCONTEXTO DO USUÁRIO: tem uma conversa rolando agora. ` +
+      `Foco total na jogada certa para este momento específico. Leitura precisa do sinal dela e próximo passo concreto.`,
+  };
+  return contexts[persona] || '';
+}
+
+/**
+ * Dispara pergunta de contexto V2 após a primeira análise.
+ * Fire-and-forget — não bloqueia o handler principal.
+ */
+function fireContextQuestion(phone, chatId) {
+  if (!ONBOARDING_V2) return;
+  const ctx = userContext.get(phone) || {};
+  if (ctx.contextQuestionAsked || ctx.userPersona) return;
+  userContext.set(phone, { ...ctx, contextQuestionAsked: true });
+
+  setTimeout(async () => {
+    try {
+      await client.sendMessage(chatId,
+        `Última coisa pra calibrar melhor:\n\n` +
+        `Você tá voltando pro mercado depois de um tempo, nos apps sem converter, ou tem uma conversa específica rolando?\n\n` +
+        `1, 2 ou 3`
+      );
+      const ctx2 = userContext.get(phone) || {};
+      userContext.set(phone, { ...ctx2, awaitingContextQuestion: true });
+    } catch (_) {}
+  }, 4000);
+}
+
+/**
  * Avalia e dispara um ato narrativo reativo após a resposta principal.
  * Fire-and-forget — não bloqueia o handler.
  */
@@ -2912,6 +2956,23 @@ client.on('message', async (message) => {
       return;
     }
 
+    // ── Resposta à pergunta de contexto (1/2/3) — V2 ─────────────────────────
+    if (ONBOARDING_V2 && getUserContext(phone)?.awaitingContextQuestion && /^[123]$/.test(text.trim())) {
+      const choice = text.trim();
+      const personas = { '1': 'voltou_pro_mercado', '2': 'nos_apps_sem_conversao', '3': 'conversa_ativa' };
+      const persona = personas[choice];
+      const ctx = userContext.get(phone) || {};
+      userContext.set(phone, { ...ctx, awaitingContextQuestion: false, userPersona: persona });
+      logJourneyEvent(phone, 'context_question_answered', { persona }).catch(() => {});
+      const acks = {
+        '1': `Captado\n\nVoltou pro jogo depois de um tempo, já levo isso em conta nas próximas`,
+        '2': `Captado\n\nApps sem converter, dá pra ver onde tá quebrando`,
+        '3': `Captado\n\nConversa ativa, foco total na jogada certa`,
+      };
+      await client.sendMessage(message.from, acks[choice]);
+      return;
+    }
+
     // ── Opt-out de lembretes de pré-date ─────────────────────────────────────
     if (/^parar( lembretes?)?$/i.test(text.trim())) {
       await cancelPredateReminders(phone);
@@ -3248,6 +3309,7 @@ client.on('message', async (message) => {
     const girlProfile = await getGirlProfile(phone);
     const girlContext = buildGirlContext(girlProfile);
     const reconquistaExtra = RECONQUISTA_KEYWORDS.test(text) ? RECONQUISTA_CONTEXT : '';
+    const personaExtra = getPersonaContext(ctx?.userPersona);
 
     // --- Coaching: inicia conversa de contexto se situação for vaga ---
     const temHistorico = (ctx?.history?.length || 0) > 0;
@@ -3271,7 +3333,7 @@ client.on('message', async (message) => {
 
     const stopTyping3 = await startTyping(message);
     try {
-      const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, phone);
+      const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra + personaExtra, phone);
       stopTyping3();
       saveUserContext(phone, text, 'text');
       if (recentSuccess) {
@@ -3300,6 +3362,9 @@ client.on('message', async (message) => {
           if (msgs?.length) sendWithDelay(message.from, msgs, { phone, intent: 'act_12_ultima_chamada' }).catch(() => {});
         }).catch(() => {});
       }
+
+      // Pergunta de contexto V2 — uma vez só, após 1ª análise
+      fireContextQuestion(phone, message.from);
 
       // Narrativa reativa — dispara ato elegível após resposta principal
       tryReactiveNarrative(phone, message.from).catch(() => {});
@@ -3680,6 +3745,12 @@ client.on('message', async (message) => {
                 );
               }
             }
+
+            // Pergunta de contexto V2 — uma vez só, após 1ª análise
+            fireContextQuestion(phone, message.from);
+
+            // Narrativa reativa
+            tryReactiveNarrative(phone, message.from).catch(() => {});
 
           } catch (err) {
             stopTypingPrint();
