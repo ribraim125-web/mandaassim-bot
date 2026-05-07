@@ -204,11 +204,11 @@ const PRINT_LIMIT_REACHED_TRIAL =
 const PROFILE_UPSELL_MESSAGE =
   `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
   `Você manda print do perfil dela. Eu leio o que tá ali — gosto, vibe, o que ela quer mostrar — e te entrego a primeira mensagem certa pra abrir conversa. Não aquele "oi tudo bem". Uma feita pra ela.\n\n` +
-  `No Pro entra também:\n` +
-  `• Análise de conversa (sem limite)\n` +
-  `• Olhar o perfil dela (30/dia)\n` +
-  `• Olhar seu próprio perfil (30/dia)\n` +
-  `• Mensagens sem limite\n\n` +
+  `No Pro entra também:\n\n` +
+  `Análise de conversa (sem limite)\n` +
+  `Olhar o perfil dela (30/dia)\n` +
+  `Olhar seu próprio perfil (30/dia)\n` +
+  `Mensagens sem limite\n\n` +
   `Pra liberar: digita *pro*`;
 
 const PROFILE_LIMIT_REACHED_PRO =
@@ -255,11 +255,11 @@ const MINDSET_INVITE_MESSAGE =
 
 const MINDSET_ACTIVATED_MESSAGE =
   `Ativado ✅\n\nVou mandar 3x por semana — segunda, quarta e sexta de manhã.\n\n` +
-  `Pra mudar a frequência:\n` +
-  `• *mindset 1x* — 1 por semana\n` +
-  `• *mindset 3x* — 3 por semana (padrão)\n` +
-  `• *mindset 5x* — dias úteis\n` +
-  `• *mindset diário* — todo dia\n\n` +
+  `Pra mudar a frequência:\n\n` +
+  `*mindset 1x* — 1 por semana\n` +
+  `*mindset 3x* — 3 por semana (padrão)\n` +
+  `*mindset 5x* — dias úteis\n` +
+  `*mindset diário* — todo dia\n\n` +
   `Pra pausar: *cancelar mindset*`;
 
 const MINDSET_DECLINED_MESSAGE =
@@ -1919,7 +1919,7 @@ async function upsellPicoPremium(message, trial, todayCount) {
   // Free (pós-trial): última análise do dia
   if (!trial.inTrial && todayCount === FREE_DAILY_LIMIT) {
     await client.sendMessage(message.from,
-      `Essa foi a última de hoje. Se não dá pra esperar amanhã:\n• *mensal* — R$29,90\n• *anual* — R$299`
+      `Essa foi a última de hoje. Se não dá pra esperar amanhã:\n\n*mensal* — R$29,90\n*anual* — R$299`
     );
   }
 }
@@ -1942,11 +1942,11 @@ async function enviarCobrancaPixPro(message, phone) {
 
     await message.reply(
       `*Parceiro Pro — R$79,90/mês*\n\n` +
-      `O que entra:\n` +
-      `• Mensagens ilimitadas\n` +
-      `• Análise de conversa (sem limite)\n` +
-      `• Analisar o perfil dela (30/dia)\n` +
-      `• Olhar e revisar seu perfil (30/dia)\n\n` +
+      `O que entra:\n\n` +
+      `Mensagens ilimitadas\n` +
+      `Análise de conversa (sem limite)\n` +
+      `Analisar o perfil dela (30/dia)\n` +
+      `Olhar e revisar seu perfil (30/dia)\n\n` +
       `O Pix aparece no nome *Rafael Cabral Ibraim* — é o responsável pelo MandaAssim. Pode pagar tranquilo ✅`
     );
 
@@ -2318,7 +2318,7 @@ client.on('message', async (message) => {
     if (cmd === 'cancelar' || cmd === '/cancelar') {
       const trialForCancel = await getTrialInfo(phone);
       if (!trialForCancel.isPremium) {
-        await message.reply(`Você tá no plano *free* — não há assinatura ativa pra cancelar.\n\nSe quiser assinar:\n• *mensal* — R$29,90\n• *anual* — R$299`);
+        await message.reply(`Você tá no plano *free* — não há assinatura ativa pra cancelar.\n\nSe quiser assinar:\n\n*mensal* — R$29,90\n*anual* — R$299`);
         return;
       }
 
@@ -2473,7 +2473,7 @@ client.on('message', async (message) => {
           `*voltar* — R$19,90 no primeiro mês`
         );
       } else if (conversaQuente) {
-        await message.reply(`Bateu o limite de hoje — e logo agora que a conversa tá rolando.\n\nSe não dá pra esperar amanhã:\n• *mensal* — R$29,90\n• *anual* — R$299`);
+        await message.reply(`Bateu o limite de hoje — e logo agora que a conversa tá rolando.\n\nSe não dá pra esperar amanhã:\n\n*mensal* — R$29,90\n*anual* — R$299`);
       } else {
         await message.reply(limitCheck.upsellMessage || LIMITE_FREE_ESGOTADO);
       }
@@ -2495,13 +2495,13 @@ client.on('message', async (message) => {
     if (trial.lastHours) {
       await message.reply(
         `O acesso ilimitado fecha em menos de *2h*.\n\n` +
-        `Pra continuar:\n• *mensal* — R$29,90\n• *anual* — R$299`
+        `Pra continuar:\n\n*mensal* — R$29,90\n*anual* — R$299`
       );
     } else if (trial.isLastDay) {
       await message.reply(
         `Hoje é o último dia ilimitado.\n\n` +
         `A partir de amanhã: *${FREE_DAILY_LIMIT} análises por dia*.\n\n` +
-        `Se quiser continuar sem limite:\n• *mensal* — R$29,90\n• *anual* — R$299`
+        `Se quiser continuar sem limite:\n\n*mensal* — R$29,90\n*anual* — R$299`
       );
     } else {
       await message.reply(

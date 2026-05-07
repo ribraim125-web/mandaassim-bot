@@ -56,7 +56,8 @@ function getPayment() {
 // Mensagens de boas-vindas — enviadas em sequência (post-purchase reinforcement)
 const CONFIRMACAO_PARCEIRO = [
   `✅ *Parceiro ativado*`,
-  `A partir de agora você tem:\n• Resposta de mensagem — sem limite\n• Análise de conversa inteira — sem limite\n• Conversar comigo sobre o que tá rolando — sem limite`,
+  `A partir de agora você tem:`,
+  `Resposta de mensagem — sem limite\nAnálise de conversa inteira — sem limite\nConversar comigo sobre o que tá rolando — sem limite`,
   `Sem teto diário, sem travamento. Toda vez que precisar, é só me chamar.`,
   `Manda o próximo print, ou me conta a próxima situação.`,
 ];
@@ -75,7 +76,7 @@ const CONFIRMACAO_PRO = [
 const CONFIRMACAO_UPGRADE_PRO = [
   `🚀 *Agora você tá no Pro*`,
   `Tudo que você já usava continua. E mais:`,
-  `✓ Olhar seu perfil\n✓ Analisar o perfil dela\n✓ Preparar o encontro + conversar depois sobre como foi`,
+  `Olhar seu perfil\nAnalisar o perfil dela\nPreparar o encontro + conversar depois sobre como foi`,
   `Esse é o pacote do começo ao fim — antes do match até o pós-encontro.`,
   `Manda print do seu próprio perfil aí. Vou começar te falando o que não tá funcionando.`,
 ];

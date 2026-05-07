@@ -13,7 +13,7 @@ const MESSAGES = {
   ],
 
   limit_exhausted_10: [
-    `Deu 10 por hoje. Amanhã cedo renova.\n\nSe não der pra esperar:\n• ${OPCOES}.`,
+    `Deu 10 por hoje. Amanhã cedo renova.\n\nSe não der pra esperar: ${OPCOES}.`,
     `Por hoje, fechou. Amanhã tem mais 10.\n\nQuer ilimitado? ${OPCOES}.`,
   ],
 
@@ -23,7 +23,7 @@ const MESSAGES = {
   ],
 
   limit_exhausted_3: [
-    `Deu 3 por hoje. Amanhã tem mais 3.\n\nSe não dá pra esperar:\n• ${OPCOES}.`,
+    `Deu 3 por hoje. Amanhã tem mais 3.\n\nSe não dá pra esperar: ${OPCOES}.`,
     `Por hoje, fechou. Renova amanhã.\n\nQuer ilimitado? ${OPCOES}.`,
     `3 por hoje, encerrou. Se precisar agora: ${OPCOES}.`,
   ],
