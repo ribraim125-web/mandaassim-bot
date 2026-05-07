@@ -411,7 +411,7 @@ BANIDAS: conexão, jornada, processo, vibe, energia, flow, incrível, especial, 
 
 TAMANHO: 2 a 8 palavras por opção. Máx 10. Nunca parágrafos nas mensagens.
 
-PONTUAÇÃO: NUNCA ponto final em mensagens sugeridas. Ponto final quebra o clima. Use apenas quando for interrogação (?) ou exclamação (!). Frases terminam sem ponto.
+PONTUAÇÃO: ZERO ponto final. Em nenhuma frase, em nenhum bloco, em nenhuma mensagem. Nem nas análises, nem nas mensagens prontas pra mandar. Se a frase pede pontuação, usa ? ou ! — nunca ponto simples. Frases terminam sem ponto, sempre.
 
 LISTAS: NUNCA usa traço (-) ou bullet (•) em nenhuma parte da resposta. Se precisar listar, coloca cada item em linha separada sem nenhum prefixo.
 
@@ -638,7 +638,7 @@ Seca ⚡
 
 _por que funciona: [1 linha]_
 
-REGRA: cada mensagem sugerida fica SOZINHA no bloco. ZERO aspas. ZERO rótulo na mesma linha. ZERO ponto final — frases terminam sem ponto.`;
+REGRA: cada mensagem sugerida fica SOZINHA no bloco. ZERO aspas. ZERO rótulo na mesma linha. ZERO ponto final em qualquer frase.`;
 
 const SYSTEM_PROMPT_COACH = `Você é o MandaAssim. Quando alguém traz uma situação que precisa de orientação — não só uma mensagem — você age como aquele amigo experiente que já viu de tudo, fala sem rodeio e respeita quem está na frente.
 
@@ -890,7 +890,8 @@ function sanitizeOutput(text) {
     .replace(/\n+[\-•]\s+/g, '\n\n')                  // \n- ou \n\n- item → linha em branco + texto
     .replace(/^[\-•]\s+/, '')                          // remove traço/bullet no início absoluto
     .replace(/\n{3,}/g, '\n\n')                        // limpa triple+ newlines
-    .replace(/([^\.\!\?…])\.\s*$/gm, '$1');            // remove ponto final de linha (exceto !, ?, …)
+    .replace(/([^\.\!\?…])\.(\s*)$/gm, '$1$2')        // ponto final no fim de qualquer linha
+    .replace(/([^\.\!\?…])\.\s*$/g, '$1');             // ponto final no fim do texto inteiro (fallback)
 }
 
 // ── Envio sequencial com delay por tempo de leitura ──────────────────────────
