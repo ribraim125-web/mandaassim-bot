@@ -884,7 +884,7 @@ function sanitizeOutput(text) {
   if (!text) return text;
   return text
     .replace(/\*\*([^*]+)\*\*/g, '*$1*')              // **bold** → *bold*
-    .replace(/\n[\-•]\s+/g, '\n\n')                   // \n- item → linha em branco + texto (no meio)
+    .replace(/\n+[\-•]\s+/g, '\n\n')                   // \n- ou \n\n- item → linha em branco + texto
     .replace(/^[\-•]\s+/, '')                          // remove traço/bullet no início absoluto
     .replace(/\n{3,}/g, '\n\n')                        // limpa triple+ newlines
     .replace(/([^\.\!\?…])\.\s*$/gm, '$1');            // remove ponto final de linha (exceto !, ?, …)
@@ -2055,6 +2055,13 @@ client.on('message', async (message) => {
   if (message.fromMe) return;
   // Ignora reações (👍❤️😂 etc.) e mensagens de sistema
   if (message.type === 'reaction') return;
+
+  // Intercepta message.reply() para sanitizar igual ao client.sendMessage
+  const _origReply = message.reply.bind(message);
+  message.reply = (content, chatId, opts) => {
+    const clean = typeof content === 'string' ? sanitizeOutput(content) : content;
+    return _origReply(clean, chatId, opts);
+  };
   if (message.type === 'e2e_notification') return;
   if (message.type === 'notification_template') return;
 
