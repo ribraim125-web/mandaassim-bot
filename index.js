@@ -2029,14 +2029,26 @@ client.on('message', async (message) => {
 
   console.log(`[Mensagem] De: ${phone} | Tipo: ${message.type} | Nome: ${contactName ?? 'desconhecido'}`);
 
+  // Typing imediato — usuário vê que o bot recebeu antes de qualquer processamento
+  let stopEarlyTyping = () => {};
+  try {
+    const earlyChat = await message.getChat();
+    await earlyChat.sendStateTyping();
+    const earlyInterval = setInterval(() => earlyChat.sendStateTyping().catch(() => {}), 4000);
+    stopEarlyTyping = () => { clearInterval(earlyInterval); earlyChat.clearState().catch(() => {}); };
+  } catch (_) {}
+
   // Rate limiting — ignora silenciosamente se mandando rápido demais
   if (isRateLimited(phone)) {
+    stopEarlyTyping();
+
     console.log(`[RateLimit] ${phone} bloqueado — mensagens muito rápidas.`);
     return;
   }
 
   // Limite de tamanho — mensagens absurdamente longas são ignoradas
   if (message.type === 'chat' && message.body && message.body.length > 2000) {
+    stopEarlyTyping();
     await message.reply('Tá longo demais. Resume o essencial em até 2000 caracteres e manda de novo.');
     return;
   }
@@ -2061,6 +2073,7 @@ client.on('message', async (message) => {
     const act1Msg = await getAct1Message(phone).catch(() => null);
 
     // Msg 0: apresentação
+    stopEarlyTyping();
     await client.sendMessage(message.from, WELCOME_MESSAGES[0]);
     await new Promise(r => setTimeout(r, 2000 + Math.floor(Math.random() * 1000)));
 
@@ -2075,6 +2088,7 @@ client.on('message', async (message) => {
 
   // Slug detectado em usuário já existente — descarta silenciosamente sem sobrescrever
   if (acquisitionSlug) {
+    stopEarlyTyping();
     console.log(`[Aquisição] ${phone} enviou slug mas já é usuário existente — ignorado`);
     return;
   }
@@ -2083,6 +2097,7 @@ client.on('message', async (message) => {
   if (message.type === 'chat') {
     const text = message.body.trim();
     const cmd = text.toLowerCase();
+    stopEarlyTyping(); // transfere controle do typing para os fluxos específicos
 
     if (cmd === 'status') {
       const trial = await getTrialInfo(phone);
@@ -3596,6 +3611,7 @@ client.on('message', async (message) => {
   } else if (message.type === 'audio' || message.type === 'ptt') {
     // Áudio de voz — transcreve e analisa como texto
     console.log(`[Áudio] ${phone} enviou ${message.type}.`);
+    stopEarlyTyping();
 
     const media = await message.downloadMedia();
     if (!media) {
