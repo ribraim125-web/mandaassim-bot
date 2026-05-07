@@ -155,16 +155,16 @@ const MENSAGEM_RENOVACAO =
 
 
 // Mensagem 0 — enviada imediatamente
-const WELCOME_MSG_0 = `Boa, você chegou.
+const WELCOME_MSG_0 = `Boa, você chegou
 
-Aqui é o *MandaAssim*.`;
+Aqui é o *MandaAssim*`;
 
 // Mensagem 1 — enviada ~2s depois
-const WELCOME_MSG_1 = `Eu leio o que ela quis dizer — e te entrego a resposta certa pra aquele momento.
+const WELCOME_MSG_1 = `Eu leio o que ela quis dizer — e te entrego a resposta certa pra aquele momento
 
-Não é técnica de pegação. Não é coach.
+Não é técnica de pegação. Não é coach
 
-*É leitura de situação.*`;
+*É leitura de situação*`;
 
 // Mensagem 2 — a pergunta de persona (ou substituída pelo Ato 1)
 const WELCOME_MESSAGES = [
@@ -410,6 +410,8 @@ BANIDAS: conexão, jornada, processo, vibe, energia, flow, incrível, especial, 
 
 TAMANHO: 2 a 8 palavras por opção. Máx 10. Nunca parágrafos nas mensagens.
 
+PONTUAÇÃO: NUNCA ponto final em mensagens sugeridas. Ponto final quebra o clima. Use apenas quando for interrogação (?) ou exclamação (!). Frases terminam sem ponto.
+
 === FORMATO DE SAÍDA ===
 
 Sem introdução. Sem papo. Vai direto.
@@ -518,6 +520,7 @@ REGRAS DE OURO:
 - NUNCA elogio genérico ("que bom", "que legal", "que foto linda")
 - "kkk" seco dela → muda de ângulo completamente, não insiste no mesmo tema
 - ZERO aspas, ZERO asteriscos, ZERO underscores nas respostas
+- ZERO ponto final — frases terminam sem ponto. Só ? ou ! quando fizer sentido
 
 EXEMPLOS COMPLETOS (formato exato a seguir):
 
@@ -627,7 +630,7 @@ Seca ⚡
 
 _por que funciona: [1 linha]_
 
-REGRA: cada mensagem sugerida fica SOZINHA no bloco. ZERO aspas. ZERO rótulo na mesma linha.`;
+REGRA: cada mensagem sugerida fica SOZINHA no bloco. ZERO aspas. ZERO rótulo na mesma linha. ZERO ponto final — frases terminam sem ponto.`;
 
 const SYSTEM_PROMPT_COACH = `Você é o MandaAssim. Quando alguém traz uma situação que precisa de orientação — não só uma mensagem — você age como aquele amigo experiente que já viu de tudo, fala sem rodeio e respeita quem está na frente.
 
