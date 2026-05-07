@@ -883,9 +883,11 @@ function extrairPorQueFunciona(texto) {
 function sanitizeOutput(text) {
   if (!text) return text;
   return text
-    .replace(/\*\*([^*]+)\*\*/g, '*$1*')        // **bold** → *bold*
-    .replace(/^[\-•]\s+/gm, '')                  // remove traço/bullet no início de linha
-    .replace(/([^\.\!\?…])\.\s*$/gm, '$1');      // remove ponto final de linha (exceto !, ?, …)
+    .replace(/\*\*([^*]+)\*\*/g, '*$1*')              // **bold** → *bold*
+    .replace(/\n[\-•]\s+/g, '\n\n')                   // \n- item → linha em branco + texto (no meio)
+    .replace(/^[\-•]\s+/, '')                          // remove traço/bullet no início absoluto
+    .replace(/\n{3,}/g, '\n\n')                        // limpa triple+ newlines
+    .replace(/([^\.\!\?…])\.\s*$/gm, '$1');            // remove ponto final de linha (exceto !, ?, …)
 }
 
 // ── Envio sequencial com delay por tempo de leitura ──────────────────────────
