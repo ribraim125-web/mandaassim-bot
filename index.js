@@ -3375,6 +3375,7 @@ client.on('message', async (message) => {
     }
 
   } else if (message.type === 'image') {
+    stopEarlyTyping();
     const media = await message.downloadMedia();
     if (!media) {
       await message.reply('Não consegui baixar a imagem, manda de novo');
