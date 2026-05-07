@@ -413,6 +413,10 @@ TAMANHO: 2 a 8 palavras por opção. Máx 10. Nunca parágrafos nas mensagens.
 
 PONTUAÇÃO: NUNCA ponto final em mensagens sugeridas. Ponto final quebra o clima. Use apenas quando for interrogação (?) ou exclamação (!). Frases terminam sem ponto.
 
+LISTAS: NUNCA usa traço (-) ou bullet (•) em nenhuma parte da resposta. Se precisar listar, coloca cada item em linha separada sem nenhum prefixo.
+
+NEGRITO: usa *negrito* (um asterisco) pra destacar pontos críticos. NUNCA **duplo asterisco**.
+
 === FORMATO DE SAÍDA ===
 
 Sem introdução. Sem papo. Vai direto.
@@ -423,7 +427,7 @@ REGRA CRÍTICA: use '---' (três traços em linha própria) para separar blocos.
 
 ---
 
-💡 [O que está acontecendo — máx 3 linhas. Direto. Use *negrito* nos pontos críticos. NUNCA **duplo asterisco**.]
+💡 [O que está acontecendo — máx 3 linhas. Direto. Use *negrito* nos pontos críticos. Sem listas com traço.]
 
 ---
 
@@ -458,6 +462,7 @@ REGRAS DAS MENSAGENS PRONTAS (sagradas):
 2. ZERO aspas de qualquer tipo (", ', "", '')
 3. ZERO formatação WhatsApp (*negrito*, _itálico_) dentro do texto pronto
 4. Label (Aquece 🔥 / Provoca 😏 / Seca ⚡) fica em bloco ANTERIOR, separado por ---
+5. ZERO traços (-) ou bullets (•) em qualquer bloco
 
 CRÍTICO: escreva as mensagens de verdade. NUNCA placeholders.`;
 
@@ -697,11 +702,13 @@ Sem autoajuda. Sem "trabalhe sua autoestima". Direto, como um amigo que já viu 
 REGRA CRÍTICA DE FORMATAÇÃO: use '---' (três traços em linha própria) para separar cada bloco.
 Cada bloco entre '---' = uma mensagem WhatsApp separada. UMA IDEIA POR BLOCO. Máx 4 linhas por bloco.
 
+NUNCA usa traço (-) ou bullet (•) em nenhuma parte da resposta. Se listar ações, coloca cada uma em linha separada sem prefixo. NUNCA **duplo asterisco** — usa *negrito* (um asterisco).
+
 📍 _[o que realmente tá acontecendo — 1 linha honesta]_
 
 ---
 
-[Parágrafo 1: o que provavelmente está acontecendo com ela. *Negrito* nos pontos críticos. Máx 4 linhas.]
+[Parágrafo 1: o que provavelmente está acontecendo com ela. *Negrito* nos pontos críticos. Máx 4 linhas. Sem traços.]
 
 ---
 
@@ -710,15 +717,17 @@ Cada bloco entre '---' = uma mensagem WhatsApp separada. UMA IDEIA POR BLOCO. M�
 ---
 
 *O que fazer:*
-• [ação concreta 1]
-• [ação concreta 2]
-• [ação concreta 3]
+
+[ação concreta 1]
+[ação concreta 2]
+[ação concreta 3]
 
 ---
 
 *Evita:*
-• [erro comum 1]
-• [erro comum 2]
+
+[erro comum 1]
+[erro comum 2]
 
 [Se tiver mensagem específica pra mandar, adiciona os blocos abaixo:]
 
@@ -874,8 +883,9 @@ function extrairPorQueFunciona(texto) {
 function sanitizeOutput(text) {
   if (!text) return text;
   return text
-    .replace(/\*\*([^*]+)\*\*/g, '*$1*')   // **bold** → *bold*
-    .replace(/([^\.\!\?…])\.\s*$/gm, '$1'); // remove ponto final de linha (exceto !, ?, …)
+    .replace(/\*\*([^*]+)\*\*/g, '*$1*')        // **bold** → *bold*
+    .replace(/^[\-•]\s+/gm, '')                  // remove traço/bullet no início de linha
+    .replace(/([^\.\!\?…])\.\s*$/gm, '$1');      // remove ponto final de linha (exceto !, ?, …)
 }
 
 // ── Envio sequencial com delay por tempo de leitura ──────────────────────────
