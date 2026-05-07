@@ -161,7 +161,7 @@ const WELCOME_MSG_0 = `Boa, você chegou
 Aqui é o *MandaAssim*`;
 
 // Mensagem 1 — enviada ~2s depois
-const WELCOME_MSG_1 = `Eu leio o que ela quis dizer — e te entrego a resposta certa pra aquele momento
+const WELCOME_MSG_1 = `Eu leio o que ela quis dizer e te entrego a resposta certa pra aquele momento
 
 Não é técnica de pegação. Não é coach
 
@@ -171,7 +171,7 @@ Não é técnica de pegação. Não é coach
 const WELCOME_MESSAGES = [
   WELCOME_MSG_0,
   WELCOME_MSG_1,
-  `Antes de começar — em qual momento você tá?\n\n1️⃣ Voltei pro mercado depois de muito tempo fora\n2️⃣ Tô nos apps, mas as conversas não engrenam\n3️⃣ Tenho uma conversa rolando agora\n4️⃣ Outro\n\nManda o número — ou já cola o print direto que eu leio.`,
+  `Em qual momento você tá?\n\n1️⃣ Voltei pro mercado depois de muito tempo fora\n2️⃣ Tô nos apps, mas as conversas não engrenam\n3️⃣ Tenho uma conversa rolando agora\n4️⃣ Outro\n\nManda o número ou já cola o print direto que eu leio.`,
 ];
 
 const OPCOES_PREMIUM =
@@ -189,21 +189,21 @@ const LIMITE_FREE_ESGOTADO =
 
 const PRINT_UPSELL_MESSAGE =
   `Análise de print é do *Parceiro* 🔍\n\n` +
-  `Você manda o print da conversa, eu leio o que tá rolando ali — interesse dela, temperatura, o que faz sentido responder agora.\n\n` +
+  `Você manda o print da conversa, eu leio o que tá rolando ali: interesse dela, temperatura, o que faz sentido responder agora.\n\n` +
   `Pra liberar:\n` +
-  `⚡ *24h* — R$4,99 → *24h*\n` +
-  `📅 *Mensal* — R$29,90 → *mensal*\n` +
-  `📆 *Anual* — R$299 → *anual*`;
+  `⚡ *24h* por R$4,99 → *24h*\n` +
+  `📅 *Mensal* R$29,90 → *mensal*\n` +
+  `📆 *Anual* R$299 → *anual*`;
 
 const PRINT_LIMIT_REACHED_PREMIUM =
-  `Deu 5 análises de print hoje — o limite do plano.\n\nAmanhã cedo renova. Enquanto isso, descreve em texto o que ela mandou — funciona igual.`;
+  `Deu 5 análises de print hoje, o limite do plano.\n\nAmanhã cedo renova. Enquanto isso, descreve em texto o que ela mandou, funciona igual.`;
 
 const PRINT_LIMIT_REACHED_TRIAL =
-  `Deu 1 análise de print por hoje — limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`;
+  `Deu 1 análise de print por hoje, limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`;
 
 const PROFILE_UPSELL_MESSAGE =
   `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-  `Você manda print do perfil dela. Eu leio o que tá ali — gosto, vibe, o que ela quer mostrar — e te entrego a primeira mensagem certa pra abrir conversa. Não aquele "oi tudo bem". Uma feita pra ela.\n\n` +
+  `Você manda print do perfil dela. Eu leio o que tá ali: gosto, vibe, o que ela quer mostrar. Te entrego a primeira mensagem certa pra abrir conversa. Não aquele "oi tudo bem". Uma feita pra ela.\n\n` +
   `No Pro entra também:\n\n` +
   `Análise de conversa (sem limite)\n` +
   `Olhar o perfil dela (30/dia)\n` +
@@ -212,12 +212,12 @@ const PROFILE_UPSELL_MESSAGE =
   `Pra liberar: digita *pro*`;
 
 const PROFILE_LIMIT_REACHED_PRO =
-  `Deu 10 análises de perfil hoje — o limite do plano.\n\nAmanhã cedo renova.`;
+  `Deu 10 análises de perfil hoje, o limite do plano.\n\nAmanhã cedo renova.`;
 
 // ── Mensagens da feature de Coach de Transição ───────────────────────────────
 
 const TRANSITION_COACH_UPSELL_FREE =
-  `Tem um momento na conversa em que dá pra chamar pra sair — e tem um momento em que ainda não.\n\n` +
+  `Tem um momento na conversa em que dá pra chamar pra sair. E tem um momento em que ainda não.\n\n` +
   `Mandar a mensagem certa nessa hora é o que separa conversa boa de encontro marcado.\n\n` +
   `Eu leio onde a conversa tá e te falo *quando* e *como* chamar.\n\n` +
   `Tá no *Parceiro* (R$29,90/mês) ou no *Anual* (R$299).\n\n` +
@@ -225,13 +225,13 @@ const TRANSITION_COACH_UPSELL_FREE =
 
 const TRANSITION_COACH_UPSELL_PREMIUM_LIMIT =
   `Você já usou as 2 sessões de transição do mês.\n\n` +
-  `Renova mês que vem — ou faz upgrade pro *Parceiro Pro*, que é sem limite. Pra ver: digita *pro*`;
+  `Renova mês que vem, ou faz upgrade pro *Parceiro Pro*, que é sem limite. Pra ver: digita *pro*`;
 
 // ── Mensagens da feature de Coach Pré-Date ───────────────────────────────────
 
 const PREDATE_COACH_UPSELL_FREE =
   `Preparação pra encontro é do *Parceiro Pro* (R$79,90/mês) 🗓️\n\n` +
-  `Você me conta quando, onde e o que tá te preocupando — eu te dou o plano: roupa, papo, o que evitar, como encerrar em alta.\n\n` +
+  `Você me conta quando, onde e o que tá te preocupando. Eu te dou o plano: roupa, papo, o que evitar, como encerrar em alta.\n\n` +
   `E quando voltar do encontro, a gente conversa sobre como foi.\n\n` +
   `Digita *pro* 👇`;
 
@@ -241,7 +241,7 @@ const PREDATE_COACH_UPSELL_PRO_ONLY = PREDATE_COACH_UPSELL_FREE; // alias semân
 
 const POSTDATE_DEBRIEF_UPSELL_FREE =
   `Conversar sobre como foi o encontro é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-  `Você me conta o que rolou — eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar.\n\n` +
+  `Você me conta o que rolou. Eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar.\n\n` +
   `Sem rodeio. Honestidade total.\n\n` +
   `Digita *pro* 👇`;
 
@@ -254,12 +254,12 @@ const MINDSET_INVITE_MESSAGE =
   `Quer receber? *sim* ou *não*`;
 
 const MINDSET_ACTIVATED_MESSAGE =
-  `Ativado ✅\n\nVou mandar 3x por semana — segunda, quarta e sexta de manhã.\n\n` +
+  `Ativado ✅\n\nVou mandar 3x por semana: segunda, quarta e sexta de manhã.\n\n` +
   `Pra mudar a frequência:\n\n` +
-  `*mindset 1x* — 1 por semana\n` +
-  `*mindset 3x* — 3 por semana (padrão)\n` +
-  `*mindset 5x* — dias úteis\n` +
-  `*mindset diário* — todo dia\n\n` +
+  `*mindset 1x* → 1x por semana\n` +
+  `*mindset 3x* → 3x por semana\n` +
+  `*mindset 5x* → dias úteis\n` +
+  `*mindset diário* → todo dia\n\n` +
   `Pra pausar: *cancelar mindset*`;
 
 const MINDSET_DECLINED_MESSAGE =
@@ -340,19 +340,19 @@ Situação: ela disse "to ocupada essa semana"
 
 Situação: ela perguntou "o que você faz?"
 ❌ "sou analista de sistemas numa empresa, trabalho das 9 às 18"
-✅ 🔥 "umas 3 coisas ao mesmo tempo — te conto pessoalmente"
-✅ 😏 "depende do dia kkk — e vc?"
+✅ 🔥 "umas 3 coisas ao mesmo tempo, te conto pessoalmente"
+✅ 😏 "depende do dia kkk, e vc?"
 ✅ ⚡ "de tudo um pouco. e vc?"
 
 Situação: ela perguntou "você tem filhos?"
 ❌ "sim, tenho dois, eles são minha vida toda" (over-share) / "por que pergunta?" (defensivo)
 ✅ 🔥 "tenho. e vc, isso muda alguma coisa?"
-✅ 😏 "tenho sim — ponto positivo ou eliminatório? kkk"
+✅ 😏 "tenho sim, ponto positivo ou eliminatório? kkk"
 ✅ ⚡ "tenho. e vc?"
 
 Situação: ela perguntou "você é separado?"
 ❌ "sim, foi difícil mas aprendi muito com tudo isso" (TMI)
-✅ 🔥 "sou. capítulo encerrado — tô bem. e vc, já foi casada?"
+✅ 🔥 "sou. capítulo encerrado, tô bem. e vc, já foi casada?"
 ✅ 😏 "separado e inteiro kkk. por que, tá pesquisando?"
 ✅ ⚡ "sou. e vc?"
 
@@ -365,9 +365,9 @@ Situação: ela mandou foto de viagem
 Situação: ela respondeu com "kkk" seco
 ❌ tenta ser mais engraçado / "você não achou graça?"
 ✅ muda de ângulo completamente
-✅ 🔥 "esquece o que eu falei — o que tá fazendo essa semana?"
-✅ 😏 "ok esquece kkk — quando vc tá livre?"
-✅ ⚡ "mudando de assunto — bora essa semana?"
+✅ 🔥 "esquece o que eu falei, o que tá fazendo essa semana?"
+✅ 😏 "ok esquece kkk, quando vc tá livre?"
+✅ ⚡ "mudando de assunto, bora essa semana?"
 
 Situação: quer chamar pra sair
 ❌ "você está disponível para um jantar comigo na sexta-feira?"
@@ -416,6 +416,8 @@ PONTUAÇÃO: NUNCA ponto final em mensagens sugeridas. Ponto final quebra o clim
 LISTAS: NUNCA usa traço (-) ou bullet (•) em nenhuma parte da resposta. Se precisar listar, coloca cada item em linha separada sem nenhum prefixo.
 
 NEGRITO: usa *negrito* (um asterisco) pra destacar pontos críticos. NUNCA **duplo asterisco**.
+
+TRAVESSÃO: NUNCA usa — (travessão) em nenhuma mensagem. Nem nas análises, nem nas mensagens prontas.
 
 === FORMATO DE SAÍDA ===
 
@@ -702,7 +704,7 @@ Sem autoajuda. Sem "trabalhe sua autoestima". Direto, como um amigo que já viu 
 REGRA CRÍTICA DE FORMATAÇÃO: use '---' (três traços em linha própria) para separar cada bloco.
 Cada bloco entre '---' = uma mensagem WhatsApp separada. UMA IDEIA POR BLOCO. Máx 4 linhas por bloco.
 
-NUNCA usa traço (-) ou bullet (•) em nenhuma parte da resposta. Se listar ações, coloca cada uma em linha separada sem prefixo. NUNCA **duplo asterisco** — usa *negrito* (um asterisco).
+NUNCA usa traço (-), bullet (•) ou travessão (—) em nenhuma parte da resposta. Se listar ações, coloca cada uma em linha separada sem prefixo. NUNCA **duplo asterisco**, usa *negrito* (um asterisco).
 
 📍 _[o que realmente tá acontecendo — 1 linha honesta]_
 
@@ -884,7 +886,8 @@ function sanitizeOutput(text) {
   if (!text) return text;
   return text
     .replace(/\*\*([^*]+)\*\*/g, '*$1*')              // **bold** → *bold*
-    .replace(/\n+[\-•]\s+/g, '\n\n')                   // \n- ou \n\n- item → linha em branco + texto
+    .replace(/ — /g, ' ')                              // travessão — → espaço
+    .replace(/\n+[\-•]\s+/g, '\n\n')                  // \n- ou \n\n- item → linha em branco + texto
     .replace(/^[\-•]\s+/, '')                          // remove traço/bullet no início absoluto
     .replace(/\n{3,}/g, '\n\n')                        // limpa triple+ newlines
     .replace(/([^\.\!\?…])\.\s*$/gm, '$1');            // remove ponto final de linha (exceto !, ?, …)

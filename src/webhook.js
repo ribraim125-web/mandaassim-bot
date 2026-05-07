@@ -57,7 +57,7 @@ function getPayment() {
 const CONFIRMACAO_PARCEIRO = [
   `✅ *Parceiro ativado*`,
   `A partir de agora você tem:`,
-  `Resposta de mensagem — sem limite\nAnálise de conversa inteira — sem limite\nConversar comigo sobre o que tá rolando — sem limite`,
+  `Resposta de mensagem: sem limite\nAnálise de conversa inteira: sem limite\nConversar comigo sobre o que tá rolando: sem limite`,
   `Sem teto diário, sem travamento. Toda vez que precisar, é só me chamar.`,
   `Manda o próximo print, ou me conta a próxima situação.`,
 ];
@@ -65,11 +65,11 @@ const CONFIRMACAO_PARCEIRO = [
 const CONFIRMACAO_PRO = [
   `🚀 *Parceiro Pro liberado*`,
   `Tudo do Parceiro continua valendo. E entram mais quatro coisas:`,
-  `✓ *Olhar seu perfil* — você manda print do seu Tinder/Bumble e eu te falo, foto por foto, o que tá funcionando, o que tira match e o que trocar`,
-  `✓ *Analisar o perfil dela* — você manda print do perfil de quem deu match e eu monto a primeira mensagem com base no que ela mostra ali (não aquele "oi tudo bem")`,
-  `✓ *Antes do encontro* — quando você marcar um date, me avisa. Eu te ajudo com roupa, papo, o que evitar e como sair em alta`,
-  `✓ *Depois do encontro* — me conta como foi e eu leio os sinais que talvez você não tenha visto, e a gente decide o próximo passo`,
-  `Esse é o pacote do começo ao fim — antes do match até o pós-encontro.`,
+  `✓ *Olhar seu perfil*: você manda print do seu Tinder/Bumble e eu te falo, foto por foto, o que tá funcionando, o que tira match e o que trocar`,
+  `✓ *Analisar o perfil dela*: você manda print do perfil de quem deu match e eu monto a primeira mensagem com base no que ela mostra ali (não aquele "oi tudo bem")`,
+  `✓ *Antes do encontro*: quando você marcar um date, me avisa. Eu te ajudo com roupa, papo, o que evitar e como sair em alta`,
+  `✓ *Depois do encontro*: me conta como foi e eu leio os sinais que talvez você não tenha visto, e a gente decide o próximo passo`,
+  `Esse é o pacote do começo ao fim, antes do match até o pós-encontro.`,
   `Pra gente começar: manda print do seu próprio perfil. Quero ver como ele tá te vendendo no app.`,
 ];
 
@@ -77,7 +77,7 @@ const CONFIRMACAO_UPGRADE_PRO = [
   `🚀 *Agora você tá no Pro*`,
   `Tudo que você já usava continua. E mais:`,
   `Olhar seu perfil\nAnalisar o perfil dela\nPreparar o encontro + conversar depois sobre como foi`,
-  `Esse é o pacote do começo ao fim — antes do match até o pós-encontro.`,
+  `Esse é o pacote do começo ao fim, antes do match até o pós-encontro.`,
   `Manda print do seu próprio perfil aí. Vou começar te falando o que não tá funcionando.`,
 ];
 
