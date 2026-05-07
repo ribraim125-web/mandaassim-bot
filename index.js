@@ -865,6 +865,18 @@ function extrairPorQueFunciona(texto) {
   return match ? match[1].trim() : null;
 }
 
+// ── Sanitização de saída ──────────────────────────────────────────────────────
+/**
+ * Converte markdown duplo asterisco (**text**) para negrito WhatsApp (*text*).
+ * Também remove ponto final de frases que terminam com ponto simples.
+ */
+function sanitizeOutput(text) {
+  if (!text) return text;
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '*$1*')   // **bold** → *bold*
+    .replace(/([^\.\!\?…])\.\s*$/gm, '$1'); // remove ponto final de linha (exceto !, ?, …)
+}
+
 // ── Envio sequencial com delay por tempo de leitura ──────────────────────────
 /**
  * Calcula delay baseado no tempo de leitura da mensagem anterior.
@@ -891,7 +903,7 @@ async function sendWithDelay(chatId, messages, { phone, intent } = {}) {
 
   for (let i = 0; i < messages.length; i++) {
     if (i > 0) await new Promise(r => setTimeout(r, readingDelay(messages[i - 1])));
-    await client.sendMessage(chatId, messages[i]);
+    await client.sendMessage(chatId, sanitizeOutput(messages[i]));
   }
 }
 
@@ -2344,20 +2356,27 @@ client.on('message', async (message) => {
       const choice = parseUserChoice(text);
       if (choice) {
         const act01 = getActById('act_01_hook_diagnostico');
-        if (act01?.onResponse) {
-          const { TriggerContext } = require('./src/narrative/triggerContext');
-          const supabaseForAct = getSupabase();
-          const { data: userForAct } = await supabaseForAct
-            .from('users')
-            .select('phone, plan, plan_expires_at, created_at')
-            .eq('phone', phone)
-            .maybeSingle();
-          if (userForAct) {
-            const ctx = new TriggerContext(userForAct);
-            const alreadySent = await ctx.actAlreadySent('act_01_hook_diagnostico');
-            if (alreadySent) {
-              await act01.onResponse(ctx, text);
-            }
+        const { TriggerContext } = require('./src/narrative/triggerContext');
+        const supabaseForAct = getSupabase();
+        const { data: userForAct } = await supabaseForAct
+          .from('users')
+          .select('phone, plan, plan_expires_at, created_at')
+          .eq('phone', phone)
+          .maybeSingle();
+        if (userForAct) {
+          const ctx = new TriggerContext(userForAct);
+          const alreadySent = await ctx.actAlreadySent('act_01_hook_diagnostico');
+          if (alreadySent) {
+            if (act01?.onResponse) await act01.onResponse(ctx, text);
+            // Confirmação curta + convite — sem cair no analisador
+            const acks = {
+              '1': `Entendido\n\nVoltou pro jogo depois de um tempo fora — tem contexto específico nisso\n\nManda a conversa ou descreve o que tá rolando`,
+              '2': `Entendido\n\nConversas que não engrenam — geralmente tem a ver com timing e leitura de sinal\n\nManda o print ou descreve a situação`,
+              '3': `Entendido\n\nConversa rolando agora — vamos direto ao ponto\n\nManda o print ou me conta o que aconteceu`,
+              '4': `Entendido\n\nManda o print ou descreve o que tá rolando — eu leio e te devolvo as opções`,
+            };
+            await client.sendMessage(message.from, acks[choice] || acks['4']);
+            return;
           }
         }
       }
@@ -3766,6 +3785,13 @@ server.on('error', (err) => {
 
 client.on('ready', () => {
   console.log('[Bot] Conectado e pronto para receber mensagens!');
+
+  // Intercepta sendMessage globalmente para sanitizar ** → * e ponto final
+  const _origSend = client.sendMessage.bind(client);
+  client.sendMessage = (chatId, content, opts) => {
+    const clean = typeof content === 'string' ? sanitizeOutput(content) : content;
+    return _origSend(chatId, clean, opts);
+  };
 
   // Engine narrativa reativa — registra client para sender.js (sempre ativo)
   startNarrativeEngine(client);
