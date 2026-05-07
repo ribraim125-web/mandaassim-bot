@@ -81,6 +81,13 @@ const {
   getMonthlyDebriefCount,
   getLastDebriefInsight,
 } = require('./src/lib/postdateDebrief');
+const {
+  ensureState:      ensureFDS,
+  onAnalysisCompleted: fdsOnAnalysis,
+  onFreeTextReceived:  fdsOnFreeText,
+  getMenuCopy,
+  getNudgeCopy,
+} = require('./src/lib/featureDiscoveryEngine');
 
 // ---------------------------------------------------------------------------
 // Configuração
@@ -2179,8 +2186,25 @@ client.on('message', async (message) => {
 
     if (ONBOARDING_V2) {
       // V2: único bubble direto ao ponto — sem persona, sem pergunta
-      const welcomeV2 = `Aqui é o MandaAssim. Manda o print da conversa que travou (Tinder, Bumble, Insta, qualquer um). Em 10 segundos eu te devolvo 3 respostas calibradas pra ela 👇`;
+      const welcomeV2 =
+        `Salve. Aqui é o MandaAssim.\n\n` +
+        `Manda o print da conversa que travou, ou da mensagem que tu não sabe responder. ` +
+        `Em 10 segundos eu te devolvo 3 respostas calibradas: romântica, ousada, direta.\n\n` +
+        `3 análises por dia, de graça. Bora?`;
       await client.sendMessage(message.from, welcomeV2);
+      // Garante linha na tabela de discovery (A/B variant atribuído aqui)
+      ensureFDS(phone).catch(() => {});
+      // Soft-nudge se não mandar nada em 10 min
+      const nudgeChatId = message.from;
+      const nudgeCtxPhone = phone;
+      setTimeout(async () => {
+        try {
+          const ctx = userContext.get(nudgeCtxPhone) || {};
+          if (!ctx.lastRequest) {
+            await client.sendMessage(nudgeChatId, getNudgeCopy());
+          }
+        } catch (_) {}
+      }, 10 * 60 * 1000);
       logJourneyEvent(phone, 'onboarding_v2_started', {}).catch(() => {});
       console.log(`[Boas-vindas] Enviada para: ${phone} (V2)`);
     } else {
@@ -2205,11 +2229,16 @@ client.on('message', async (message) => {
     return;
   }
 
-  // Comandos: "premium" e "status"
+  // Comandos: "premium", "status", "menu" e outros
   if (message.type === 'chat') {
     const text = message.body.trim();
     const cmd = text.toLowerCase();
     stopEarlyTyping(); // transfere controle do typing para os fluxos específicos
+
+    if (cmd === 'menu') {
+      await client.sendMessage(message.from, getMenuCopy());
+      return;
+    }
 
     if (cmd === 'status') {
       const trial = await getTrialInfo(phone);
@@ -3368,6 +3397,16 @@ client.on('message', async (message) => {
 
       // Narrativa reativa — dispara ato elegível após resposta principal
       tryReactiveNarrative(phone, message.from).catch(() => {});
+
+      // Feature Discovery Engine — revelação progressiva (6s de delay pra não colidir)
+      const _fdeText = text;
+      const _fdeChatId = message.from;
+      fdsOnAnalysis(phone, _fdeText).then(reveal => {
+        if (reveal) {
+          setTimeout(() => client.sendMessage(_fdeChatId, reveal.copy).catch(() => {}), 6000);
+          console.log(`[FDE] Revelando ${reveal.feature} para ${phone}`);
+        }
+      }).catch(() => {});
     } catch (err) {
       stopTyping3();
       console.error('[OpenRouter] Erro ao analisar texto:', err.message);
@@ -3752,6 +3791,15 @@ client.on('message', async (message) => {
 
             // Narrativa reativa
             tryReactiveNarrative(phone, message.from).catch(() => {});
+
+            // Feature Discovery Engine — revelação progressiva após print
+            const _fdePrintChatId = message.from;
+            fdsOnAnalysis(phone, caption).then(reveal => {
+              if (reveal) {
+                setTimeout(() => client.sendMessage(_fdePrintChatId, reveal.copy).catch(() => {}), 6000);
+                console.log(`[FDE] Revelando ${reveal.feature} para ${phone} (print)`);
+              }
+            }).catch(() => {});
 
           } catch (err) {
             stopTypingPrint();
