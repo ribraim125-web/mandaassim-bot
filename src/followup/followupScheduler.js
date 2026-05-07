@@ -64,6 +64,54 @@ async function scheduleTransitionCoachOutcome(userPhone) {
   await scheduleFollowup(userPhone, 'transition_coach_outcome', hours(168) + jitter(120));
 }
 
+// ── Lifecycle — Trial ──────────────────────────────────────────────────────
+
+async function scheduleTrialD2Push(userPhone) {
+  // 48h após signup, com até 3h de variação (evita horário ruim)
+  await scheduleFollowup(userPhone, 'trial_d2_push', hours(48) + jitter(180));
+}
+
+// ── Lifecycle — Pós-pagamento ─────────────────────────────────────────────
+// Chamado quando o primeiro pagamento é confirmado.
+
+async function scheduleLifecycleD7(userPhone) {
+  await scheduleFollowup(userPhone, 'lifecycle_d7_tour', hours(7 * 24) + jitter(120));
+}
+
+async function scheduleLifecycleD14(userPhone) {
+  await scheduleFollowup(userPhone, 'lifecycle_d14_checkin', hours(14 * 24) + jitter(120));
+}
+
+async function scheduleLifecycleD30NPS(userPhone) {
+  await scheduleFollowup(userPhone, 'lifecycle_d30_nps', hours(30 * 24) + jitter(120));
+}
+
+async function scheduleLifecycleD60Anual(userPhone) {
+  await scheduleFollowup(userPhone, 'lifecycle_d60_anual', hours(60 * 24) + jitter(120));
+}
+
+async function scheduleLifecycleD90Loyalty(userPhone) {
+  await scheduleFollowup(userPhone, 'lifecycle_d90_loyalty', hours(90 * 24) + jitter(120));
+}
+
+/**
+ * Agenda todos os lifecycle pós-pagamento de uma vez.
+ * Idempotente: alreadyScheduled() previne duplicatas.
+ */
+async function scheduleAllLifecycle(userPhone) {
+  await scheduleLifecycleD7(userPhone);
+  await scheduleLifecycleD14(userPhone);
+  await scheduleLifecycleD30NPS(userPhone);
+  await scheduleLifecycleD60Anual(userPhone);
+  await scheduleLifecycleD90Loyalty(userPhone);
+}
+
+// ── Pós-cancelamento ──────────────────────────────────────────────────────
+
+async function scheduleReactivationD1(userPhone) {
+  await scheduleFollowup(userPhone, 'reactivation_d1', hours(24) + jitter(60));
+}
+
 /**
  * Agenda os 3 lembretes do Coach Pré-Date com base na data/hora do encontro.
  * Silencioso se a data já passou ou é muito próxima.
@@ -109,4 +157,7 @@ module.exports = {
   scheduleLimitExhausted3,
   scheduleTransitionCoachOutcome,
   schedulePredateReminders,
+  scheduleTrialD2Push,
+  scheduleAllLifecycle,
+  scheduleReactivationD1,
 };

@@ -6,6 +6,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { determinarPlano } = require('./mercadopago');
 const { trackSubscriptionEvent } = require('./lib/subscriptionTracking');
 const { logJourneyEvent } = require('./narrative/journeyEvents');
+const { scheduleAllLifecycle } = require('./followup/followupScheduler');
 
 // Rate limiting simples (sem dependência externa)
 const requestHits = new Map(); // ip+scope -> { count, resetAt }
@@ -320,6 +321,11 @@ function createWebhookApp(waClient) {
       // Notifica o usuário no WhatsApp usando o chat ID real (salvo quando o usuário mandou a primeira mensagem)
       const chatId = userRow?.wa_chat_id || `${phone}@c.us`;
       await sendWelcomeSequence(waClient, chatId, confirmacaoSeq);
+
+      // Agenda lifecycle pós-pagamento (D+7 até D+90) — só para planos com vigência ≥30 dias
+      if (days >= 30 || newPlan === 'parceiro_pro' || newPlan === 'parceiro') {
+        scheduleAllLifecycle(phone).catch(() => {});
+      }
 
     } catch (err) {
       console.error('[Webhook] Erro ao processar notificação:', err.message);

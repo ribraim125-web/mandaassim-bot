@@ -43,7 +43,11 @@ const {
   scheduleLimitExhausted3,
   scheduleTransitionCoachOutcome,
   schedulePredateReminders,
+  scheduleTrialD2Push,
+  scheduleAllLifecycle,
+  scheduleReactivationD1,
 } = require('./src/followup/followupScheduler');
+const { getReferralInviteMessage, getFeedbackRequestMessage } = require('./src/followup/followupMessages');
 const { logJourneyEvent }   = require('./src/narrative/journeyEvents');
 const { recordOutcome }     = require('./src/narrative/narrativeLog');
 const {
@@ -100,8 +104,39 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const PRECO_24H = 4.99;
 const PRECO_MENSAL = 29.90;
 const PRECO_ANUAL = 299.00;
+const PRECO_ANUAL_PRO = 799.00;   // Plano anual Pro (oferta D+60)
 const PRECO_WINBACK = 19.90;
 const PRECO_PRO_LANCAMENTO = 55.93; // 30% off — só pra base atual no lançamento
+
+// Sinais de crise — disparam protocolo CVV em vez de análise
+const CRISIS_PATTERN = /\b(quero (me matar|desaparecer|sumir para sempre)|n[aã]o aguento mais|pensando em me machucar|[eé] melhor morrer|n[aã]o tenho mais saída|tô no limite)\b/i;
+
+// Sinais de objeção de preço — disparam M17
+const PRICE_OBJECTION_PATTERN = /\b(t[aá] caro|t[aá] puxado|vou pensar|n[aã]o tenho dinheiro|muito caro|n[aã]o posso pagar|caro demais)\b/i;
+
+/**
+ * Gera código de indicação determinístico a partir do telefone.
+ * 8 caracteres alfanuméricos maiúsculos.
+ */
+function generateReferralCode(phone) {
+  const crypto = require('crypto');
+  return crypto.createHash('md5').update(phone + 'mandaassim2026').digest('hex').slice(0, 8).toUpperCase();
+}
+
+/**
+ * Garante que o código de indicação está salvo no banco.
+ * Retorna o código.
+ */
+async function ensureReferralCode(phone) {
+  const code = generateReferralCode(phone);
+  const supabase = getSupabase();
+  // Salva na tabela referrals se não existir (idempotente)
+  await supabase
+    .from('referrals')
+    .upsert({ referrer_phone: phone, referral_code: code }, { onConflict: 'referral_code', ignoreDuplicates: true })
+    .catch(() => {});
+  return code;
+}
 
 // Feature flag: análise de prints de conversa via Haiku 4.5 vision (Camada 1)
 // Valor: 'false' | 'test' | 'beta' (10% premium) | 'all'
@@ -2219,6 +2254,7 @@ client.on('message', async (message) => {
     }
 
     scheduleInactiveFollowup(phone).catch(() => {});
+    scheduleTrialD2Push(phone).catch(() => {}); // M14 — push trial D+2
     return;
   }
 
@@ -2284,6 +2320,17 @@ client.on('message', async (message) => {
 
     if (cmd === 'anual') {
       await enviarCobrancaPix(message, phone, PRECO_ANUAL);
+      return;
+    }
+
+    // Plano anual Pro (R$799) — oferta D+60
+    if (cmd === 'anual pro' || cmd === '/anual pro') {
+      const trial = await getTrialInfo(phone);
+      if (trial.isPro) {
+        await message.reply(`Você já tá no *Parceiro Pro*. Pra migrar pro plano anual (R$799), manda *mensal* e a gente troca na hora.`);
+        return;
+      }
+      await enviarCobrancaPix(message, phone, PRECO_ANUAL_PRO);
       return;
     }
 
@@ -2445,9 +2492,148 @@ client.on('message', async (message) => {
 
       await message.reply(
         `Cancelamento registrado ✅${expiresMsg}\n\n` +
-        `Se mudar de ideia: *mensal*, *anual* ou *pro*. Tô por aqui 👋`
+        `Se mudar de ideia: *mensal*, *anual* ou *pro*. Tô por aqui`
       );
+      // Agenda mensagem de reativação D+1
+      scheduleReactivationD1(phone).catch(() => {});
       console.log(`[Cancelamento] ${phone} cancelou (${finalReason})`);
+      return;
+    }
+
+    // ── Comando /ajuda ────────────────────────────────────────────────────────
+    if (cmd === 'ajuda' || cmd === '/ajuda') {
+      await client.sendMessage(message.from,
+        `qualquer dúvida, fala comigo igual fala com amigo\n\n` +
+        `se for problema técnico, descreve o que tava fazendo\n` +
+        `se for problema de cobrança, manda *cobrança* que eu pulo pra suporte em até 12h\n\n` +
+        `outros comandos:\n` +
+        `*menu* — ver tudo que faço\n` +
+        `*status* — ver seu plano atual\n` +
+        `*pausar* — congelar cobrança por 30, 60 ou 90 dias\n` +
+        `*cancelar* — encerrar plano\n` +
+        `*dados* — ver os dados que tenho de você`
+      );
+      return;
+    }
+
+    // ── Comando /pausar ───────────────────────────────────────────────────────
+    if (cmd === 'pausar' || cmd === '/pausar' || cmd.startsWith('pausar ') || cmd.startsWith('/pausar ')) {
+      const trialForPause = await getTrialInfo(phone);
+      if (!trialForPause.isPremium) {
+        await message.reply(`você tá no plano free, não tem cobrança ativa pra pausar\n\nse quiser assinar: *mensal* (R$29,90) ou *pro* (R$79,90)`);
+        return;
+      }
+      // Verifica se já especificou os dias
+      const diasMatch = cmd.match(/\b(30|60|90)\b/);
+      if (!diasMatch) {
+        await client.sendMessage(message.from,
+          `beleza, por quantos dias?\n\nresponde *pausar 30*, *pausar 60* ou *pausar 90*\n\nnesse período eu paro de cobrar, paro de mandar mensagem proativa, e seu histórico fica intacto\nquando voltar, é só mandar print de novo`
+        );
+        return;
+      }
+      const diasPausa = parseInt(diasMatch[1], 10);
+      const pausadoAte = new Date(Date.now() + diasPausa * 24 * 60 * 60 * 1000).toISOString();
+      const supabase = getSupabase();
+      await supabase.from('users').update({ paused_until: pausadoAte }).eq('phone', phone).catch(() => {});
+      await client.sendMessage(message.from,
+        `feito, pausado por ${diasPausa} dias\n\ncobrança congelada, sem mensagem proativa\nseus dados ficam intactos\n\nquando voltar, é só mandar print de novo`
+      );
+      console.log(`[Pausa] ${phone} pausou por ${diasPausa} dias até ${pausadoAte}`);
+      return;
+    }
+
+    // ── Resposta à pausa com dias (sem o comando prefix) ──────────────────────
+    if (getUserContext(phone)?.awaitingPauseDays && /^(30|60|90)$/.test(text.trim())) {
+      userContext.set(phone, { ...(getUserContext(phone) || {}), awaitingPauseDays: false });
+      const diasPausa = parseInt(text.trim(), 10);
+      const pausadoAte = new Date(Date.now() + diasPausa * 24 * 60 * 60 * 1000).toISOString();
+      const supabase = getSupabase();
+      await supabase.from('users').update({ paused_until: pausadoAte }).eq('phone', phone).catch(() => {});
+      await client.sendMessage(message.from,
+        `feito, pausado por ${diasPausa} dias\n\ncobrança congelada, sem mensagem proativa\nseus dados ficam intactos\n\nquando voltar, é só mandar print de novo`
+      );
+      return;
+    }
+
+    // ── Comando /dados (LGPD) ─────────────────────────────────────────────────
+    if (cmd === 'dados' || cmd === '/dados') {
+      const supabase = getSupabase();
+      const { data: userData } = await supabase.from('users').select('phone, plan, plan_expires_at, created_at').eq('phone', phone).maybeSingle();
+      const { count: msgCount } = await supabase.from('api_requests').select('*', { count: 'exact', head: true }).eq('phone', phone).catch(() => ({ count: 0 }));
+      await client.sendMessage(message.from,
+        `dados que tenho de você:\n\n` +
+        `telefone: ${userData?.phone || phone}\n` +
+        `plano: ${userData?.plan || 'free'}\n` +
+        `membro desde: ${userData?.created_at ? new Date(userData.created_at).toLocaleDateString('pt-BR') : 'desconhecido'}\n` +
+        `análises registradas: ${msgCount || 0}\n\n` +
+        `pra apagar tudo, manda *apagar*\n` +
+        `seus dados ficam guardados por 30 dias após a exclusão`
+      );
+      return;
+    }
+
+    // ── Comando /apagar (LGPD) ────────────────────────────────────────────────
+    if (cmd === 'apagar' || cmd === '/apagar') {
+      const ctx = getUserContext(phone) || {};
+      if (!ctx.awaitingDeleteConfirm) {
+        userContext.set(phone, { ...ctx, awaitingDeleteConfirm: true });
+        await client.sendMessage(message.from,
+          `isso vai apagar todos os seus dados do MandaAssim\n\ntem certeza? responde *confirmar apagar* pra confirmar\n\nsse mudar de ideia, manda qualquer outra coisa`
+        );
+        return;
+      }
+    }
+
+    if (getUserContext(phone)?.awaitingDeleteConfirm && text.toLowerCase() === 'confirmar apagar') {
+      userContext.set(phone, { ...(getUserContext(phone) || {}), awaitingDeleteConfirm: false });
+      const supabase = getSupabase();
+      // Soft delete — anonimiza dados, mantém registro por 30 dias
+      await supabase.from('users').update({ plan: 'deleted', wa_chat_id: null }).eq('phone', phone).catch(() => {});
+      await client.sendMessage(message.from,
+        `feito, seus dados foram marcados para exclusão\n\nremovidos em até 30 dias\n\nse precisar voltar antes disso, é só mandar mensagem`
+      );
+      console.log(`[LGPD] ${phone} solicitou exclusão de dados`);
+      return;
+    }
+
+    // ── Comando cobrança (suporte) ────────────────────────────────────────────
+    if (cmd === 'cobrança' || cmd === 'cobranca' || cmd === '/cobranca') {
+      await client.sendMessage(message.from,
+        `beleza, me conta o que tá rolando com a cobrança\n\ndescreve aqui e eu te ajudo ou escalo pra suporte humano em até 12h`
+      );
+      return;
+    }
+
+    // ── Comando mesa (comunidade D+90) ────────────────────────────────────────
+    if (cmd === 'mesa' || cmd === '/mesa') {
+      await client.sendMessage(message.from,
+        `boa, anotei\n\nassim que a mesa tiver pronta, você é um dos primeiros que vou chamar`
+      );
+      return;
+    }
+
+    // ── NPS response ──────────────────────────────────────────────────────────
+    const supabaseForNPS = getSupabase();
+    const { data: userForNPS } = await supabaseForNPS.from('users').select('awaiting_nps').eq('phone', phone).maybeSingle().catch(() => ({ data: null }));
+    if (userForNPS?.awaiting_nps && /^([0-9]|10)$/.test(text.trim())) {
+      const npsScore = parseInt(text.trim(), 10);
+      await supabaseForNPS.from('users').update({ awaiting_nps: false }).eq('phone', phone).catch(() => {});
+      await supabaseForNPS.from('nps_responses').insert({ phone, score: npsScore }).catch(() => {});
+      console.log(`[NPS] ${phone} respondeu ${npsScore}`);
+
+      if (npsScore >= 9) {
+        // Promotor: convite imediato
+        const refCode = await ensureReferralCode(phone).catch(() => generateReferralCode(phone));
+        await client.sendMessage(message.from, getReferralInviteMessage(refCode));
+      } else if (npsScore >= 7) {
+        // Passivo: convite em 24h via followup (reutiliza mesma msg)
+        const refCode = await ensureReferralCode(phone).catch(() => generateReferralCode(phone));
+        const refMsg = getReferralInviteMessage(refCode);
+        setTimeout(() => client.sendMessage(message.from, refMsg).catch(() => {}), 24 * 60 * 60 * 1000);
+      } else {
+        // Detrator: pedido de feedback
+        await client.sendMessage(message.from, getFeedbackRequestMessage());
+      }
       return;
     }
 
@@ -3000,6 +3186,36 @@ client.on('message', async (message) => {
       };
       await client.sendMessage(message.from, acks[choice]);
       return;
+    }
+
+    // ── Detecção de crise — protocolo CVV (prioridade absoluta) ─────────────
+    if (CRISIS_PATTERN.test(text)) {
+      await client.sendMessage(message.from,
+        `espera um segundo\n\n` +
+        `o que você escreveu me preocupou\n\n` +
+        `se você tiver passando por um momento muito pesado, o CVV atende 24h, pelo 188 ou no cvv.org.br\n` +
+        `são psicólogos voluntários, de graça, sem julgamento\n\n` +
+        `se quiser me contar mais sobre o que tá rolando, eu tô aqui`
+      );
+      console.log(`[CRISE] Sinal detectado para ${phone}`);
+      return;
+    }
+
+    // ── Detecção de objeção de preço — M17 ───────────────────────────────────
+    if (PRICE_OBJECTION_PATTERN.test(text)) {
+      const trialObjecao = await getTrialInfo(phone);
+      if (!trialObjecao.isPremium) {
+        await client.sendMessage(message.from,
+          `entendo\n\n` +
+          `deixa eu te falar como eu penso isso\n\n` +
+          `R$79,90 é menos que um happy hour de quinta com dois chopes\n` +
+          `é menos que metade de uma sessão de psicólogo\n` +
+          `e é o que faz a diferença entre você travar no "oi tudo bem" e marcar um encontro\n\n` +
+          `se for o dinheiro mesmo, vai no *mensal* de R$29,90 que já te ajuda muito\n` +
+          `se for desconfiança, manda mais um print que eu te mostro de novo o que essa parada faz`
+        );
+        return;
+      }
     }
 
     // ── Opt-out de lembretes de pré-date ─────────────────────────────────────

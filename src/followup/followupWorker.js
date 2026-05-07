@@ -120,6 +120,16 @@ async function processFollowups() {
         atualizarDebriefEnviado(followup.user_phone).catch(() => {});
       }
 
+      // Marca awaiting_nps no banco quando NPS é enviado
+      if (followup.trigger_type === 'lifecycle_d30_nps') {
+        getSupabase()
+          .from('users')
+          .update({ awaiting_nps: true })
+          .eq('phone', followup.user_phone)
+          .then(() => {})
+          .catch(() => {});
+      }
+
       // Delay humano entre mensagens (3-7s)
       await new Promise((r) => setTimeout(r, 3000 + Math.floor(Math.random() * 4000)));
 
