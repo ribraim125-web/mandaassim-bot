@@ -154,10 +154,23 @@ const MENSAGEM_RENOVACAO =
   `Se quiser renovar antes: *mensal* ou *anual*.`;
 
 
+// Mensagem 0 — enviada imediatamente
+const WELCOME_MSG_0 = `Boa, você chegou.
+
+Aqui é o *MandaAssim*.`;
+
+// Mensagem 1 — enviada ~2s depois
+const WELCOME_MSG_1 = `Eu leio o que ela quis dizer — e te entrego a resposta certa pra aquele momento.
+
+Não é técnica de pegação. Não é coach.
+
+*É leitura de situação.*`;
+
+// Mensagem 2 — a pergunta de persona (ou substituída pelo Ato 1)
 const WELCOME_MESSAGES = [
-  `Boa, você chegou.\n\nAqui é o MandaAssim. Eu leio o que ela quis dizer antes de sugerir o que responder. Não é técnica de pegação, não é coach. É leitura de situação.\n\nFunciona simples: você manda o print da conversa ou descreve o que tá rolando. Eu olho o contexto dela e te devolvo 3 opções de resposta prontas — você escolhe a que mais combina com você e copia.\n\n*3 dias ilimitados. Sem cartão.*`,
-  `Antes da gente começar — em qual desses momentos você tá?\n\n1️⃣ Voltei pro mercado depois de muito tempo fora (separação, divórcio)\n2️⃣ Tô nos apps já faz tempo, mas as conversas não engrenam\n3️⃣ Tenho uma conversa rolando agora e cada mensagem importa\n4️⃣ Outro\n\nManda o número. Ou descreve do seu jeito. Ou já cola o print direto que eu leio.`,
-  `Manda o print da conversa ou descreve a situação. Eu leio e te devolvo as opções.`,
+  WELCOME_MSG_0,
+  WELCOME_MSG_1,
+  `Antes de começar — em qual momento você tá?\n\n1️⃣ Voltei pro mercado depois de muito tempo fora\n2️⃣ Tô nos apps, mas as conversas não engrenam\n3️⃣ Tenho uma conversa rolando agora\n4️⃣ Outro\n\nManda o número — ou já cola o print direto que eu leio.`,
 ];
 
 const OPCOES_PREMIUM =
@@ -849,10 +862,20 @@ function extrairPorQueFunciona(texto) {
   return match ? match[1].trim() : null;
 }
 
-// ── Envio sequencial com delay dopamínico ─────────────────────────────────────
+// ── Envio sequencial com delay por tempo de leitura ──────────────────────────
 /**
- * Envia array de mensagens com delay aleatório de 1.2-2.5s entre cada.
- * Cria ritmo de conversa — cada mensagem = 1 pico de dopamina.
+ * Calcula delay baseado no tempo de leitura da mensagem anterior.
+ * ~250 palavras/min (leitura rápida no WhatsApp) = ~240ms/palavra.
+ * Mínimo 1.2s, máximo 3.5s.
+ */
+function readingDelay(text) {
+  const words = (text || '').trim().split(/\s+/).length;
+  return Math.max(1200, Math.min(3500, words * 240));
+}
+
+/**
+ * Envia array de mensagens com delay proporcional ao tempo de leitura de cada uma.
+ * Cria ritmo de conversa — cada mensagem chega quando o usuário terminou de ler a anterior.
  */
 async function sendWithDelay(chatId, messages, { phone, intent } = {}) {
   // Valida formato das mensagens (fire-and-forget — nunca bloqueia)
@@ -864,7 +887,7 @@ async function sendWithDelay(chatId, messages, { phone, intent } = {}) {
   }
 
   for (let i = 0; i < messages.length; i++) {
-    if (i > 0) await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+    if (i > 0) await new Promise(r => setTimeout(r, readingDelay(messages[i - 1])));
     await client.sendMessage(chatId, messages[i]);
   }
 }
@@ -2072,14 +2095,17 @@ client.on('message', async (message) => {
     // Ato 1 — Boas-vindas com diagnóstico (substitui WELCOME_MESSAGES[1] quando ativo)
     const act1Msg = await getAct1Message(phone).catch(() => null);
 
-    // Msg 0: apresentação
+    // Msg 0: gancho curto
     stopEarlyTyping();
     await client.sendMessage(message.from, WELCOME_MESSAGES[0]);
-    await new Promise(r => setTimeout(r, 2000 + Math.floor(Math.random() * 1000)));
 
-    // Msg 1: diagnóstico de persona (Ato 1) ou pergunta padrão
-    // Não envia WELCOME_MESSAGES[2] — a pergunta de persona já convida o usuário a agir
-    await client.sendMessage(message.from, act1Msg || WELCOME_MESSAGES[1]);
+    // Msg 1: o que é (delay = tempo de leitura da msg 0)
+    await new Promise(r => setTimeout(r, readingDelay(WELCOME_MESSAGES[0])));
+    await client.sendMessage(message.from, WELCOME_MESSAGES[1]);
+
+    // Msg 2: pergunta de persona ou Ato 1
+    await new Promise(r => setTimeout(r, readingDelay(WELCOME_MESSAGES[1])));
+    await client.sendMessage(message.from, act1Msg || WELCOME_MESSAGES[2]);
 
     console.log(`[Boas-vindas] Enviada para: ${phone}${act1Msg ? ' (Ato 1 ativo)' : ''}`);
     scheduleInactiveFollowup(phone).catch(() => {});
