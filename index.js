@@ -54,7 +54,7 @@ const {
   getAct7Message,
   getAct12Message,
 } = require('./src/narrative/narrativeInline');
-const { generateMirroringAct25 } = require('./src/narrative/act_2_5_mirroring');
+const { generateMirroringAct25, generateFirstMirroringV2 } = require('./src/narrative/act_2_5_mirroring');
 const { startWorker: startNarrativeWorker } = require('./src/narrative/narrativeWorker');
 const { startNarrativeEngine, getEligibleAct, fireActForUser } = require('./src/narrative/engine');
 const { getActById, parseUserChoice }       = require('./src/narrative/acts');
@@ -88,6 +88,7 @@ const {
 
 const TRIAL_DAYS = 3;          // dias de acesso ilimitado após cadastro
 const FREE_DAILY_LIMIT = 3;    // mensagens/dia no plano free (pós-trial sem upgrade)
+const ONBOARDING_V2 = process.env.ONBOARDING_V2 === 'true'; // onboarding direto: 1 bubble + mirroring na 1ª análise
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const PRECO_24H = 4.99;
 const PRECO_MENSAL = 29.90;
@@ -2107,22 +2108,25 @@ client.on('message', async (message) => {
     // Evento: signup
     logJourneyEvent(phone, 'signup', { acquisition_slug: acquisitionSlug || 'direct' }).catch(() => {});
 
-    // Ato 1 — Boas-vindas com diagnóstico (substitui WELCOME_MESSAGES[1] quando ativo)
-    const act1Msg = await getAct1Message(phone).catch(() => null);
-
-    // Msg 0: gancho curto
     stopEarlyTyping();
-    await client.sendMessage(message.from, WELCOME_MESSAGES[0]);
 
-    // Msg 1: o que é (delay = tempo de leitura da msg 0)
-    await new Promise(r => setTimeout(r, readingDelay(WELCOME_MESSAGES[0])));
-    await client.sendMessage(message.from, WELCOME_MESSAGES[1]);
+    if (ONBOARDING_V2) {
+      // V2: único bubble direto ao ponto — sem persona, sem pergunta
+      const welcomeV2 = `Aqui é o MandaAssim. Manda o print da conversa que travou (Tinder, Bumble, Insta, qualquer um). Em 10 segundos eu te devolvo 3 respostas calibradas pra ela 👇`;
+      await client.sendMessage(message.from, welcomeV2);
+      logJourneyEvent(phone, 'onboarding_v2_started', {}).catch(() => {});
+      console.log(`[Boas-vindas] Enviada para: ${phone} (V2)`);
+    } else {
+      // V1: 3 mensagens com delays + Ato 1 opcional
+      const act1Msg = await getAct1Message(phone).catch(() => null);
+      await client.sendMessage(message.from, WELCOME_MESSAGES[0]);
+      await new Promise(r => setTimeout(r, readingDelay(WELCOME_MESSAGES[0])));
+      await client.sendMessage(message.from, WELCOME_MESSAGES[1]);
+      await new Promise(r => setTimeout(r, readingDelay(WELCOME_MESSAGES[1])));
+      await client.sendMessage(message.from, act1Msg || WELCOME_MESSAGES[2]);
+      console.log(`[Boas-vindas] Enviada para: ${phone}${act1Msg ? ' (Ato 1 ativo)' : ''}`);
+    }
 
-    // Msg 2: pergunta de persona ou Ato 1
-    await new Promise(r => setTimeout(r, readingDelay(WELCOME_MESSAGES[1])));
-    await client.sendMessage(message.from, act1Msg || WELCOME_MESSAGES[2]);
-
-    console.log(`[Boas-vindas] Enviada para: ${phone}${act1Msg ? ' (Ato 1 ativo)' : ''}`);
     scheduleInactiveFollowup(phone).catch(() => {});
     return;
   }
@@ -2351,8 +2355,8 @@ client.on('message', async (message) => {
       return;
     }
 
-    // ── Resposta ao Ato 1 (escolha 1-4 de persona) ───────────────────────────
-    if (process.env.ENABLE_ACT_01_HOOK_DIAGNOSTICO === 'true') {
+    // ── Resposta ao Ato 1 (escolha 1-4 de persona) ── desativado no V2 ────────
+    if (!ONBOARDING_V2 && process.env.ENABLE_ACT_01_HOOK_DIAGNOSTICO === 'true') {
       const choice = parseUserChoice(text);
       if (choice) {
         const act01 = getActById('act_01_hook_diagnostico');
@@ -2765,7 +2769,8 @@ client.on('message', async (message) => {
       return;
     }
 
-    // ── Diagnóstico Ato 2 → 2.5 (espelhamento dinâmico) ─────────────────────
+    // ── Diagnóstico Ato 2 → 2.5 (espelhamento dinâmico) ── desativado no V2 ──
+    if (!ONBOARDING_V2) {
     const diagCtxCheck = getUserContext(phone);
     if (diagCtxCheck?.diagnosticState) {
       const diagState = diagCtxCheck.diagnosticState;
@@ -2799,6 +2804,7 @@ client.on('message', async (message) => {
       }
       return;
     }
+    } // end if (!ONBOARDING_V2) — diagnóstico Ato 2 → 2.5
 
     // ── Coach Pré-Date: continua entrevista em andamento ─────────────────────
     const pdCtx = getUserContext(phone);
@@ -2892,7 +2898,11 @@ client.on('message', async (message) => {
 
     // Filtra saudações puras — orienta sem gastar API
     if (isSaudacao(text)) {
-      await message.reply('Manda o print ou descreve o que tá rolando — eu leio e gero as opções.');
+      if (ONBOARDING_V2) {
+        await message.reply('Boa. Manda o print ou cola o que ela escreveu — eu leio e devolvo 3 opções de resposta');
+      } else {
+        await message.reply('Manda o print ou descreve o que tá rolando — eu leio e gero as opções.');
+      }
       return;
     }
 
@@ -3230,7 +3240,12 @@ client.on('message', async (message) => {
       return;
     }
 
-    
+    // V2: espelhamento de 1 frase na primeira análise (corre em paralelo)
+    const isFirstAnalysisV2 = ONBOARDING_V2 && !getUserContext(phone)?.lastRequest;
+    const mirroringPromiseV2 = isFirstAnalysisV2
+      ? generateFirstMirroringV2(phone, text).catch(() => null)
+      : null;
+
     const stopTyping3 = await startTyping(message);
     try {
       const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra, phone);
@@ -3240,6 +3255,17 @@ client.on('message', async (message) => {
         const updCtx = userContext.get(phone) || {};
         userContext.set(phone, { ...updCtx, recentSuccess: false });
       }
+
+      // Se é 1ª análise V2: envia frase de espelhamento antes das 3 opções
+      if (mirroringPromiseV2) {
+        const mirroringMsg = await mirroringPromiseV2;
+        if (mirroringMsg) {
+          await client.sendMessage(message.from, mirroringMsg);
+          await new Promise(r => setTimeout(r, readingDelay(mirroringMsg)));
+        }
+        logJourneyEvent(phone, 'first_analysis_done', {}).catch(() => {});
+      }
+
       await enviarResposta(message, result.text, result.intent);
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
@@ -3578,7 +3604,8 @@ client.on('message', async (message) => {
             return;
           }
 
-          await message.reply('Lendo a conversa... ⏳');
+          const isFirstPrintV2 = ONBOARDING_V2 && !getUserContext(phone)?.lastRequest;
+          if (!isFirstPrintV2) await message.reply('Lendo a conversa... ⏳');
           const stopTypingPrint = await startTyping(message);
           try {
             const { messages: printMsgs, structuredResult: printResultMain } = await analisarPrintConversaComHaiku(media.data, media.mimetype, phone);
@@ -3591,6 +3618,14 @@ client.on('message', async (message) => {
             if (printResultMain) {
               const ctxAfterPrint = userContext.get(phone) || {};
               userContext.set(phone, { ...ctxAfterPrint, lastPrintResult: printResultMain });
+            }
+
+            // V2: mirroring antes dos resultados na 1ª análise
+            if (isFirstPrintV2) {
+              const mirrorOpener = 'Lendo o que ela quis dizer';
+              await client.sendMessage(message.from, mirrorOpener);
+              await new Promise(r => setTimeout(r, readingDelay(mirrorOpener)));
+              logJourneyEvent(phone, 'first_analysis_done', {}).catch(() => {});
             }
 
             for (const msg of printMsgs) {

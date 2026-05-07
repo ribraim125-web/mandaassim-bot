@@ -155,4 +155,65 @@ async function generateMirroringAct25(phone, persona, answers) {
   return messages.length > 0 ? messages : [raw];
 }
 
-module.exports = { generateMirroringAct25 };
+/**
+ * Gera frase curta de espelhamento para a primeira análise (onboarding V2).
+ * 1 frase direta — corre em paralelo com a análise principal.
+ *
+ * @param {string} phone
+ * @param {string} userMessage — texto que o usuário mandou
+ * @returns {Promise<string|null>} — 1 frase ou null se falhar
+ */
+async function generateFirstMirroringV2(phone, userMessage) {
+  const anthropic = getAnthropicClient();
+  const t0 = Date.now();
+
+  const systemPrompt = `Você é o MandaAssim. Gere UMA ÚNICA FRASE de reconhecimento empático sobre a situação do usuário.
+
+Curta, direta, humana. Não dê conselho. Não repita o que ele disse literalmente. Vá 1 nível mais fundo.
+
+EXEMPLOS BONS:
+- "Saquei — ela responde mas você não consegue ler se é interesse real ou só educação."
+- "Leitura de sinal — é exatamente isso que trava a maioria."
+- "Quando a conversa tá parada assim, qualquer mensagem parece errada."
+
+EVITE:
+- Qualquer coisa genérica tipo "Entendo como você se sente"
+- Coach / manosfera / "frame"
+- Emojis
+
+TOM: Brasileiro coloquial maduro, sem bajular.
+RESPOSTA: APENAS a frase, sem mais nada.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 80,
+      system:     systemPrompt,
+      messages:   [{ role: 'user', content: String(userMessage).slice(0, 500) }],
+    });
+
+    logApiRequest({
+      phone, intent: 'first_mirroring_v2',
+      targetModel:       'claude-haiku-4-5-20251001',
+      modelActuallyUsed: 'claude-haiku-4-5-20251001',
+      tierAtRequest:     'full',
+      inputTokens:       response.usage?.input_tokens,
+      outputTokens:      response.usage?.output_tokens,
+      latencyMs:         Date.now() - t0,
+    });
+
+    return (response.content[0]?.text || '').trim() || null;
+  } catch (err) {
+    logApiRequest({
+      phone, intent: 'first_mirroring_v2',
+      targetModel:       'claude-haiku-4-5-20251001',
+      modelActuallyUsed: 'claude-haiku-4-5-20251001',
+      tierAtRequest:     'full',
+      latencyMs:         Date.now() - t0,
+      error:             err.message,
+    });
+    return null; // Fail silently — análise continua normalmente
+  }
+}
+
+module.exports = { generateMirroringAct25, generateFirstMirroringV2 };
