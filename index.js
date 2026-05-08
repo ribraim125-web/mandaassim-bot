@@ -2893,9 +2893,13 @@ client.on('message', async (message) => {
       // V2: 3 bubbles com delay — direto ao ponto, sem pergunta de qualificação
       await client.sendMessage(message.from, `salve, aqui é o MandaAssim`);
       await new Promise(r => setTimeout(r, 1200));
-      await client.sendMessage(message.from, `manda o print da conversa que travou, ou cola o que ela escreveu\n\neu leio e te devolvo 3 respostas: romântica, ousada e direta`);
-      await new Promise(r => setTimeout(r, 1800));
-      await client.sendMessage(message.from, `3 análises por dia de graça\n\nbora?`);
+      await client.sendMessage(message.from, `manda o print da conversa que travou`);
+      await new Promise(r => setTimeout(r, 800));
+      await client.sendMessage(message.from, `ou cola o que ela escreveu — eu leio e te devolvo 3 respostas`);
+      await new Promise(r => setTimeout(r, 800));
+      await client.sendMessage(message.from, `romântica, ousada e direta`);
+      await new Promise(r => setTimeout(r, 1000));
+      await client.sendMessage(message.from, `3 dias ilimitado de graça — bora?`);
       // Garante linha na tabela de discovery (A/B variant atribuído aqui)
       ensureFDS(phone).catch(() => {});
       // Soft-nudge se não mandar nada em 10 min
