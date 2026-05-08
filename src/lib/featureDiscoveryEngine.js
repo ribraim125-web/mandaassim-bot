@@ -24,10 +24,10 @@ const REVEAL_COPY = {
     `Tá feito.\n\n` +
     `Se a conversa for longa, pode mandar o print inteiro. Eu leio do começo e te falo o tom dela.`,
 
-  // F3 — modo coach (texto livre, sem print)
+  // F3 — modo conversa (texto livre, sem print)
   F3:
-    `Aliás: se quiser só desabafar sobre o que tá rolando, sem print, é só me contar. ` +
-    `Eu leio o contexto e te ajudo a pensar. Sem papo de coach.`,
+    `Aliás: se quiser só me contar o que tá rolando, sem print, é só falar. ` +
+    `Eu leio o contexto e te devolvo o que fazer. Sem papo de guru.`,
 
   // F4 — analisar perfil dela (Pro) — soft
   F4_SOFT:
@@ -49,7 +49,7 @@ const REVEAL_COPY = {
     `Antes de tu mandar mais 20 mensagens, vale eu olhar teu perfil. ` +
     `Manda print do teu Tinder ou Bumble: fotos e bio. ` +
     `Em 1 minuto eu te mando os 3 ajustes que mais movem agulha. ` +
-    `Sem papo de coach, só o que dá match.\n\n` +
+    `Só o que dá match.\n\n` +
     `Tá no trial Pro. Quer?`,
 
   // F6 — preparar encontro
@@ -82,7 +82,7 @@ const REVEAL_COPY = {
     `*GRÁTIS (3 análises/dia)*\n` +
     `1. Responder mensagem dela: manda print, eu mando 3 opções\n` +
     `2. Analisar conversa inteira: manda print longo, eu leio o tom dela\n` +
-    `3. Modo coach: me conta o que tá rolando em texto, eu te ajudo a pensar\n\n` +
+    `3. Conversa direta: me conta o que tá rolando em texto, eu te falo o que fazer\n\n` +
     `*PRO (R$79,90/mês, trial 3 dias sem cartão)*\n` +
     `4. Ler perfil dela antes de tu mandar a 1ª mensagem\n` +
     `5. Auditar teu próprio perfil (Tinder ou Bumble)\n` +
