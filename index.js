@@ -2893,7 +2893,7 @@ client.on('message', async (message) => {
       // V2: 3 bubbles com delay — direto ao ponto, sem pergunta de qualificação
       await client.sendMessage(message.from, `salve, aqui é o MandaAssim`);
       await new Promise(r => setTimeout(r, 1200));
-      await client.sendMessage(message.from, `manda o print da conversa que travou, ou cola o que ela escreveu\n\neu leio e te devolvo 3 respostas: uma que aquece, uma que provoca, uma direta`);
+      await client.sendMessage(message.from, `manda o print da conversa que travou, ou cola o que ela escreveu\n\neu leio e te devolvo 3 respostas: romântica, ousada e direta`);
       await new Promise(r => setTimeout(r, 1800));
       await client.sendMessage(message.from, `3 análises por dia de graça\n\nbora?`);
       // Garante linha na tabela de discovery (A/B variant atribuído aqui)
