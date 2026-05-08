@@ -4015,9 +4015,9 @@ client.on('message', async (message) => {
         ...currentCtxForTC,
         transitionCoachState: { questionIndex: 0, answers: {}, printContext: printCtxForTC },
       });
-      await client.sendMessage(message.from,
-        `Bora. Me responde rapidinho 👇\n\n${INTERVIEW_QUESTIONS[0]}`
-      );
+      await client.sendMessage(message.from, `bora`);
+      await new Promise(r => setTimeout(r, 600));
+      await client.sendMessage(message.from, INTERVIEW_QUESTIONS[0]);
       return;
     }
 
@@ -4042,9 +4042,9 @@ client.on('message', async (message) => {
         ...currentCtxPDTrig,
         predateCoachState: { questionIndex: 0, answers: {} },
       });
-      await client.sendMessage(message.from,
-        `Bora te preparar. Me responde rapidinho 👇\n\n${INTERVIEW_QUESTIONS_PREDATE[0]}`
-      );
+      await client.sendMessage(message.from, `bora te preparar`);
+      await new Promise(r => setTimeout(r, 600));
+      await client.sendMessage(message.from, INTERVIEW_QUESTIONS_PREDATE[0]);
       return;
     }
 
@@ -4068,9 +4068,9 @@ client.on('message', async (message) => {
         ...currentCtxDBTrig,
         postdateDebriefState: { questionIndex: 0, answers: {} },
       });
-      await client.sendMessage(message.from,
-        `Bora. Me conta como foi — algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
-      );
+      await client.sendMessage(message.from, `bora`);
+      await new Promise(r => setTimeout(r, 600));
+      await client.sendMessage(message.from, INTERVIEW_QUESTIONS_DEBRIEF[0]);
       return;
     }
 
@@ -4087,9 +4087,9 @@ client.on('message', async (message) => {
           ...currentCtxDBA,
           postdateDebriefState: { questionIndex: 0, answers: {} },
         });
-        await client.sendMessage(message.from,
-          `Bora. Me conta como foi — algumas perguntas rápidas 👇\n\n${INTERVIEW_QUESTIONS_DEBRIEF[0]}`
-        );
+        await client.sendMessage(message.from, `bora`);
+        await new Promise(r => setTimeout(r, 600));
+        await client.sendMessage(message.from, INTERVIEW_QUESTIONS_DEBRIEF[0]);
         return;
       }
     }
