@@ -2890,13 +2890,12 @@ client.on('message', async (message) => {
     stopEarlyTyping();
 
     if (ONBOARDING_V2) {
-      // V2: único bubble direto ao ponto — sem persona, sem pergunta
-      const welcomeV2 =
-        `Salve. Aqui é o MandaAssim.\n\n` +
-        `Manda o print da conversa que travou, ou da mensagem que tu não sabe responder. ` +
-        `Em 10 segundos eu te devolvo 3 respostas calibradas: romântica, ousada, direta.\n\n` +
-        `3 análises por dia, de graça. Bora?`;
-      await client.sendMessage(message.from, welcomeV2);
+      // V2: 3 bubbles com delay — direto ao ponto, sem pergunta de qualificação
+      await client.sendMessage(message.from, `salve, aqui é o MandaAssim`);
+      await new Promise(r => setTimeout(r, 1200));
+      await client.sendMessage(message.from, `manda o print da conversa que travou, ou cola o que ela escreveu\n\neu leio e te devolvo 3 respostas: uma que aquece, uma que provoca, uma direta`);
+      await new Promise(r => setTimeout(r, 1800));
+      await client.sendMessage(message.from, `3 análises por dia de graça\n\nbora?`);
       // Garante linha na tabela de discovery (A/B variant atribuído aqui)
       ensureFDS(phone).catch(() => {});
       // Soft-nudge se não mandar nada em 10 min
@@ -3897,11 +3896,7 @@ client.on('message', async (message) => {
 
     // Filtra saudações puras — orienta sem gastar API
     if (isSaudacao(text)) {
-      if (ONBOARDING_V2) {
-        await message.reply('Boa. Manda o print ou cola o que ela escreveu — eu leio e devolvo 3 opções de resposta');
-      } else {
-        await message.reply('Manda o print ou descreve o que tá rolando — eu leio e gero as opções.');
-      }
+      await message.reply('boa\n\nmanda o print ou cola o que ela escreveu');
       return;
     }
 
