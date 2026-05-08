@@ -3287,7 +3287,11 @@ client.on('message', async (message) => {
 
     // ── NPS response ──────────────────────────────────────────────────────────
     const supabaseForNPS = getSupabase();
-    const { data: userForNPS } = await supabaseForNPS.from('users').select('awaiting_nps').eq('phone', phone).maybeSingle().catch(() => ({ data: null }));
+    let userForNPS = null;
+    try {
+      const { data: _npsData } = await supabaseForNPS.from('users').select('awaiting_nps').eq('phone', phone).maybeSingle();
+      userForNPS = _npsData;
+    } catch (_) {};
     if (userForNPS?.awaiting_nps && /^([0-9]|10)$/.test(text.trim())) {
       const npsScore = parseInt(text.trim(), 10);
       await supabaseForNPS.from('users').update({ awaiting_nps: false }).eq('phone', phone).catch(() => {});
