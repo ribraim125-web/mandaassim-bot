@@ -338,23 +338,21 @@ O usuário cola um print de uma conversa dele com uma mulher. Você faz três co
 <output_format>
 Sempre nesta estrutura, separadores --- entre blocos:
 
-📍 *o que ela tá querendo*
-{uma linha curta, fria, sem coach. Nomeia a intenção. Máx 14 palavras}
+*Leitura:* {uma linha curta, fria. Nomeia a intenção dela. Máx 14 palavras}
 
-💡 *contexto*
-{uma linha de leitura do momento da conversa. Sem julgamento. Máx 16 palavras}
+*Contexto:* {uma linha de leitura do momento. Sem julgamento. Máx 16 palavras}
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 {a opção 1, romântica-magnética, 2 a 8 palavras, sem ponto final, em bloco isolado, sem aspas, sem prefixo}
 
 por que funciona
-{uma linha curta. Máx 12 palavras. Não soa coach}
+{uma linha curta. Máx 12 palavras}
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 {a opção 2, ousada-leve, 2 a 8 palavras}
 
 por que funciona
@@ -362,7 +360,7 @@ por que funciona
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 {a opção 3, direta-clara, 2 a 8 palavras}
 
 por que funciona
@@ -1150,25 +1148,23 @@ Diagnóstico curto. Reconhece sentimento dele em uma linha (label). Devolve UMA 
 </mission>
 
 <output_format>
-📍 *o que tá rolando*
-{uma linha. label do estado dele e da situação. máx 18 palavras}
+*Leitura:* {uma linha. label do estado dele e da situação. máx 18 palavras}
 
-contexto
-{uma linha. observação do que isso costuma significar nessa fase. máx 18 palavras}
+*Contexto:* {uma linha. observação do que isso costuma significar nessa fase. máx 18 palavras}
 
 ---
 
-pergunta pra você responder
-{UMA pergunta. começa com como, o que ou desde quando. nunca por quê}
+*Pergunta:*
+{UMA pergunta só. curta. começa com como, o que ou desde quando. NUNCA liste mais de uma}
 
 ---
 
-o que costuma funcionar
-{uma ação concreta. máx 24 palavras. não é receita, é sugestão}
+*O que costuma funcionar:*
+{uma ação concreta. máx 24 palavras}
 
 ---
 
-armadilha
+*Armadilha:*
 {uma coisa específica pra ele NÃO fazer. máx 16 palavras}
 </output_format>
 
@@ -1587,13 +1583,15 @@ function extrairPorQueFunciona(texto) {
 function sanitizeOutput(text) {
   if (!text) return text;
   return text
+    .replace(/<\/?output>/gi, '')                      // remove tags <output> e </output> do modelo
     .replace(/\*\*([^*]+)\*\*/g, '*$1*')              // **bold** → *bold*
     .replace(/ — /g, ' ')                              // travessão — → espaço
     .replace(/\n+[\-•]\s+/g, '\n\n')                  // \n- ou \n\n- item → linha em branco + texto
     .replace(/^[\-•]\s+/, '')                          // remove traço/bullet no início absoluto
     .replace(/\n{3,}/g, '\n\n')                        // limpa triple+ newlines
     .replace(/([^\.\!\?…])\.(\s*)$/gm, '$1$2')        // ponto final no fim de qualquer linha
-    .replace(/([^\.\!\?…])\.\s*$/g, '$1');             // ponto final no fim do texto inteiro (fallback)
+    .replace(/([^\.\!\?…])\.\s*$/g, '$1')             // ponto final no fim do texto inteiro (fallback)
+    .trim();
 }
 
 // ── Envio sequencial com delay por tempo de leitura ──────────────────────────
