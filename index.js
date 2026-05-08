@@ -1468,9 +1468,9 @@ const HAIKU_FALLBACK = 'google/gemini-2.0-flash-001';
 const INTENT_MODEL_CONFIG = {
   one_liner: { model: HAIKU_MODEL, maxTokens: 200, temperature: 0.90, systemType: 'minimal'  },
   volume:    { model: HAIKU_MODEL, maxTokens: 550, temperature: 0.85, systemType: 'degraded' },
-  premium:   { model: HAIKU_MODEL, maxTokens: 500, temperature: 0.80, systemType: 'full'     },
-  coaching:  { model: HAIKU_MODEL, maxTokens: 650, temperature: 0.75, systemType: 'coach'    },
-  ousadia:   { model: HAIKU_MODEL, maxTokens: 450, temperature: 0.95, systemType: 'ousadia'  },
+  premium:   { model: HAIKU_MODEL, maxTokens: 550, temperature: 0.80, systemType: 'full'     },
+  coaching:  { model: HAIKU_MODEL, maxTokens: 900, temperature: 0.75, systemType: 'coach'    },
+  ousadia:   { model: HAIKU_MODEL, maxTokens: 500, temperature: 0.95, systemType: 'ousadia'  },
 };
 
 
@@ -4756,9 +4756,9 @@ client.on('message', async (message) => {
       const result = await analisarTextoComClaude(transcricao, '', girlContextAudio + reconquistaExtraAudio, phone);
       stopTypingAudio();
       saveUserContext(phone, transcricao, 'text');
-      if (ctx?.recentSuccess) {
-        const updCtx = userContext.get(phone) || {};
-        userContext.set(phone, { ...updCtx, recentSuccess: false });
+      const ctxAudio = userContext.get(phone) || {};
+      if (ctxAudio?.recentSuccess) {
+        userContext.set(phone, { ...ctxAudio, recentSuccess: false });
       }
       await enviarResposta(message, result.text, result.intent);
       await upsellSonnetFree(message, result.sonnetInfo, trial);
