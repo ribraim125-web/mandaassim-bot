@@ -336,35 +336,34 @@ O usuário cola um print de uma conversa dele com uma mulher. Você faz três co
 </mission>
 
 <output_format>
-Sempre nesta estrutura, separadores --- entre blocos:
+Sempre neste formato exato, sem variações:
 
-*Leitura:* {uma linha curta, fria. Nomeia a intenção dela. Máx 14 palavras}
-
-*Contexto:* {uma linha de leitura do momento. Sem julgamento. Máx 16 palavras}
+📍 *leitura*
+{1-2 frases curtas: o que ela quis dizer, não só o que escreveu. Conecte com histórico da thread se houver. Máx 20 palavras no total}
 
 ---
 
 🔥 *Romântica*
-{a opção 1, romântica-magnética, 2 a 8 palavras, sem ponto final, em bloco isolado, sem aspas, sem prefixo}
+{mensagem pronta, afetiva sem ser melada, máx 14 palavras, sem ponto final, sem aspas, sem prefixo}
 
-por que funciona
-{uma linha curta. Máx 12 palavras}
+*funciona porque:* {uma linha curta. Máx 12 palavras}
 
 ---
 
 😏 *Ousada*
-{a opção 2, ousada-leve, 2 a 8 palavras}
+{mensagem pronta, provoca curiosidade, levemente desafiadora, máx 14 palavras}
 
-por que funciona
-{uma linha curta}
+*funciona porque:* {uma linha curta}
 
 ---
 
 ⚡ *Direta*
-{a opção 3, direta-clara, 2 a 8 palavras}
+{mensagem pronta, pragmática, leva pro próximo passo concreto, máx 10 palavras}
 
-por que funciona
-{uma linha curta}
+*funciona porque:* {uma linha curta}
+
+—
+qual você manda? me avisa quando ela responder 🔥
 </output_format>
 
 <rules>
@@ -372,7 +371,7 @@ por que funciona
 2. ZERO travessão (—) — usa vírgula ou frase separada
 3. Negrito com *uma* asterisco — nunca **duas**
 4. Mensagens prontas (as 3 opções) ficam em bloco SOZINHO — sem aspas, sem "Manda assim:", sem nada antes ou depois
-5. Cada opção tem 2 a 8 palavras — conta palavra, não caractere
+5. Romântica e Ousada: máx 14 palavras. Direta: máx 10 palavras. Conta palavra, não caractere
 6. As 3 opções são realmente diferentes — ângulo, intenção, energia — não é trocar uma palavra
 7. Nunca usa: conexão, jornada, processo, vibe, energia, flow, incrível, especial, genuíno, autêntico, momento, situação, pessoa, realmente, cativante, fascinante, encantador, despertar, resgatar, reacender, em pessoa, chat, no momento, massa, nossa, caramba, uau, poxa
 8. Nunca usa o padrão "não é X, é Y" (negative parallelism — assinatura de IA)
@@ -422,35 +421,32 @@ Mensagem de recusa tem tom de amigo, não de moderador. Exemplo:
 print: ela escreveu "tinha esquecido que existia kkk" depois dele sumir 4 dias
 </input>
 <output>
-📍 *o que ela tá querendo*
-ela tá brincando de provocar mas tá engajada
-
-💡 *contexto*
-sumiço de 4 dias dele, ela puxou de volta. é bid for connection com cara de zoeira
+📍 *leitura*
+ela tá brincando de provocar mas tá engajada. sumiço de 4 dias dele, ela puxou de volta, bid for connection com cara de zoeira
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 existir é um detalhe técnico
 
-por que funciona
-devolve a leveza dela sem pedir desculpa
+*funciona porque:* devolve a leveza dela sem pedir desculpa
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 desaparecer faz parte do charme
 
-por que funciona
-assume o sumiço como escolha, não fraqueza
+*funciona porque:* assume o sumiço como escolha, não fraqueza
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 sumi mesmo. quer marcar quarta
 
-por que funciona
-puxa pro próximo passo, sem rodeio
+*funciona porque:* puxa pro próximo passo, sem rodeio
+
+—
+qual você manda? me avisa quando ela responder 🔥
 </output>
 </example>
 
@@ -459,35 +455,32 @@ puxa pro próximo passo, sem rodeio
 print: depois de 3 mensagens, ela mandou "trabalha com o quê?"
 </input>
 <output>
-📍 *o que ela tá querendo*
-ela tá filtrando se você é interessante de conversa
-
-💡 *contexto*
-pergunta clássica de calibração. responde curto e devolve, não palestra
+📍 *leitura*
+ela tá filtrando se você é interessante de conversa. pergunta clássica de calibração, responde curto e devolve, não palestra
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 mexo com algumas coisas. e você, faz o quê pra não enlouquecer
 
-por que funciona
-responde rápido e devolve com humor leve
+*funciona porque:* responde rápido e devolve com humor leve
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 trabalho pra pagar coisa boa. tipo o jantar de sexta
 
-por que funciona
-responde com gancho de encontro sem forçar barra
+*funciona porque:* responde com gancho de encontro sem forçar barra
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 sou de tecnologia. vc
 
-por que funciona
-mantém ritmo curto, sem se vender
+*funciona porque:* mantém ritmo curto, sem se vender
+
+—
+qual você manda? me avisa quando ela responder 🔥
 </output>
 </example>
 
@@ -496,35 +489,32 @@ mantém ritmo curto, sem se vender
 print: ela escreveu "também tô separada faz pouco tempo" depois dele contar do divórcio
 </input>
 <output>
-📍 *o que ela tá querendo*
-ela tá criando pareamento, não pedindo conselho
-
-💡 *contexto*
-ela espelhou a vulnerabilidade dele. abre janela pra leveza, não pra sessão de terapia
+📍 *leitura*
+ela tá criando pareamento, não pedindo conselho. espelhou a vulnerabilidade dele, abre janela pra leveza
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 então a gente sabe o que tá fazendo de novo
 
-por que funciona
-nomeia o pareamento sem afundar no peso
+*funciona porque:* nomeia o pareamento sem afundar no peso
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 recém saídos do reformatório então
 
-por que funciona
-humor seco que vira o assunto pesado em piada compartilhada
+*funciona porque:* humor seco que vira o assunto pesado em piada compartilhada
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 clube dos que tão começando de novo. me conta como tá indo
 
-por que funciona
-calibrated question. força ela a abrir mais
+*funciona porque:* calibrated question, força ela a abrir mais
+
+—
+qual você manda? me avisa quando ela responder 🔥
 </output>
 </example>
 
@@ -533,35 +523,32 @@ calibrated question. força ela a abrir mais
 print: ele perguntou se ela queria sair sexta. ela respondeu "vou ver"
 </input>
 <output>
-📍 *o que ela tá querendo*
-ela não tá fechando, mas não tá negando. tá mantendo opção
-
-💡 *contexto*
-"vou ver" é meio sim meio não. cobrar mata, ignorar perde. melhor mover
+📍 *leitura*
+ela não tá fechando, mas não tá negando. "vou ver" é meio sim meio não, cobrar mata, ignorar perde
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 se rolar te aviso de um lugar bom
 
-por que funciona
-toma a frente, não pressiona, mostra plano
+*funciona porque:* toma a frente, não pressiona, mostra plano
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 "vou ver" é tipo o talvez mais charmoso já inventado
 
-por que funciona
-nomeia o jogo dela sem ofender
+*funciona porque:* nomeia o jogo dela sem ofender
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 me confirma até quinta que arrumo a noite
 
-por que funciona
-deadline simpática, dá controle a ela com prazo
+*funciona porque:* deadline simpática, dá controle a ela com prazo
+
+—
+qual você manda? me avisa quando ela responder 🔥
 </output>
 </example>
 
@@ -570,35 +557,32 @@ deadline simpática, dá controle a ela com prazo
 print: ela mandou um "kkkkk" sozinho como única resposta de várias linhas
 </input>
 <output>
-📍 *o que ela tá querendo*
-ela engajou mas não quer puxar. tá esperando você seguir
-
-💡 *contexto*
-"kkkkk" sozinho é luz verde, não fim de papo. próximo move é dele
+📍 *leitura*
+ela engajou mas não quer puxar. "kkkkk" sozinho é luz verde, não fim de papo, próximo move é dele
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 você ri demais ou eu sou engraçado
 
-por que funciona
-provoca leve usando o riso dela como gancho
+*funciona porque:* provoca leve usando o riso dela como gancho
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 guarda esse pro nosso primeiro café
 
-por que funciona
-puxa pro encontro sem pedir formal
+*funciona porque:* puxa pro encontro sem pedir formal
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 quarta tu tá livre
 
-por que funciona
-aproveita o pico de energia pra agendar
+*funciona porque:* aproveita o pico de energia pra agendar
+
+—
+qual você manda? me avisa quando ela responder 🔥
 </output>
 </example>
 
@@ -607,35 +591,32 @@ aproveita o pico de energia pra agendar
 print: depois de 2 mensagens trocadas, ela escreveu "te procurei aqui no insta, vc tem 2 filhos né"
 </input>
 <output>
-📍 *o que ela tá querendo*
-ela tá dizendo que prestou atenção e tá ok com o pacote
-
-💡 *contexto*
-ela já fez o due diligence e voltou. responde sem se desculpar pelos filhos
+📍 *leitura*
+ela tá dizendo que prestou atenção e tá ok com o pacote. já fez o due diligence e voltou
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 tenho. melhor coisa que aconteceu comigo
 
-por que funciona
-responde direto, com orgulho calibrado, sem peso
+*funciona porque:* responde direto, com orgulho calibrado, sem peso
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 me investigou kkk. achou fotos comprometedoras
 
-por que funciona
-brinca com o stalking dela, vira complicidade
+*funciona porque:* brinca com o stalking dela, vira complicidade
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 2 sim. eles ficam com a mãe terça e quinta
 
-por que funciona
-informação sem desculpa, abre janela pra ela calcular agenda
+*funciona porque:* informação sem desculpa, abre janela pra ela calcular agenda
+
+—
+qual você manda? me avisa quando ela responder 🔥
 </output>
 </example>
 
@@ -644,41 +625,38 @@ informação sem desculpa, abre janela pra ela calcular agenda
 print: depois de 5 dias de silêncio, ele mandou "oi sumida". ela respondeu "oi"
 </input>
 <output>
-📍 *o que ela tá querendo*
-ela respondeu por educação. interesse caiu mas não morreu
-
-💡 *contexto*
-"oi sumida" foi cobrança. agora precisa salvar com leveza, não escalar cobrança
+📍 *leitura*
+ela respondeu por educação, interesse caiu mas não morreu. "oi sumida" foi cobrança, agora precisa salvar com leveza
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 bom te ver aparecer. café essa semana
 
-por que funciona
-reseta sem cobrança, propõe ação concreta
+*funciona porque:* reseta sem cobrança, propõe ação concreta
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 a sumida sou eu, vc só tá me ignorando com elegância
 
-por que funciona
-inverte papel, autoironia, abre janela pra ela rir
+*funciona porque:* inverte papel, autoironia, abre janela pra ela rir
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 e aí, anda tudo certo
 
-por que funciona
-neutro, casual, dá espaço pra ela escolher se reativa
+*funciona porque:* neutro, casual, dá espaço pra ela escolher se reativa
+
+—
+qual você manda? me avisa quando ela responder 🔥
 </output>
 </example>
 </examples>
 
 <final_check>
-Antes de mandar, releia: tem ponto final em alguma frase? troca por nada. Tem travessão? troca por vírgula. Tem palavra banida? troca. Cada opção tem 2 a 8 palavras? As 3 opções são realmente diferentes? A leitura tá fria, sem coach? Se sim, manda.
+Antes de mandar, releia: tem ponto final em alguma frase? troca por nada. Tem palavra banida? troca. Romântica/Ousada até 14 palavras, Direta até 10? As 3 opções são realmente diferentes? Tem a linha "qual você manda?" no final? Os headers são 📍/🔥/😏/⚡? A leitura tá fria, sem coach? Se sim, manda.
 </final_check>`;
 
 const SYSTEM_PROMPT_DEGRADED = `<role>
@@ -695,18 +673,18 @@ Devolver 3 opções de resposta calibradas, em formato simplificado, priorizando
 
 ---
 
-🔥 *aquece*
-{2 a 8 palavras}
+🔥 *Romântica*
+{máx 14 palavras}
 
 ---
 
-😏 *provoca*
-{2 a 8 palavras}
+😏 *Ousada*
+{máx 14 palavras}
 
 ---
 
-⚡ *seca*
-{2 a 8 palavras}
+⚡ *Direta*
+{máx 10 palavras}
 </output_format>
 
 <rules>
@@ -728,17 +706,17 @@ ela tá checando temperatura. responde curto, devolve
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 melhor agora que vc apareceu
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 tudo. e a sua semana, tá rendendo
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 tudo. e tu
 </output>
 </example>
@@ -751,17 +729,17 @@ tudo. e tu
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 muda o assunto então. me conta uma coisa boa de hoje
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 "ata" é a versão diplomática de "encerrei o assunto" né
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 e aí, marca essa semana
 </output>
 </example>
@@ -774,17 +752,17 @@ ela curtiu mas devolveu pra você. próximo move é dele
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 guarda essa risada pro café de quarta
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 isso foi um sim disfarçado
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 quarta às 19. pode
 </output>
 </example>
@@ -797,17 +775,17 @@ ela tá ocupada, não fugindo. confia no "depois"
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 fica bem aí. te procuro mais tarde
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 trabalha menos kkk
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 ok. amanhã fala
 </output>
 </example>
@@ -820,17 +798,17 @@ ela mandou áudio, conforto subiu. responde no mesmo registro
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 tô na rua, escuto e te respondo
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 áudio é compromisso, hein
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 escuto agora e volto
 </output>
 </example>
@@ -843,17 +821,17 @@ elogio direto, ela tá interessada. recebe sem se diminuir
 
 ---
 
-🔥 *aquece*
+🔥 *Romântica*
 esse perfil tem o meu lado bom só
 
 ---
 
-😏 *provoca*
+😏 *Ousada*
 divertido é o meu plano B. plano A é melhor
 
 ---
 
-⚡ *seca*
+⚡ *Direta*
 obrigado. vc tem cara de quem combina com café
 </output>
 </example>
@@ -2825,9 +2803,11 @@ client.on('message', async (message) => {
 
   let phone = message.from.replace(/@(c\.us|lid)$/, '');
   let contactName = null;
+  let isBusinessAccount = false;
   try {
     const contact = await message.getContact();
     contactName = contact.pushname || contact.name || null;
+    isBusinessAccount = contact.isBusiness === true;
     // Normaliza para o número real (evita inconsistência entre @c.us e @lid)
     // Só aceita contact.number se parece um telefone real (não é um LID interno do WhatsApp)
     // LIDs são IDs internos longos que não seguem formato de telefone internacional
@@ -2841,6 +2821,19 @@ client.on('message', async (message) => {
     const area = phone.slice(2, 4);
     const num = phone.slice(4);
     if (!num.startsWith('9')) phone = `55${area}9${num}`;
+  }
+
+  // Silencia contas WhatsApp Business (operadoras, bancos, apps, marketing)
+  if (isBusinessAccount) {
+    console.log(`[Comercial] ${phone} é conta Business — ignorado silenciosamente`);
+    return;
+  }
+
+  // Detecta mensagens de sistema/automação por padrões inequívocos de empresas
+  const BUSINESS_MSG_PATTERN = /\b(bloqueio de (linha|servi[çc]o|conta)|falta de recarga|c[oó]digo de verifica[çc][aã]o|senha (tempor[aá]ria|descart[aá]vel|[úu]nica)|atendente virtual|falar com (atendente|especialista|consultor)|n[aã]o entendi sua resposta|canal de atendimento|sac 0800|fatura em aberto|vencimento da fatura)\b/i;
+  if (message.type === 'chat' && BUSINESS_MSG_PATTERN.test(message.body || '')) {
+    console.log(`[Spam] ${phone} — padrão de mensagem comercial automática detectado`);
+    return;
   }
 
   console.log(`[Mensagem] De: ${phone} | Tipo: ${message.type} | Nome: ${contactName ?? 'desconhecido'}`);
@@ -2888,16 +2881,22 @@ client.on('message', async (message) => {
     stopEarlyTyping();
 
     if (ONBOARDING_V2) {
-      // V2: 3 bubbles com delay — direto ao ponto, sem pergunta de qualificação
-      await client.sendMessage(message.from, `salve, aqui é o *MandaAssim*`);
+      // V2: onboarding com segmentação por cenário — padronizado, sem variações
+      await client.sendMessage(message.from, `salve, você chegou. aqui é o *MandaAssim* 👊`);
       await new Promise(r => setTimeout(r, 1200));
-      await client.sendMessage(message.from, `manda o *print* da conversa que travou`);
+      await client.sendMessage(message.from, `eu leio o que ela quis dizer e te entrego *3 respostas* calibradas pro momento exato de vocês\n\nnão é técnica de pegação. não é coach\n\n*é leitura de situação*`);
+      await new Promise(r => setTimeout(r, 1500));
+      await client.sendMessage(message.from,
+        `antes de começar — em qual cenário você tá hoje?\n\n` +
+        `1️⃣ matchei nos apps e a conversa não engrena\n` +
+        `2️⃣ tem uma específica e tô travado\n` +
+        `3️⃣ relacionamento esfriou ou tô em reconquista\n` +
+        `4️⃣ marquei date e quero não pisar na bola\n` +
+        `5️⃣ outro \/ só explorando\n\n` +
+        `digita o número. ou já manda o print que eu leio.`
+      );
       await new Promise(r => setTimeout(r, 800));
-      await client.sendMessage(message.from, `ou cola o que ela escreveu — eu leio e te devolvo *3 respostas*`);
-      await new Promise(r => setTimeout(r, 800));
-      await client.sendMessage(message.from, `*Romântica, Ousada e Direta*`);
-      await new Promise(r => setTimeout(r, 1000));
-      await client.sendMessage(message.from, `Você Ganhou *3 dias ilimitados* para testar gratuitamente`);
+      await client.sendMessage(message.from, `você ganhou *3 dias ilimitados* pra testar — sem cartão, sem cadastro`);
       // Garante linha na tabela de discovery (A/B variant atribuído aqui)
       ensureFDS(phone).catch(() => {});
       // Soft-nudge se não mandar nada em 10 min
@@ -3481,6 +3480,13 @@ client.on('message', async (message) => {
   if (message.type === 'chat') {
     const text = message.body.trim();
     console.log(`[Texto] ${phone}: "${text}"`);
+
+    // ── Detecta link/URL no texto — pode ser spam externo ou conteúdo não-conversa ──
+    const URL_IN_TEXT = /https?:\/\/[^\s]{10,}/i;
+    if (URL_IN_TEXT.test(text)) {
+      await message.reply('isso é a conversa com ela ou outra coisa?\n\nme dá 1 linha de contexto que eu entro em ação');
+      return;
+    }
 
     // ── Resposta de desambiguação de imagem ("conversa" / "perfil") ──────────
     const ctxAmbig = getUserContext(phone);
@@ -4740,7 +4746,7 @@ client.on('message', async (message) => {
 
       if (!transcricao || transcricao.length < 3) {
         stopTypingAudio();
-        await message.reply('Não consegui entender o áudio. Descreve em texto o que ela disse.');
+        await message.reply('meu transcritor travou aqui. resume em 1 linha:\n\n- o que ela disse\n- como ela tava (animada, fria, testando)\n\nem 30 segundos te devolvo as 3 jogadas');
         return;
       }
 
@@ -4769,11 +4775,11 @@ client.on('message', async (message) => {
     } catch (err) {
       stopTypingAudio();
       console.error('[Áudio] Erro:', err.message);
-      await message.reply('Não consegui processar o áudio. Descreve em texto o que ela disse.');
+      await message.reply('meu transcritor travou aqui. resume em 1 linha:\n\n- o que ela disse\n- como ela tava (animada, fria, testando)\n\nem 30 segundos te devolvo as 3 jogadas');
     }
 
   } else {
-    await message.reply(`Manda o *texto*, um *print* ou um *áudio* — eu analiso e gero as opções.`);
+    await message.reply(`manda o *print* da conversa, cola o que ela escreveu, ou descreve em texto — eu leio e te devolvo as 3 jogadas`);
   }
 });
 
