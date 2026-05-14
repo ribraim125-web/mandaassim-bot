@@ -3,9 +3,9 @@ const OPCOES_PRO = `*pro* (R$79,90/mês) ou *anual pro* (R$799/ano)`;
 
 const MESSAGES = {
   day1_inactive: [
-    `Tem alguma conversa rolando? Manda o print ou descreve a situação. Eu leio e te devolvo as opções.`,
-    `E aí, sumido. Alguma situação pra desenrolar? Manda aqui.`,
-    `Tô por aqui. Se trancar uma conversa ou bater dúvida, me chama.`,
+    `Aquela situação que a gente tava destrinchando — chegou a mandar uma das opções? Como ela respondeu?`,
+    `Curiosidade: você chegou a usar alguma das opções que te dei? Me conta como foi — mesmo que tenha dado errado, eu calibro melhor na próxima.`,
+    `Separei uma coisa que pode te ajudar: a maioria dos caras trava porque trata WhatsApp como questionário. Tenta comentar em vez de perguntar — comentário gera resposta emocional, pergunta gera resposta robótica. Manda um print quando travar que eu mostro na prática.`,
   ],
 
   limit_drop_10: [
@@ -53,7 +53,7 @@ const MESSAGES = {
   // ── Lifecycle — Pós-pagamento ────────────────────────────────────────────
 
   lifecycle_d7_tour: [
-    `você tá há uma semana aqui, cada análise vai ficando mais afinada\n\nqueria te lembrar que tem coisas que talvez você nem testou ainda\n\nmanda *menu* pra ver tudo que dá pra fazer\nou me pede diretamente, tipo "como auditar meu perfil" ou "como preparar pra um encontro", que eu te mostro`,
+    `você tá há uma semana aqui, cada análise vai ficando mais afinada\n\nqueria te lembrar que tem coisas que talvez você nem testou ainda:\n\n🔍 análise de conversa completa\n📸 auditoria do seu perfil (fotos + bio)\n👤 leitura do perfil dela antes de mandar a primeira mensagem\n🗓️ preparação pra encontro + conversa depois sobre como foi\n\nmanda *menu* pra ver tudo, ou me pede direto que eu te mostro`,
   ],
 
   lifecycle_d14_checkin: [
@@ -75,7 +75,8 @@ const MESSAGES = {
   // ── Pós-cancelamento ─────────────────────────────────────────────────────
 
   reactivation_d1: [
-    `ó, sem cobrança, prometido\n\nsó queria te dizer que se um dia você voltar a usar, é só mandar print de novo\nseus históricos antigos ficam comigo por 30 dias\nse voltar dentro desse prazo, retoma exatamente de onde parou\n\nboa sorte aí`,
+    `sem cobrança, prometido\n\nsó queria te dizer que se um dia você voltar a usar, é só mandar print de novo\nseus históricos antigos ficam comigo por 30 dias — se voltar dentro desse prazo, retoma exatamente de onde parou\n\nboa sorte aí fora`,
+    `e aí, sumiu\n\nfaz uma semana que não trocamos figurinha. tô curioso: fechou alguém, deu ruim, ou simplesmente sem ânimo?\n\nsem resposta errada, só me conta que eu ajudo na real — ou solto sua mão pra você focar em outra coisa`,
   ],
 
   // ── Indicação (enviada pelo handler, não pelo worker) ────────────────────

@@ -25,10 +25,10 @@ const USD_TO_BRL = 5.75;
 // ── Tamanho máximo da imagem (5MB em bytes — limite Anthropic) ────────────────
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-// ── System prompt alinhado com o tom da Fase 1 (reposicionamento) ─────────────
-const SYSTEM_PROMPT_PRINT = `Você é o MandaAssim — um wingman direto e maduro, sem papo de coach e sem julgamento.
+// ── System prompt alinhado com o tom premium do MandaAssim ───────────────────
+const SYSTEM_PROMPT_PRINT = `Você é o MandaAssim — wingman direto e maduro, sem papo de coach e sem julgamento.
 
-Sua tarefa: analisar o print de uma conversa (WhatsApp, Tinder, Bumble ou Instagram DM) e retornar uma análise em JSON.
+Sua tarefa: analisar o print de uma conversa (WhatsApp, Tinder, Bumble ou Instagram DM) e retornar uma análise em JSON com 3 opções de resposta calibradas em tons diferentes.
 
 PRINCÍPIOS DO TOM:
 - Nunca julgue o usuário negativamente — sempre construa, sempre oriente pra frente
@@ -36,6 +36,7 @@ PRINCÍPIOS DO TOM:
 - Se ela tá ghostando há tempo, seja honesto com cuidado — sem falsa esperança, sem drama
 - Tom de amigo experiente que já viu tudo e fala a verdade com respeito
 - Foco no que FAZER agora, não em análise psicológica longa
+- As 3 opções devem ser realmente diferentes — ângulo, intenção e energia distintos
 
 VOCABULÁRIO PROIBIDO — nunca use nas respostas ao usuário:
 - fricção, features, destrava, destravar, Bora arrebentar, performado, cringe
@@ -68,9 +69,9 @@ Schema obrigatório:
   "user_mistakes_detected": ["..."],
   "situation_summary": "...",
   "suggested_next_message": {
-    "safe": "...",
-    "balanced": "...",
-    "bold": "..."
+    "balanced": "... (Aquece — mensagem afetiva, cria calor)",
+    "bold": "... (Provoca — mensagem que provoca curiosidade ou tensão leve)",
+    "safe": "... (Direta — mensagem pragmática, próximo passo concreto)"
   },
   "rationale": "..."
 }`;
@@ -186,16 +187,24 @@ function formatarRespostaPrint(result) {
 
   msgs.push(msg1);
 
-  // ── Msg 2: Sugestão (balanced como padrão) ───────────────────────────────
-  const sugestao = result.suggested_next_message?.balanced;
-  if (sugestao) {
+  // ── Msg 2: 3 opções (Aquece / Provoca / Direta) ─────────────────────────
+  const aquece  = result.suggested_next_message?.balanced;
+  const provoca = result.suggested_next_message?.bold;
+  const direta  = result.suggested_next_message?.safe;
+
+  if (aquece || provoca || direta) {
+    let opcoesMsg = `Aqui vão suas opções:\n\n`;
+    if (aquece)  opcoesMsg += `🔥 *Aquece*\n"${aquece.trim()}"\n\n`;
+    if (provoca) opcoesMsg += `😏 *Provoca*\n"${provoca.trim()}"\n\n`;
+    if (direta)  opcoesMsg += `⚡ *Direta*\n"${direta.trim()}"`;
+    opcoesMsg += `\n\nQual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥`;
+    msgs.push(opcoesMsg.trim());
+  } else if (result.suggested_next_message?.balanced) {
     msgs.push(`Manda isso 👇`);
-    msgs.push(sugestao.trim());
+    msgs.push(result.suggested_next_message.balanced.trim());
   }
 
-  // Oferta de variações removida — sem handler para "mais segura/ousada" no fluxo atual
-
-  // ── Msg extra (Forma B): sugestão proativa quando conversa está hot ──────
+  // ── Msg extra: sugestão proativa quando conversa está hot ────────────────
   const isHot = result.conversation_temperature === 'hot';
   const isHighInterest = result.match_interest_level === 'high' || result.match_interest_level === 'very_high';
   if (isHot && isHighInterest) {

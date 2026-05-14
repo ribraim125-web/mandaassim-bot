@@ -19,12 +19,12 @@ module.exports = {
   variants: {
     A: {
       message:
-        `Antes de te explicar o que faço — me conta em qual momento você tá:\n\n` +
-        `1️⃣ Voltei pro mercado depois de muito tempo fora\n` +
-        `2️⃣ Tô nos apps mas não tô conseguindo evoluir as conversas\n` +
-        `3️⃣ Tô conversando com alguém agora e quero não cagar\n` +
-        `4️⃣ Outro\n\n` +
-        `Manda o número.`,
+        `Antes de começar — me conta em uma frase: qual é o seu jogo agora?\n\n` +
+        `🎯 Conquistar alguém específico\n` +
+        `🔄 Voltei pro mercado e quero recalibrar\n` +
+        `💬 Travo em conversas e quero soltar mais\n` +
+        `📲 Quero arrumar meu perfil antes de tudo\n\n` +
+        `Responde com o número ou suas palavras mesmo — a gente já sai resolvendo.`,
       ctaAction: 'await_persona_response',
     },
   },

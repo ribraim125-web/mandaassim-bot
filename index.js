@@ -111,6 +111,9 @@ const PRECO_PRO_LANCAMENTO = 55.93; // 30% off — só pra base atual no lançam
 // Sinais de crise — disparam protocolo CVV em vez de análise
 const CRISIS_PATTERN = /\b(quero (me matar|desaparecer|sumir para sempre)|n[aã]o aguento mais|pensando em me machucar|[eé] melhor morrer|n[aã]o tenho mais saída|tô no limite)\b/i;
 
+// Sinais de golpe/phishing — disparam aviso de segurança
+const SCAM_PATTERN = /\b(qr.?code\s*(do\s*)?whatsapp|escaneia\s*(esse|este|o|um)\s*qr|c[oó]digo\s*qr\s*(do\s*)?whatsapp|clona(r|ndo)?\s*(meu|seu|o)\s*whatsapp|scanner\s*o\s*(qr|c[oó]digo)|scan\s*(esse|o)\s*(c[oó]digo|qr)|mandou\s*um\s*qr|pix\s*urgente|preciso\s*de\s*pix\s*(agora|r[aá]pido)|manda\s*foto\s*do\s*documento)\b/i;
+
 // Sinais de objeção de preço — disparam M17
 const PRICE_OBJECTION_PATTERN = /\b(t[aá] caro|t[aá] puxado|vou pensar|n[aã]o tenho dinheiro|muito caro|n[aã]o posso pagar|caro demais)\b/i;
 
@@ -198,9 +201,7 @@ const MENSAGEM_RENOVACAO =
 
 
 // Mensagem 0 — enviada imediatamente
-const WELCOME_MSG_0 = `Boa, você chegou
-
-Aqui é o *MandaAssim*`;
+const WELCOME_MSG_0 = `Fala. Aqui é o *MandaAssim* — seu wingman pessoal.`;
 
 // Mensagem 1 — enviada ~2s depois
 const WELCOME_MSG_1 = `Eu leio o que ela quis dizer e te entrego a resposta certa pra aquele momento
@@ -213,7 +214,7 @@ Não é técnica de pegação. Não é coach
 const WELCOME_MESSAGES = [
   WELCOME_MSG_0,
   WELCOME_MSG_1,
-  `Em qual momento você tá?\n\n1️⃣ Voltei pro mercado depois de muito tempo fora\n2️⃣ Tô nos apps, mas as conversas não engrenam\n3️⃣ Tenho uma conversa rolando agora\n4️⃣ Outro\n\nManda o número ou já cola o print direto que eu leio.`,
+  `Antes de começar — me conta em uma frase: qual é o seu jogo agora?\n\n🎯 Conquistar alguém específico\n🔄 Voltei pro mercado e quero recalibrar\n💬 Travo em conversas e quero soltar mais\n📲 Quero arrumar meu perfil antes de tudo\n\nResponde com o número ou suas palavras mesmo — a gente já sai resolvendo.`,
 ];
 
 const OPCOES_PREMIUM =
@@ -223,8 +224,12 @@ const OPCOES_PREMIUM =
   `📆 *Anual* a R$299/ano (economiza R$60) → digita *anual*`;
 
 const LIMITE_FREE_ESGOTADO =
-  `Deu ${FREE_DAILY_LIMIT} por hoje. Amanhã cedo renova.\n\n` +
-  `Se não dá pra esperar: *mensal* (R$29,90) ou *anual* (R$299).`;
+  `Deu ${FREE_DAILY_LIMIT} análises por hoje. Renova amanhã cedo.\n\n` +
+  `Se a conversa não pode esperar:\n\n` +
+  `⚡ *24h* por R$4,99 → digita *24h*\n` +
+  `📅 *Mensal* R$29,90 → digita *mensal*\n` +
+  `📆 *Anual* R$299 → digita *anual*\n\n` +
+  `_Ilimitado, sem teto diário._`;
 
 
 // ── Mensagens da feature de print analysis ──────────────────────────────────
@@ -343,14 +348,14 @@ Sempre neste formato exato, sem variações:
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 {mensagem pronta, afetiva sem ser melada, máx 14 palavras, sem ponto final, sem aspas, sem prefixo}
 
 *funciona porque:* {uma linha curta. Máx 12 palavras}
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 {mensagem pronta, provoca curiosidade, levemente desafiadora, máx 14 palavras}
 
 *funciona porque:* {uma linha curta}
@@ -363,7 +368,7 @@ Sempre neste formato exato, sem variações:
 *funciona porque:* {uma linha curta}
 
 —
-qual você manda? me avisa quando ela responder 🔥
+Qual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥
 </output_format>
 
 <rules>
@@ -371,7 +376,7 @@ qual você manda? me avisa quando ela responder 🔥
 2. ZERO travessão (—) — usa vírgula ou frase separada
 3. Negrito com *uma* asterisco — nunca **duas**
 4. Mensagens prontas (as 3 opções) ficam em bloco SOZINHO — sem aspas, sem "Manda assim:", sem nada antes ou depois
-5. Romântica e Ousada: máx 14 palavras. Direta: máx 10 palavras. Conta palavra, não caractere
+5. Aquece e Provoca: máx 14 palavras. Direta: máx 10 palavras. Conta palavra, não caractere
 6. As 3 opções são realmente diferentes — ângulo, intenção, energia — não é trocar uma palavra
 7. Nunca usa: conexão, jornada, processo, vibe, energia, flow, incrível, especial, genuíno, autêntico, momento, situação, pessoa, realmente, cativante, fascinante, encantador, despertar, resgatar, reacender, em pessoa, chat, no momento, massa, nossa, caramba, uau, poxa
 8. Nunca usa o padrão "não é X, é Y" (negative parallelism — assinatura de IA)
@@ -406,7 +411,7 @@ Você tem acesso ao histórico desta thread. Em CADA análise nova, referencie p
 Exemplos de como referenciar:
 - "lembra que ela tinha sumido 8 dias? agora voltou com 'bom dia'. não é coincidência"
 - "ela tá no mesmo padrão de antes — testando pra ver se você reage igual"
-- "dessa vez tenta a Direta — você tentou a Romântica antes e ela respondeu curto"
+- "dessa vez tenta a Direta — você tentou a Aquece antes e ela respondeu curto"
 
 Se o usuário vier com "ela respondeu X" após uma sugestão sua, detecte isso e responda no modo OUTCOME (abaixo). Não gere as 3 opções normalmente. Em vez disso:
 
@@ -472,14 +477,14 @@ ela tá brincando de provocar mas tá engajada. sumiço de 4 dias dele, ela puxo
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 existir é um detalhe técnico
 
 *funciona porque:* devolve a leveza dela sem pedir desculpa
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 desaparecer faz parte do charme
 
 *funciona porque:* assume o sumiço como escolha, não fraqueza
@@ -492,7 +497,7 @@ sumi mesmo. quer marcar quarta
 *funciona porque:* puxa pro próximo passo, sem rodeio
 
 —
-qual você manda? me avisa quando ela responder 🔥
+Qual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥
 </output>
 </example>
 
@@ -506,14 +511,14 @@ ela tá filtrando se você é interessante de conversa. pergunta clássica de ca
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 mexo com algumas coisas. e você, faz o quê pra não enlouquecer
 
 *funciona porque:* responde rápido e devolve com humor leve
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 trabalho pra pagar coisa boa. tipo o jantar de sexta
 
 *funciona porque:* responde com gancho de encontro sem forçar barra
@@ -526,7 +531,7 @@ sou de tecnologia. vc
 *funciona porque:* mantém ritmo curto, sem se vender
 
 —
-qual você manda? me avisa quando ela responder 🔥
+Qual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥
 </output>
 </example>
 
@@ -540,14 +545,14 @@ ela tá criando pareamento, não pedindo conselho. espelhou a vulnerabilidade de
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 então a gente sabe o que tá fazendo de novo
 
 *funciona porque:* nomeia o pareamento sem afundar no peso
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 recém saídos do reformatório então
 
 *funciona porque:* humor seco que vira o assunto pesado em piada compartilhada
@@ -560,7 +565,7 @@ clube dos que tão começando de novo. me conta como tá indo
 *funciona porque:* calibrated question, força ela a abrir mais
 
 —
-qual você manda? me avisa quando ela responder 🔥
+Qual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥
 </output>
 </example>
 
@@ -574,14 +579,14 @@ ela não tá fechando, mas não tá negando. "vou ver" é meio sim meio não, co
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 se rolar te aviso de um lugar bom
 
 *funciona porque:* toma a frente, não pressiona, mostra plano
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 "vou ver" é tipo o talvez mais charmoso já inventado
 
 *funciona porque:* nomeia o jogo dela sem ofender
@@ -594,7 +599,7 @@ me confirma até quinta que arrumo a noite
 *funciona porque:* deadline simpática, dá controle a ela com prazo
 
 —
-qual você manda? me avisa quando ela responder 🔥
+Qual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥
 </output>
 </example>
 
@@ -608,14 +613,14 @@ ela engajou mas não quer puxar. "kkkkk" sozinho é luz verde, não fim de papo,
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 você ri demais ou eu sou engraçado
 
 *funciona porque:* provoca leve usando o riso dela como gancho
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 guarda esse pro nosso primeiro café
 
 *funciona porque:* puxa pro encontro sem pedir formal
@@ -628,7 +633,7 @@ quarta tu tá livre
 *funciona porque:* aproveita o pico de energia pra agendar
 
 —
-qual você manda? me avisa quando ela responder 🔥
+Qual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥
 </output>
 </example>
 
@@ -642,14 +647,14 @@ ela tá dizendo que prestou atenção e tá ok com o pacote. já fez o due dilig
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 tenho. melhor coisa que aconteceu comigo
 
 *funciona porque:* responde direto, com orgulho calibrado, sem peso
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 me investigou kkk. achou fotos comprometedoras
 
 *funciona porque:* brinca com o stalking dela, vira complicidade
@@ -662,7 +667,7 @@ me investigou kkk. achou fotos comprometedoras
 *funciona porque:* informação sem desculpa, abre janela pra ela calcular agenda
 
 —
-qual você manda? me avisa quando ela responder 🔥
+Qual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥
 </output>
 </example>
 
@@ -676,14 +681,14 @@ ela respondeu por educação, interesse caiu mas não morreu. "oi sumida" foi co
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 bom te ver aparecer. café essa semana
 
 *funciona porque:* reseta sem cobrança, propõe ação concreta
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 a sumida sou eu, vc só tá me ignorando com elegância
 
 *funciona porque:* inverte papel, autoironia, abre janela pra ela rir
@@ -696,13 +701,13 @@ e aí, anda tudo certo
 *funciona porque:* neutro, casual, dá espaço pra ela escolher se reativa
 
 —
-qual você manda? me avisa quando ela responder 🔥
+Qual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥
 </output>
 </example>
 </examples>
 
 <final_check>
-Antes de mandar, releia: tem ponto final em alguma frase? troca por nada. Tem palavra banida? troca. Romântica/Ousada até 14 palavras, Direta até 10? As 3 opções são realmente diferentes? Tem a linha "qual você manda?" no final? Os headers são 📍/🔥/😏/⚡? A leitura tá fria, sem coach? Se sim, manda.
+Antes de mandar, releia: tem ponto final em alguma frase? troca por nada. Tem palavra banida? troca. Aquece/Provoca até 14 palavras, Direta até 10? As 3 opções são realmente diferentes? Tem a linha "Qual vibe combina mais?" no final? Os headers são 📍/🔥/😏/⚡? A leitura tá fria, sem coach? Se sim, manda.
 </final_check>`;
 
 const SYSTEM_PROMPT_DEGRADED = `<role>
@@ -719,12 +724,12 @@ Devolver 3 opções de resposta calibradas, em formato simplificado, priorizando
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 {máx 14 palavras}
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 {máx 14 palavras}
 
 ---
@@ -752,12 +757,12 @@ ela tá checando temperatura. responde curto, devolve
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 melhor agora que vc apareceu
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 tudo. e a sua semana, tá rendendo
 
 ---
@@ -775,12 +780,12 @@ tudo. e tu
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 muda o assunto então. me conta uma coisa boa de hoje
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 "ata" é a versão diplomática de "encerrei o assunto" né
 
 ---
@@ -798,12 +803,12 @@ ela curtiu mas devolveu pra você. próximo move é dele
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 guarda essa risada pro café de quarta
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 isso foi um sim disfarçado
 
 ---
@@ -821,12 +826,12 @@ ela tá ocupada, não fugindo. confia no "depois"
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 fica bem aí. te procuro mais tarde
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 trabalha menos kkk
 
 ---
@@ -844,12 +849,12 @@ ela mandou áudio, conforto subiu. responde no mesmo registro
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 tô na rua, escuto e te respondo
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 áudio é compromisso, hein
 
 ---
@@ -867,12 +872,12 @@ elogio direto, ela tá interessada. recebe sem se diminuir
 
 ---
 
-🔥 *Romântica*
+🔥 *Aquece*
 esse perfil tem o meu lado bom só
 
 ---
 
-😏 *Ousada*
+😏 *Provoca*
 divertido é o meu plano B. plano A é melhor
 
 ---
@@ -1403,7 +1408,7 @@ Você é o classificador do MandaAssim. Você lê o input do usuário (print, te
 - premium: tem tensão, decisão, ambiguidade, primeira mensagem importante, momento decisivo (pedido de encontro, ela mandou texto longo, conversa esfriou e precisa salvar).
 - ousadia: clima quente claro. Provocação dela, sinal sexual, áudio à noite após boa conversa, "tô na cama", batom, "vc é perigoso", convite implícito.
 - coaching: usuário não mandou print, tá descrevendo situação. Pergunta abstrata. Sem print.
-- outcome: usuário reportando resultado de sugestão anterior. Sinais: "ela respondeu X", "mandei a [Romântica/Ousada/Direta] e ela...", "deu certo", "não respondeu", "ela sumiu depois", "funcionou". Prioridade alta — detecte isso antes de qualquer outra categoria.
+- outcome: usuário reportando resultado de sugestão anterior. Sinais: "ela respondeu X", "mandei a [Aquece/Provoca/Direta] e ela...", "deu certo", "não respondeu", "ela sumiu depois", "funcionou". Prioridade alta — detecte isso antes de qualquer outra categoria.
 - safety_block: print indica menor de idade, ela já disse para, ex que cortou contato sendo perseguida, ameaça, surto, ideação.
 </categories>
 
@@ -1576,9 +1581,11 @@ Detectar se o resultado foi positivo ou negativo e responder de forma calibrada.
 <if_success>
 Se ela respondeu com energia, fez pergunta de volta, marcou encontro, ou claramente engajou:
 "🔥 [1 frase comemorando o que funcionou, coloquial, sem coach]
-próxima jogada: [sugestão concreta e curta pra avançar]"
+próxima jogada: [sugestão concreta e curta pra avançar]
 
-Depois das 3 opções normais se quiser continuar a conversa.
+Manda o print quando ela responder — a gente vai construindo."
+
+Depois das 3 opções normais (Aquece / Provoca / Direta) se quiser continuar a conversa.
 </if_success>
 
 <if_failure>
@@ -1587,7 +1594,7 @@ Se ela não respondeu, respondeu seco, ou resfriou:
 [1 linha de leitura fria sobre o porquê — sem julgamento]
 agora a gente recua sem perder presença. olha aqui:"
 
-Seguido das 3 opções no formato normal (📍 leitura + 🔥 Romântica + 😏 Ousada + ⚡ Direta + fechamento).
+Seguido das 3 opções no formato normal (📍 leitura + 🔥 Aquece + 😏 Provoca + ⚡ Direta + fechamento).
 </if_failure>
 
 <if_date_confirmed>
@@ -2986,21 +2993,21 @@ client.on('message', async (message) => {
 
     if (ONBOARDING_V2) {
       // V2: onboarding com segmentação por cenário — padronizado, sem variações
-      await client.sendMessage(message.from, `salve, você chegou. aqui é o *MandaAssim* 👊`);
+      await client.sendMessage(message.from, `Fala. Aqui é o *MandaAssim* — seu wingman pessoal.`);
       await new Promise(r => setTimeout(r, 1200));
-      await client.sendMessage(message.from, `eu leio o que ela quis dizer e te entrego *3 respostas* calibradas pro momento exato de vocês\n\nnão é técnica de pegação. não é coach\n\n*é leitura de situação*`);
+      await client.sendMessage(message.from, `Eu leio o que ela quis dizer e te entrego *3 respostas* calibradas pro momento exato de vocês\n\nNão é técnica de pegação. Não é coach\n\n*É leitura de situação*`);
       await new Promise(r => setTimeout(r, 1500));
       await client.sendMessage(message.from,
-        `antes de começar — em qual cenário você tá hoje?\n\n` +
-        `1️⃣ matchei nos apps e a conversa não engrena\n` +
-        `2️⃣ tem uma específica e tô travado\n` +
-        `3️⃣ relacionamento esfriou ou tô em reconquista\n` +
-        `4️⃣ marquei date e quero não pisar na bola\n` +
-        `5️⃣ outro \/ só explorando\n\n` +
-        `digita o número. ou já manda o print que eu leio.`
+        `Antes de começar — me conta em uma frase: qual é o seu jogo agora?\n\n` +
+        `🎯 Conquistar alguém específico\n` +
+        `🔄 Voltei pro mercado e quero recalibrar\n` +
+        `💬 Travo em conversas e quero soltar mais\n` +
+        `📲 Quero arrumar meu perfil antes de tudo\n` +
+        `5️⃣ Outro / só explorando\n\n` +
+        `Responde com o número ou suas palavras — a gente já sai resolvendo.`
       );
       await new Promise(r => setTimeout(r, 800));
-      await client.sendMessage(message.from, `você ganhou *3 dias ilimitados* pra testar — sem cartão, sem cadastro`);
+      await client.sendMessage(message.from, `Você ganhou *3 dias ilimitados* pra testar — sem cartão, sem cadastro`);
       // Garante linha na tabela de discovery (A/B variant atribuído aqui)
       ensureFDS(phone).catch(() => {});
       // Soft-nudge se não mandar nada em 10 min
@@ -3983,6 +3990,21 @@ client.on('message', async (message) => {
         `se quiser me contar mais sobre o que tá rolando, eu tô aqui`
       );
       console.log(`[CRISE] Sinal detectado para ${phone}`);
+      return;
+    }
+
+    // ── Detecção de golpe/phishing — aviso de segurança ─────────────────────
+    if (SCAM_PATTERN.test(text)) {
+      await client.sendMessage(message.from,
+        `⚠️ *Alerta de golpe*\n\n` +
+        `Pelo que você descreveu, isso tem todos os sinais de golpe de clonagem de WhatsApp ou engenharia social.\n\n` +
+        `*NÃO escaneia* QR code que alguém te mandou por mensagem — esse QR dá acesso ao seu WhatsApp e eles mandam Pix nos seus contatos fingindo ser você.\n` +
+        `*NÃO manda foto de documento* pra desconhecido.\n` +
+        `*NÃO faz Pix urgente* sem ligar pra pessoa (não mandar mensagem — ligar).\n\n` +
+        `Se quiser confirmar: liga pro número que você já tinha da pessoa — não mande mensagem, ligue.\n\n` +
+        `Quer ajuda com uma resposta pra encerrar o contato?`
+      );
+      console.log(`[GOLPE] Sinal de scam detectado para ${phone}`);
       return;
     }
 
