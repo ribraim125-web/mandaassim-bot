@@ -3147,8 +3147,8 @@ client.on('message', async (message) => {
       console.log(`[Boas-vindas] Enviada para: ${phone}`);
     }
 
-    scheduleInactiveFollowup(phone).catch(() => {});
-    scheduleTrialD2Push(phone).catch(() => {}); // M14 — push trial D+2
+    // scheduleInactiveFollowup(phone).catch(() => {});   // desativado — sem msg proativa
+    // scheduleTrialD2Push(phone).catch(() => {});          // desativado — sem msg proativa
     return;
   }
 
@@ -3654,35 +3654,9 @@ client.on('message', async (message) => {
   // Dual-write para manter dashboard funcionando durante transição
   incrementDailyCount(phone).catch(() => {});
 
-  // Trial ativo: aviso informativo na 1ª msg do dia
-  // Ignora nos primeiros 10min — usuário ainda está no onboarding
-  const minutesSinceSignup = trial.createdAt
-    ? (Date.now() - new Date(trial.createdAt).getTime()) / 60_000
-    : 999;
-  if (trial.inTrial && todayCount === 1 && minutesSinceSignup > 10) {
-    if (trial.lastHours) {
-      await message.reply(
-        `O acesso ilimitado fecha em menos de *2h*.\n\n` +
-        `Pra continuar:\n\n*mensal* — R$29,90\n*anual* — R$299`
-      );
-    } else if (trial.isLastDay) {
-      await message.reply(
-        `Hoje é o último dia ilimitado.\n\n` +
-        `A partir de amanhã: *${FREE_DAILY_LIMIT} análises por dia*.\n\n` +
-        `Se quiser continuar sem limite:\n\n*mensal* — R$29,90\n*anual* — R$299`
-      );
-    } else {
-      await message.reply(
-        `Você ainda tem *${trial.trialDaysLeft} dia(s)* ilimitados. Manda o que tiver rolando.\n\n` +
-        `_(Pra ver seu plano: digita *status*)_`
-      );
-    }
-  }
+  // Trial countdown desativado — sem mensagens proativas não solicitadas
 
-  // Free (pós-trial): agenda follow-up na 1ª msg do dia
-  if (!trial.isPremium && !trial.inTrial && todayCount === 1) {
-    scheduleLimitDrop3(phone).catch(() => {});
-  }
+  // scheduleLimitDrop3 desativado — sem msg proativa
 
   // ---------------------------------------------------------------------------
   // Processamento normal
@@ -4526,21 +4500,9 @@ client.on('message', async (message) => {
         }).catch(() => {});
       }
 
-      // Pergunta de contexto V2 — uma vez só, após 1ª análise
-      fireContextQuestion(phone, message.from);
-
-      // Narrativa reativa — dispara ato elegível após resposta principal
-      tryReactiveNarrative(phone, message.from).catch(() => {});
-
-      // Feature Discovery Engine — revelação progressiva (6s de delay pra não colidir)
-      const _fdeText = text;
-      const _fdeChatId = message.from;
-      fdsOnAnalysis(phone, _fdeText).then(reveal => {
-        if (reveal) {
-          setTimeout(() => client.sendMessage(_fdeChatId, reveal.copy).catch(() => {}), 6000);
-          console.log(`[FDE] Revelando ${reveal.feature} para ${phone}`);
-        }
-      }).catch(() => {});
+      // fireContextQuestion desativado — sem msg proativa
+      // tryReactiveNarrative desativado — sem msg proativa
+      // fdsOnAnalysis desativado — sem msg proativa
     } catch (err) {
       stopTyping3();
       console.error('[OpenRouter] Erro ao analisar texto:', err.message);
@@ -4920,20 +4882,9 @@ client.on('message', async (message) => {
               }
             }
 
-            // Pergunta de contexto V2 — uma vez só, após 1ª análise
-            fireContextQuestion(phone, message.from);
-
-            // Narrativa reativa
-            tryReactiveNarrative(phone, message.from).catch(() => {});
-
-            // Feature Discovery Engine — revelação progressiva após print
-            const _fdePrintChatId = message.from;
-            fdsOnAnalysis(phone, caption).then(reveal => {
-              if (reveal) {
-                setTimeout(() => client.sendMessage(_fdePrintChatId, reveal.copy).catch(() => {}), 6000);
-                console.log(`[FDE] Revelando ${reveal.feature} para ${phone} (print)`);
-              }
-            }).catch(() => {});
+            // fireContextQuestion desativado — sem msg proativa
+            // tryReactiveNarrative desativado — sem msg proativa
+            // fdsOnAnalysis desativado — sem msg proativa
 
           } catch (err) {
             stopTypingPrint();
@@ -5012,7 +4963,7 @@ client.on('message', async (message) => {
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
-      tryReactiveNarrative(phone, message.from).catch(() => {});
+      // tryReactiveNarrative desativado — sem msg proativa
     } catch (err) {
       stopTypingAudio();
       console.error('[Áudio] Erro:', err.message);
