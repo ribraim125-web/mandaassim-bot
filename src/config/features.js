@@ -22,14 +22,14 @@ const FEATURES = {
   // Feature principal: mensagens de conquista
   messages: {
     trial:        { daily: null },   // ilimitado nos 3 dias
-    free:         { daily: 3    },
+    free:         { daily: 5    },
     parceiro:     { daily: null },
     parceiro_pro: { daily: null },
     upsell: {
       free: (remaining) =>
         remaining === 0
-          ? `Deu 3 por hoje. Amanhã renova.\n\nSe a conversa tá quente e não dá pra esperar: *mensal* (R$29,90).`
-          : `_${3 - remaining}/3 análises usadas hoje._`,
+          ? `Deu 5 por hoje. Amanhã renova.\n\nSe a conversa tá quente e não dá pra esperar: *mensal* (R$29,90).`
+          : `_${5 - remaining}/5 análises usadas hoje._`,
     },
   },
 

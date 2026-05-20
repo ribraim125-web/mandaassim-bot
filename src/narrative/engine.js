@@ -20,6 +20,9 @@
 
 'use strict';
 
+// Guarda tentativas desta sessão — evita loop de retry quando logActSent falha por RLS
+const _actsAttempted = new Set();
+
 const { createClient }     = require('@supabase/supabase-js');
 const { PROACTIVE_ACTS }   = require('./acts');
 const { TriggerContext }   = require('./triggerContext');
@@ -167,6 +170,15 @@ async function getEligibleAct(user) {
  * @returns {Promise<boolean>} true = enviado com sucesso
  */
 async function fireActForUser(user, act) {
+  const sessionKey = `${user.phone}:${act.id}`;
+
+  // Marca como tentado imediatamente — se o DB falhar, não retenta nesta sessão
+  if (_actsAttempted.has(sessionKey)) {
+    console.log(`[NarrativeEngine] ${act.id} já tentado para ${user.phone} nesta sessão — ignorado.`);
+    return false;
+  }
+  _actsAttempted.add(sessionKey);
+
   try {
     const ctx      = new TriggerContext(user);
     const variant  = await selectVariant(act, ctx);
