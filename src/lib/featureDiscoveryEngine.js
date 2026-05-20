@@ -66,7 +66,7 @@ const REVEAL_COPY = {
 
   // Nudge 10 min após welcome sem ação
   NUDGE_10MIN:
-    `tô aqui\n\nmanda quando travar`,
+    `ainda tô aqui\n\npra começar é simples: manda o print de uma conversa que tiver rolando — ou descreve a situação em texto mesmo, funciona do mesmo jeito`,
 
   // Nudge trial dia 2 sem tocar em feature Pro
   TRIAL_DAY2:

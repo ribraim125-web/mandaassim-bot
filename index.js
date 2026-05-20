@@ -3105,6 +3105,9 @@ client.on('message', async (message) => {
       await client.sendMessage(message.from, `Você ganhou *3 dias ilimitados* pra testar — sem cartão, sem cadastro`);
       // Garante linha na tabela de discovery (A/B variant atribuído aqui)
       ensureFDS(phone).catch(() => {});
+      // Marca que a próxima mensagem é a resposta de persona — intercepta antes do AI
+      const ctxSignup = userContext.get(phone) || {};
+      userContext.set(phone, { ...ctxSignup, awaitingPersonaResponse: true });
       // Soft-nudge se não mandar nada em 10 min
       const nudgeChatId = message.from;
       const nudgeCtxPhone = phone;
@@ -3686,6 +3689,37 @@ client.on('message', async (message) => {
   if (message.type === 'chat') {
     const text = message.body.trim();
     console.log(`[Texto] ${phone}: "${text}"`);
+
+    // ── Intercepta resposta de persona do onboarding V2 ──────────────────────
+    if (ONBOARDING_V2) {
+      const ctxOnb = getUserContext(phone);
+      if (ctxOnb?.awaitingPersonaResponse) {
+        const t = text.toLowerCase();
+        let persona, microtip;
+        if (/^1$|🎯|conquistar|algu[eé]m espec/.test(t)) {
+          persona = 'alvo_especifico';
+          microtip = `Entendido\n\nTem alguém em mente — o problema geralmente não é o que dizer, é saber ler o sinal dela no momento certo\n\nManda o print da conversa que tô lendo o que ela quis dizer e te dou 3 opções pro momento exato de vocês`;
+        } else if (/^2$|🔄|voltei|mercado|recalibrar/.test(t)) {
+          persona = 'voltou_mercado';
+          microtip = `Entendido\n\nQuem ficou tempo fora trava no começo — as conversas parecem mais mecânicas do que antes, parece forçado\n\nManda um print de qualquer conversa rolando que eu calibro seu ritmo na prática`;
+        } else if (/^3$|💬|travo|conversa|soltar/.test(t)) {
+          persona = 'trava_conversas';
+          microtip = `Entendido\n\n80% dos caras que travam fazem o mesmo erro: tratam WhatsApp como questionário. Comentário gera resposta emocional, pergunta gera resposta robótica\n\nManda um print que eu mostro a diferença na prática`;
+        } else if (/^4$|📲|perfil|foto|bio/.test(t)) {
+          persona = 'quer_perfil';
+          microtip = `Entendido\n\nPerfil é o filtro que decide quem chega até você antes de qualquer conversa\n\nManda print do seu perfil (Tinder, Bumble ou Instagram) que eu analiso o que tá atraindo o tipo errado`;
+        } else {
+          persona = 'outro';
+          microtip = `Entendido\n\nManda um print de conversa, um perfil, ou descreve a situação em texto — você tem 3 dias ilimitados pra ver na prática o que eu faço`;
+        }
+        const ctxOnb2 = userContext.get(phone) || {};
+        userContext.set(phone, { ...ctxOnb2, awaitingPersonaResponse: false, userPersona: persona });
+        stopEarlyTyping();
+        await client.sendMessage(message.from, microtip);
+        console.log(`[Onboarding] Persona detectada: ${persona} para ${phone}`);
+        return;
+      }
+    }
 
     // ── Detecta link/URL no texto — pode ser spam externo ou conteúdo não-conversa ──
     const URL_IN_TEXT = /https?:\/\/[^\s]{10,}/i;
