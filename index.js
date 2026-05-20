@@ -3035,6 +3035,13 @@ client.on('message', async (message) => {
     return;
   }
 
+  // Detecta bots de pesquisa de satisfação / survey bots (ex: botm.cc, NPS externo)
+  const SURVEY_BOT_PATTERN = /como foi (o (nosso|seu)|sua|nossa) atendimento|escolha uma op[çc][aã]o e clique|obrigado por responder|botm\.(cc|io)\/|pesquisa de satisfa[çc][aã]o|avalie (nosso|o) atendimento|👍\s*(Bom|Ruim):|👎\s*(Bom|Ruim):|clique no link (abaixo|aqui)|nota para (nosso|o) atendimento|como foi nosso servi[çc]o/i;
+  if (message.type === 'chat' && SURVEY_BOT_PATTERN.test(message.body || '')) {
+    console.log(`[Spam] ${phone} — survey bot detectado, ignorado silenciosamente`);
+    return;
+  }
+
   console.log(`[Mensagem] De: ${phone} | Tipo: ${message.type} | Nome: ${contactName ?? 'desconhecido'}`);
 
   // Typing imediato — usuário vê que o bot recebeu antes de qualquer processamento
