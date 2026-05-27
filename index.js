@@ -1,4 +1,13 @@
 require("dotenv").config();
+
+// Global error handlers — evita que exceptions não capturadas derrubem o processo
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] uncaughtException:', err.message, err.stack);
+  // não encerra: whatsapp-web.js tem erros esperados de WebSocket
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] unhandledRejection:', reason instanceof Error ? reason.message : reason);
+});
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
@@ -3732,7 +3741,7 @@ client.on('message', async (message) => {
             try {
               const sugestoes = await analisarPrintComClaude(imgData, imgMime, '', '', '', phone);
               saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
-              await enviarResposta(message, sugestoes);
+              await enviarResposta(message, sugestoes, 'print_analysis', phone);
             } catch (_) {
               await message.reply('Não consegui analisar. Manda o print de novo.');
             }
@@ -3767,7 +3776,7 @@ client.on('message', async (message) => {
             try {
               const sugestoes = await analisarPrintComClaude(imgData, imgMime, PROFILE_OPENER_PROMPT, '', '', phone);
               saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
-              await enviarResposta(message, sugestoes);
+              await enviarResposta(message, sugestoes, 'profile_opener', phone);
             } catch (_) {
               await client.sendMessage(message.from, 'Não consegui ler o perfil. Manda um print mais claro — com nome, bio e pelo menos uma foto.');
             }
@@ -4487,7 +4496,7 @@ client.on('message', async (message) => {
         logJourneyEvent(phone, 'first_analysis_done', {}).catch(() => {});
       }
 
-      await enviarResposta(message, result.text, result.intent);
+      await enviarResposta(message, result.text, result.intent, phone);
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
@@ -4533,7 +4542,7 @@ client.on('message', async (message) => {
         const sugestoes = await analisarPrintComClaude(media.data, media.mimetype, STORY_PROMPT, '', girlContextImg, phone);
         stopTypingStory();
         saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
-        await enviarResposta(message, sugestoes);
+        await enviarResposta(message, sugestoes, 'story_analysis', phone);
         await contadorRestante(message, trial, todayCount);
         await upsellPicoPremium(message, trial, todayCount);
       } catch (err) {
@@ -4959,7 +4968,7 @@ client.on('message', async (message) => {
       if (ctxAudio?.recentSuccess) {
         userContext.set(phone, { ...ctxAudio, recentSuccess: false });
       }
-      await enviarResposta(message, result.text, result.intent);
+      await enviarResposta(message, result.text, result.intent, phone);
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
