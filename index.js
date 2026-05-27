@@ -244,6 +244,36 @@ const WELCOME_MESSAGES = [
   WELCOME_MSG_2,
 ];
 
+// ── Sistema de ganchos de curiosidade ────────────────────────────────────────
+const CURIOSITY_HOOKS = [
+  `→ tem 1 palavra nessa mensagem que faz ela travar lendo\n   quer saber qual é`,
+  `→ a hora que você mandar isso importa mais que o texto\n   quer saber o horário exato?`,
+  `→ tem 1 coisa que se você fizer agora\n   essa mensagem inteira perde o efeito. quer saber qual é?`,
+  `→ sabe o que vai passar na cabeça dela quando ela ler isso?\n   te conto exatamente`,
+  `→ essa é a mensagem 1 de 3\n   sem as outras duas, o efeito some em 48h. te mando?`,
+  `→ ela vai ler, sorrir e fingir que não ligou\n   posso te mostrar o que ela faz em seguida?`,
+  `→ existe um sinal específico que ela vai dar se funcionar\n   quer saber qual é pra você reconhecer?`,
+];
+
+const HOOK_TRIGGER_PATTERN = /^(quero|sim|manda|conta|qual|pode|bora|claro|vai|manda aí|pode sim|ok|quero saber)$/i;
+
+const HOOK_FOLLOWUP_PROMPTS = [
+  // 0 — palavra
+  (s) => `Você é o MandaAssim. Situação: "${s}"\n\nIdentifique 1 palavra específica nas opções de mensagem geradas que vai fazer ela pausar o que está fazendo pra ler. Explique em 1 frase por que essa palavra funciona. Sem coach language. Máx 3 linhas.`,
+  // 1 — horário
+  (s) => `Você é o MandaAssim. Situação: "${s}"\n\nDê 1 janela de horário específica (ex: "entre 19h30 e 21h") e 1 frase explicando por que esse horário aumenta a chance de resposta. Direto. Máx 3 linhas.`,
+  // 2 — evitar
+  (s) => `Você é o MandaAssim. Situação: "${s}"\n\nQual é o 1 erro que zera o efeito da mensagem logo depois de mandar? 1 linha do erro, 1 linha do que fazer em vez disso. Sem coach. Máx 3 linhas.`,
+  // 3 — reação
+  (s) => `Você é o MandaAssim. Situação: "${s}"\n\nDescreva 2 pensamentos em sequência que passam na cabeça dela nos primeiros 10 segundos lendo a mensagem. Específico pra essa situação. Sem coach. Máx 4 linhas.`,
+  // 4 — sequência
+  (s) => `Você é o MandaAssim. Situação: "${s}"\n\nGere mensagem 2 (se ela responder animada) e mensagem 3 (se ela demorar ou responder seco). Cada uma em 1 linha. Tom natural.`,
+  // 5 — comportamento
+  (s) => `Você é o MandaAssim. Situação: "${s}"\n\nDescreva o comportamento dela depois de ler — o que ela faz com o celular antes de responder, quanto tempo passa, o que acontece nesse intervalo. 3 linhas, específico.`,
+  // 6 — sinal
+  (s) => `Você é o MandaAssim. Situação: "${s}"\n\nQual é o 1 sinal específico na resposta dela que confirma que funcionou? 1 frase descrevendo o sinal, 1 frase de como identificar. Máx 2 linhas.`,
+];
+
 const OPCOES_PREMIUM =
   `Tem três caminhos:\n\n` +
   `⚡ *24h* por R$4,99 → digita *24h*\n` +
@@ -2935,6 +2965,42 @@ async function contadorRestante(message, trial, todayCount) {
 }
 
 /**
+ * Envia gancho de curiosidade após resposta de análise.
+ * Fire-and-forget — armazena o índice no userContext para follow-up coerente.
+ */
+async function sendCuriosityHook(message, phone, situation) {
+  if (!situation) return;
+  const index = Math.floor(Math.random() * CURIOSITY_HOOKS.length);
+  const ctx = userContext.get(phone) || {};
+  userContext.set(phone, { ...ctx, lastHook: { index, situation: String(situation).slice(0, 400), sentAt: Date.now() } });
+  await new Promise(r => setTimeout(r, 1200));
+  await client.sendMessage(message.from, CURIOSITY_HOOKS[index]).catch(() => {});
+}
+
+/**
+ * Entrega o conteúdo prometido pelo gancho específico via Haiku.
+ */
+async function deliverHookFollowUp(message, phone, hookIndex, situation) {
+  const promptFn = HOOK_FOLLOWUP_PROMPTS[hookIndex];
+  if (!promptFn) return;
+  try {
+    const msg = await retryWithBackoff(() => anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 220,
+      system: promptFn(situation),
+      messages: [{ role: 'user', content: 'entrega' }],
+    }));
+    const response = (msg.content[0]?.text || '').trim();
+    if (response) await client.sendMessage(message.from, response);
+    logApiRequest({ phone, intent: 'hook_followup', targetModel: 'claude-haiku-4-5-20251001',
+      modelActuallyUsed: 'claude-haiku-4-5-20251001', tierAtRequest: 'full',
+      inputTokens: msg.usage?.input_tokens, outputTokens: msg.usage?.output_tokens }).catch?.(() => {});
+  } catch (_) {
+    await message.reply('deixa eu puxar isso... manda de novo em 1 minuto').catch(() => {});
+  }
+}
+
+/**
  * Hook de retenção disparado após a 1ª e 3ª análise.
  * Fire-and-forget com 4s de delay — não bloqueia o fluxo principal.
  */
@@ -4235,9 +4301,26 @@ client.on('message', async (message) => {
       return;
     }
 
-    // Filtra saudações puras — orienta sem gastar API
+    // ── Follow-up de gancho de curiosidade ───────────────────────────────────
+    {
+      const hookCtx = getUserContext(phone);
+      if (HOOK_TRIGGER_PATTERN.test(text.trim()) && hookCtx?.lastHook && (Date.now() - hookCtx.lastHook.sentAt) < 10 * 60 * 1000) {
+        const { index, situation } = hookCtx.lastHook;
+        const updCtx = userContext.get(phone) || {};
+        userContext.set(phone, { ...updCtx, lastHook: null });
+        await deliverHookFollowUp(message, phone, index, situation);
+        return;
+      }
+    }
+
+    // Filtra saudações puras — welcome_back para usuário recorrente
     if (isSaudacao(text)) {
-      await message.reply('boa\n\nmanda o print ou cola o que ela escreveu');
+      await message.reply(
+        `Você voltou\n\n` +
+        `Tem uma mensagem que faz ela parar\n` +
+        `o que tá fazendo só pra responder você\n\n` +
+        `Manda o print que eu te mostro qual é`
+      );
       return;
     }
 
@@ -4604,6 +4687,7 @@ client.on('message', async (message) => {
       }
 
       await enviarResposta(message, result.text, result.intent, phone);
+      sendCuriosityHook(message, phone, text).catch(() => {});
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
@@ -5076,6 +5160,7 @@ client.on('message', async (message) => {
         userContext.set(phone, { ...ctxAudio, recentSuccess: false });
       }
       await enviarResposta(message, result.text, result.intent, phone);
+      sendCuriosityHook(message, phone, transcricao).catch(() => {});
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
       await upsellPicoPremium(message, trial, todayCount);
