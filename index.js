@@ -1434,12 +1434,12 @@ const HAIKU_MODEL = 'anthropic/claude-haiku-4-5-20251001';
 const HAIKU_FALLBACK = 'google/gemini-2.0-flash-001';
 
 const INTENT_MODEL_CONFIG = {
-  one_liner: { model: HAIKU_MODEL, maxTokens: 200, temperature: 0.90, systemType: 'minimal'  },
-  volume:    { model: HAIKU_MODEL, maxTokens: 550, temperature: 0.85, systemType: 'full'     },
-  premium:   { model: HAIKU_MODEL, maxTokens: 550, temperature: 0.80, systemType: 'full'     },
-  coaching:  { model: HAIKU_MODEL, maxTokens: 900, temperature: 0.75, systemType: 'coach'    },
-  ousadia:   { model: HAIKU_MODEL, maxTokens: 500, temperature: 0.95, systemType: 'ousadia'  },
-  outcome:   { model: HAIKU_MODEL, maxTokens: 400, temperature: 0.80, systemType: 'outcome'  },
+  one_liner: { model: HAIKU_MODEL, maxTokens: 200,  temperature: 0.90, systemType: 'minimal'  },
+  volume:    { model: HAIKU_MODEL, maxTokens: 900,  temperature: 0.85, systemType: 'full'     },
+  premium:   { model: HAIKU_MODEL, maxTokens: 900,  temperature: 0.80, systemType: 'full'     },
+  coaching:  { model: HAIKU_MODEL, maxTokens: 900,  temperature: 0.75, systemType: 'coach'    },
+  ousadia:   { model: HAIKU_MODEL, maxTokens: 500,  temperature: 0.95, systemType: 'ousadia'  },
+  outcome:   { model: HAIKU_MODEL, maxTokens: 500,  temperature: 0.80, systemType: 'outcome'  },
 };
 
 
@@ -1661,11 +1661,49 @@ async function sendWithDelay(chatId, messages, { phone, intent } = {}) {
 
 /**
  * Divide texto pelo separador '---' em linha própria.
- * Retorna array de strings não-vazias.
+ * Aceita ---, ─── (box drawing), ——— (em dashes) e ⎯⎯⎯ como separador de seção.
  */
 function splitByDashes(text) {
-  // Aceita ---, ─── (box drawing) e ——— (em dashes) como separador de seção
-  return text.split(/\n[ \t]*[-─—]{3,}[ \t]*\n/).map(s => s.trim()).filter(Boolean);
+  return text.split(/\n[ \t]*(?:[-─—⎯]{3,})[ \t]*\n/).map(s => s.trim()).filter(Boolean);
+}
+
+/**
+ * Parseia o novo formato com ━━━ [TOM] headers.
+ * Retorna array de blocos: preamble (se houver), cada ━━━ block, upgrade hook.
+ * Retorna [] se o texto não usa ━━━.
+ */
+function splitByToneBlocks(text) {
+  if (!text.includes('━━━')) return [];
+
+  const parts = [];
+
+  // Extrai preamble (texto antes do primeiro ━━━ — ex: "funcionou\n...")
+  const firstTone = text.indexOf('━━━');
+  if (firstTone > 0) {
+    const preamble = text.slice(0, firstTone).trim();
+    if (preamble) parts.push(preamble);
+  }
+
+  // Divide o restante por linhas em branco para obter segmentos
+  const remaining = text.slice(firstTone);
+  const segments = remaining.split(/\n{2,}/);
+
+  for (const seg of segments) {
+    const trimmed = seg.trim();
+    if (!trimmed) continue;
+
+    if (trimmed.startsWith('━━━')) {
+      // Bloco de tom: "━━━ NOME\nmensagem"
+      parts.push(trimmed);
+    } else if (trimmed.startsWith('⎯⎯⎯')) {
+      // Gancho de upgrade: remove o separador, mantém só a linha → ...
+      const hook = trimmed.replace(/^⎯⎯⎯\s*\n?/, '').trim();
+      if (hook) parts.push(hook);
+    }
+    // Segmentos sem ━━━ nem ⎯⎯⎯ são ignorados (texto intermediário improvável)
+  }
+
+  return parts.length >= 2 ? parts : [];
 }
 
 async function enviarResposta(message, sugestoes, intent = '', phone = '') {
@@ -1717,7 +1755,19 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
     return;
   }
 
-  // --- Formato padrão: tenta split por --- primeiro ---
+  // --- Novo formato: ━━━ tone blocks + ⎯⎯⎯ upgrade hook ---
+  const toneBlocks = splitByToneBlocks(sugestoes);
+  if (toneBlocks.length >= 2) {
+    await sendWithDelay(message.from, toneBlocks, { phone, intent });
+    if (phone) {
+      getAct3Suffix(phone).then(suffix => {
+        if (suffix) client.sendMessage(message.from, suffix).catch(() => {});
+      }).catch(() => {});
+    }
+    return;
+  }
+
+  // --- Formato legado: tenta split por --- primeiro ---
   const blocos = splitByDashes(sugestoes);
 
   if (blocos.length > 2) {
