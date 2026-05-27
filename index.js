@@ -2912,8 +2912,14 @@ client.on('loading_screen', (percent, message) => {
 });
 
 client.on('authenticated', () => console.log('[Bot] Autenticado com sucesso!'));
-client.on('auth_failure', (msg) => console.error('[Bot] Falha na autenticação:', msg));
-client.on('disconnected', (reason) => console.warn('[Bot] Desconectado:', reason));
+client.on('auth_failure', (msg) => {
+  console.error('[Bot] Falha na autenticação:', msg, '— encerrando para PM2 reiniciar');
+  process.exit(1);
+});
+client.on('disconnected', (reason) => {
+  console.error('[Bot] Desconectado:', reason, '— encerrando para PM2 reiniciar');
+  process.exit(1);
+});
 
 // ---------------------------------------------------------------------------
 // Upsell no pico emocional — dispara após uma resposta bem-sucedida
@@ -3132,6 +3138,7 @@ client.on('message', async (message) => {
 
   let phone = message.from.replace(/@(c\.us|lid)$/, '');
   let contactName = null;
+  try {
   let isBusinessAccount = false;
   try {
     const contact = await message.getContact();
@@ -5081,6 +5088,11 @@ client.on('message', async (message) => {
 
   } else {
     await message.reply(`manda o *print* da conversa, cola o que ela escreveu, ou descreve em texto — eu leio e te devolvo as 3 jogadas`);
+  }
+
+  } catch (err) {
+    console.error('[Handler] Erro não capturado:', err.message, err.stack);
+    try { await message.reply('travei aqui. manda de novo em 1 minuto'); } catch (_) {}
   }
 });
 
