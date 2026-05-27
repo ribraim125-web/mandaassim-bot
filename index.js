@@ -108,6 +108,9 @@ const {
 const TRIAL_DAYS = 3;          // dias de acesso ilimitado após cadastro
 const FREE_DAILY_LIMIT = 5;    // mensagens/dia no plano free (pós-trial sem upgrade)
 const ONBOARDING_V2 = process.env.ONBOARDING_V2 === 'true'; // onboarding direto: 1 bubble + mirroring na 1ª análise
+
+// Timers do nudge de onboarding (90s após MSG 3 se usuário não responder)
+const onboardingNudgeTimers = new Map();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const PRECO_24H = 4.99;
 const PRECO_MENSAL = 29.90;
@@ -209,25 +212,31 @@ const MENSAGEM_RENOVACAO =
 
 
 // Mensagem 1 — imediata
-const WELCOME_MSG_0 = `e aí 👊 sou o MandaAssim\ndeixa eu te mostrar como funciono`;
+const WELCOME_MSG_0 =
+  `e aí 👊 sou o MandaAssim\n\n` +
+  `deixa eu te mostrar rapidão 👇`;
 
 // Mensagem 2 — após 2 segundos: produto funcionando ao vivo
 const WELCOME_MSG_1 =
-  `imagina que ela te manda isso 👇\n\n` +
-  `_'oi sumido kkk tava ocupado com quem?'_\n\n` +
-  `eu te daria essas 3 opções:\n\n` +
-  `🔥 'tava te dando saudade de propósito'\n` +
-  `😏 'com vc na cabeça, óbvio'\n` +
-  `⚡ 'sumido eu? acordei agr'\n\n` +
-  `vc só copia, cola e manda 🤙`;
+  `ela te mandou isso 👇\n\n` +
+  `_'interessante kkk'_\n\n` +
+  `ao invés de ficar travado, você joga aqui. em 20 segundos eu te dou:\n\n` +
+  `🔥 'o que especificamente?'\n` +
+  `😏 'você devia ter perguntado antes'\n` +
+  `⚡ 'vou deixar você descobrir'\n\n` +
+  `copia a que combina, manda pra ela`;
 
 // Mensagem 3 — após 3 segundos: call to action
 const WELCOME_MSG_2 =
-  `agora bora de verdade\n\n` +
-  `manda um PRINT de conversa\n` +
-  `ou me CONTA o que tá rolando\n` +
-  `(tipo 'ela me deixou no vácuo')\n\n` +
-  `5 análises grátis hoje, sem pegadinha 🔥`;
+  `manda agora uma situação sua — print da conversa ou texto mesmo\n\n` +
+  `5 análises grátis por dia\n` +
+  `sem cartão, sem cadastro`;
+
+// Nudge 90s — disparado se usuário não responder nada após MSG 3
+const WELCOME_MSG_NUDGE =
+  `ué, ainda aí?\n\n` +
+  `manda só uma frase do que tá rolando — tipo _'match novo travou'_ ou _'ex voltou a falar comigo'_\n\n` +
+  `eu resolvo o resto`;
 
 const WELCOME_MESSAGES = [
   WELCOME_MSG_0,
@@ -3175,6 +3184,13 @@ client.on('message', async (message) => {
   // Cancela follow-ups simples (não-sticky) que ficaram pendentes
   cancelPendingFollowups(phone).catch(() => {});
 
+  // Cancela nudge de onboarding se usuário respondeu antes do timer
+  if (onboardingNudgeTimers.has(phone)) {
+    clearTimeout(onboardingNudgeTimers.get(phone));
+    onboardingNudgeTimers.delete(phone);
+    logJourneyEvent(phone, 'onboarding_nudge_cancelled_user_responded', {}).catch(() => {});
+  }
+
   // Detecta slug de aquisição na mensagem (ex: "mandaassim_instagram_reel_001")
   const acquisitionSlug = parseAcquisitionSlug(message.type === 'chat' ? message.body : null);
 
@@ -3198,6 +3214,19 @@ client.on('message', async (message) => {
       ensureFDS(phone).catch(() => {});
       logJourneyEvent(phone, 'onboarding_v2_started', {}).catch(() => {});
       console.log(`[Boas-vindas] Enviada para: ${phone} (V2)`);
+
+      // Nudge 90s: dispara se usuário não mandar nada após MSG 3
+      const nudgeTimer = setTimeout(async () => {
+        onboardingNudgeTimers.delete(phone);
+        try {
+          await client.sendMessage(message.from, WELCOME_MSG_NUDGE);
+          logJourneyEvent(phone, 'onboarding_nudge_sent', {}).catch(() => {});
+          console.log(`[Nudge] Onboarding 90s enviado para: ${phone}`);
+        } catch (err) {
+          console.error(`[Nudge] Falha ao enviar nudge para ${phone}:`, err.message);
+        }
+      }, 90_000);
+      onboardingNudgeTimers.set(phone, nudgeTimer);
     } else {
       // V1: 3 mensagens com delays
       await client.sendMessage(message.from, WELCOME_MESSAGES[0]);
