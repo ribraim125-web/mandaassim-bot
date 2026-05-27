@@ -5165,20 +5165,20 @@ process.on('SIGTERM', () => server.close(() => process.exit(0)));
 process.on('SIGINT',  () => server.close(() => process.exit(0)));
 
 let _portRetries = 0;
+const PORT_MAX_RETRIES = 5;
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     _portRetries++;
-    if (_portRetries > 3) {
-      console.error(`[Webhook] Porta ${PORT} ainda em uso após ${_portRetries} tentativas — encerrando para restart limpo.`);
+    if (_portRetries >= PORT_MAX_RETRIES) {
+      console.error(`[Webhook] Porta ${PORT} ainda em uso após ${PORT_MAX_RETRIES} tentativas — encerrando para PM2 reiniciar limpo.`);
       process.exit(1);
     }
-    console.error(`[Webhook] Porta ${PORT} já em uso — aguardando 5s (${_portRetries}/3)...`);
-    setTimeout(() => {
-      server.close();
-      server.listen(PORT);
-    }, 5000);
+    const waitMs = _portRetries * 2000;
+    console.error(`[Webhook] Porta ${PORT} em uso — tentativa ${_portRetries}/${PORT_MAX_RETRIES}, aguardando ${waitMs / 1000}s...`);
+    setTimeout(() => server.listen(PORT), waitMs);
   } else {
     console.error('[Webhook] Erro no servidor:', err.message);
+    process.exit(1);
   }
 });
 
