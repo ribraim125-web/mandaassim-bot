@@ -94,7 +94,7 @@ const TRANSITION_COACH_OUTCOME_MESSAGE =
 function getReferralInviteMessage(referralCode) {
   return (
     `fico feliz com isso\n\n` +
-    `eu sei que você tem amigo divorciado, separado, ou que ficou muito tempo num relacionamento que acabou e tá sem saber por onde começar\n\n` +
+    `eu sei que você tem amigo que tá travado nos apps, não sabe o que responder pra ela, ou ficou um tempo fora do jogo e não sabe por onde começar\n\n` +
     `*seu código de indicação:* ${referralCode}\n\n` +
     `cada amigo seu que assinar usando esse código te dá *R$30 de desconto* na próxima mensalidade\n` +
     `e ele entra com *7 dias de Pro liberado* em vez dos 3 normais\n\n` +
