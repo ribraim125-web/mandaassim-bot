@@ -260,7 +260,7 @@ async function canUseFeature(phone, plan, featureKey) {
         allowed: false,
         reason: 'daily_limit',
         remaining: 0,
-        upsellMessage: upsells[p]?.() || null,
+        upsellMessage: upsells[p]?.(0) || null,
       };
     }
     return { allowed: true, reason: null, remaining: limits.daily - used, upsellMessage: null };

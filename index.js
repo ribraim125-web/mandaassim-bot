@@ -1820,6 +1820,7 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
   // --- Novo formato: ━━━ tone blocks + ⎯⎯⎯ upgrade hook ---
   const toneBlocks = splitByToneBlocks(sugestoes);
   if (toneBlocks.length >= 2) {
+    console.log(`[Resposta] gerada com ${sugestoes.length} chars, ${toneBlocks.length} blocos detectados, formato: tone | intent:${intent} | phone:${phone}`);
     await sendWithDelay(message.from, toneBlocks, { phone, intent });
     if (phone) {
       getAct3Suffix(phone).then(suffix => {
@@ -1833,7 +1834,7 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
   const blocos = splitByDashes(sugestoes);
 
   if (blocos.length > 2) {
-    // Modelo usou --- corretamente → envia cada bloco separado com delay
+    console.log(`[Resposta] gerada com ${sugestoes.length} chars, ${blocos.length} blocos detectados, formato: dashes | intent:${intent} | phone:${phone}`);
     await sendWithDelay(message.from, blocos, { phone, intent });
     if (phone) {
       getAct3Suffix(phone).then(suffix => {
@@ -1844,7 +1845,7 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
   }
 
   // Fallback: parsing manual — diagnóstico + dica + cada opção
-  console.log(`[enviarResposta] Fallback padrão — sem separadores | intent:${intent} | phone:${phone}`);
+  console.log(`[Resposta] gerada com ${sugestoes.length} chars, 0 blocos detectados, formato: fallback | intent:${intent} | phone:${phone}`);
   const dica = extrairDica(sugestoes);
 
   if (diagnostico) {
@@ -2799,9 +2800,13 @@ client.on('disconnected', (reason) => {
 
 async function contadorRestante(message, trial, todayCount) {
   if (trial.isPremium || trial.inTrial) return;
-  if (todayCount === FREE_DAILY_LIMIT) {
+  const count = todayCount || 0;
+  const limit = FREE_DAILY_LIMIT || 5;
+  console.log('[Contador]', { count, limit, phone: message.from });
+  if (isNaN(count) || isNaN(limit)) return;
+  if (count === limit) {
     await client.sendMessage(message.from,
-      `_${todayCount}/${FREE_DAILY_LIMIT} — última análise de hoje_`
+      `_${count}/${limit} — última análise de hoje_`
     );
   }
 }
@@ -3669,7 +3674,7 @@ client.on('message', async (message) => {
       } else if (conversaQuente) {
         await message.reply(`Bateu o limite de hoje — e logo agora que a conversa tá rolando.\n\nSe não dá pra esperar amanhã:\n\n*mensal* — R$29,90\n*anual* — R$299`);
       } else {
-        await message.reply(limitCheck.upsellMessage || LIMITE_FREE_ESGOTADO);
+        await client.sendMessage(message.from, limitCheck.upsellMessage || LIMITE_FREE_ESGOTADO);
       }
       return;
     }
