@@ -1701,9 +1701,28 @@ function pickSafetyResponse(reason) {
   return SAFETY_RESPONSES.generic;
 }
 
+/**
+ * Retry com backoff exponencial para erros 429 (rate-limit) e 5xx.
+ * Delays: 2s → 5s → 10s (3 tentativas no total).
+ */
+async function retryWithBackoff(fn) {
+  const delays = [2000, 5000, 10000];
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isRetryable = err.status === 429 || (err.status >= 500 && err.status < 600);
+      if (!isRetryable || attempt === delays.length) throw err;
+      const wait = delays[attempt];
+      console.warn(`[Retry] Tentativa ${attempt + 1} falhou (${err.status}) — aguardando ${wait}ms`);
+      await new Promise(r => setTimeout(r, wait));
+    }
+  }
+}
+
 async function classificarIntent(situacao) {
   try {
-    const response = await openrouter.chat.completions.create({
+    const response = await retryWithBackoff(() => openrouter.chat.completions.create({
       model: 'google/gemini-2.0-flash-001',
       max_tokens: 100,
       temperature: 0,
@@ -1711,7 +1730,7 @@ async function classificarIntent(situacao) {
         { role: 'system', content: CLASSIFIER_PROMPT },
         { role: 'user',   content: `Situação: ${String(situacao).slice(0, 600)}` },
       ],
-    });
+    }));
     const raw = (response.choices[0]?.message?.content || '').trim();
 
     // Tenta parsear JSON (novo formato)
@@ -2103,12 +2122,12 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
     try {
       if (model.startsWith('anthropic/') && process.env.ANTHROPIC_API_KEY) {
         const modelId = model.replace('anthropic/', '');
-        const msg = await anthropic.messages.create({
+        const msg = await retryWithBackoff(() => anthropic.messages.create({
           model: modelId,
           max_tokens: config.maxTokens,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: userContent }],
-        });
+        }));
         text = msg.content[0]?.text || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
         inputTokens      = msg.usage?.input_tokens                || null;
         outputTokens     = msg.usage?.output_tokens               || null;
@@ -2119,7 +2138,7 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
           console.warn(`[Truncamento] ${modelId} atingiu max_tokens=${config.maxTokens} | intent:${intent} | phone:${phone}`);
         }
       } else {
-        const response = await openrouter.chat.completions.create({
+        const response = await retryWithBackoff(() => openrouter.chat.completions.create({
           model,
           max_tokens: config.maxTokens,
           temperature: config.temperature,
@@ -2127,7 +2146,7 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
             { role: 'system', content: systemPrompt },
             { role: 'user',   content: userContent },
           ],
-        });
+        }));
         text = response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
         inputTokens  = response.usage?.prompt_tokens     || null;
         outputTokens = response.usage?.completion_tokens || null;
