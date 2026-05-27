@@ -3602,11 +3602,11 @@ client.on('message', async (message) => {
     try {
       const { data: _npsData } = await supabaseForNPS.from('users').select('awaiting_nps').eq('phone', phone).maybeSingle();
       userForNPS = _npsData;
-    } catch (_) {};
+    } catch (_) {}
     if (userForNPS?.awaiting_nps && /^([0-9]|10)$/.test(text.trim())) {
       const npsScore = parseInt(text.trim(), 10);
-      await supabaseForNPS.from('users').update({ awaiting_nps: false }).eq('phone', phone).catch(() => {});
-      await supabaseForNPS.from('nps_responses').insert({ phone, score: npsScore }).catch(() => {});
+      try { await supabaseForNPS.from('users').update({ awaiting_nps: false }).eq('phone', phone); } catch (_) {}
+      try { await supabaseForNPS.from('nps_responses').insert({ phone, score: npsScore }); } catch (_) {}
       console.log(`[NPS] ${phone} respondeu ${npsScore}`);
 
       if (npsScore >= 9) {
