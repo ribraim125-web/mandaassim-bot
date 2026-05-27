@@ -5027,16 +5027,31 @@ async function verificarExpiracoes() {
 
 // Remove o lock do Chrome de processos anteriores (evita loop de restart)
 const fs = require('fs');
+const { execSync } = require('child_process');
 const chromeLockPath = require('path').join(__dirname, '.wwebjs_auth/session-mandaassim-bot/SingletonLock');
 try { fs.unlinkSync(chromeLockPath); console.log('[Boot] Lock do Chrome removido.'); } catch (_) {}
+
+// Mata processo anterior que esteja segurando a porta (evita EADDRINUSE no restart)
+try { execSync(`fuser -k ${PORT}/tcp`, { stdio: 'ignore' }); console.log(`[Boot] Porta ${PORT} liberada.`); } catch (_) {}
 
 const webhookApp = createWebhookApp(client, null);
 const server = webhookApp.listen(PORT, () => {
   console.log(`[Webhook] Servidor rodando na porta ${PORT}`);
 });
+
+// Graceful shutdown — libera porta quando PM2 para o processo
+process.on('SIGTERM', () => server.close(() => process.exit(0)));
+process.on('SIGINT',  () => server.close(() => process.exit(0)));
+
+let _portRetries = 0;
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`[Webhook] Porta ${PORT} já em uso — aguardando 5s e tentando novamente...`);
+    _portRetries++;
+    if (_portRetries > 3) {
+      console.error(`[Webhook] Porta ${PORT} ainda em uso após ${_portRetries} tentativas — encerrando para restart limpo.`);
+      process.exit(1);
+    }
+    console.error(`[Webhook] Porta ${PORT} já em uso — aguardando 5s (${_portRetries}/3)...`);
     setTimeout(() => {
       server.close();
       server.listen(PORT);
