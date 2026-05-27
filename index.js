@@ -1614,7 +1614,7 @@ const HAIKU_FALLBACK = 'google/gemini-2.0-flash-001';
 
 const INTENT_MODEL_CONFIG = {
   one_liner: { model: HAIKU_MODEL, maxTokens: 200, temperature: 0.90, systemType: 'minimal'  },
-  volume:    { model: HAIKU_MODEL, maxTokens: 550, temperature: 0.85, systemType: 'degraded' },
+  volume:    { model: HAIKU_MODEL, maxTokens: 550, temperature: 0.85, systemType: 'full'     },
   premium:   { model: HAIKU_MODEL, maxTokens: 550, temperature: 0.80, systemType: 'full'     },
   coaching:  { model: HAIKU_MODEL, maxTokens: 900, temperature: 0.75, systemType: 'coach'    },
   ousadia:   { model: HAIKU_MODEL, maxTokens: 500, temperature: 0.95, systemType: 'ousadia'  },
