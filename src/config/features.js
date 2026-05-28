@@ -28,7 +28,15 @@ const FEATURES = {
     upsell: {
       free: (remaining) =>
         remaining === 0
-          ? `Deu 5 por hoje. Amanhã renova.\n\nSe a conversa tá quente e não dá pra esperar: *mensal* (R$29,90).`
+          ? `Você usou suas 5 análises grátis de hoje 🔒\n\n` +
+            `Acabou de descobrir que tem\n` +
+            `um nível acima das respostas comuns\n\n` +
+            `Por R$29,90/mês:\n` +
+            `- Análises ilimitadas\n` +
+            `- Acesso aos 5 tons\n` +
+            `- Loop de upgrade liberado\n` +
+            `- Suporte prioritário\n\n` +
+            `Manda *quero assinar* que eu te envio o pix`
           : `_${5 - remaining}/5 análises usadas hoje._`,
     },
   },

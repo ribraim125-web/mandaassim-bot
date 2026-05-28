@@ -107,6 +107,7 @@ const {
 
 const TRIAL_DAYS = 3;          // dias de acesso ilimitado após cadastro
 const FREE_DAILY_LIMIT = 5;    // mensagens/dia no plano free (pós-trial sem upgrade)
+const TESTING_PHONES = ['5561986115458']; // bypass total de limite + não conta no analytics
 const ONBOARDING_V2 = process.env.ONBOARDING_V2 === 'true'; // onboarding direto: 1 bubble + mirroring na 1ª análise
 
 // Timers do nudge de onboarding (90s após MSG 3 se usuário não responder)
@@ -254,11 +255,15 @@ const OPCOES_PREMIUM =
   `📆 *Anual* a R$299/ano (economiza R$60) → digita *anual*`;
 
 const LIMITE_FREE_ESGOTADO =
-  `acabou tuas ${FREE_DAILY_LIMIT} análises de hoje 😔\n\n` +
-  `vc voltou aqui várias vezes pq funciona né\n` +
-  `imagina ter ILIMITADO + zero espera\n\n` +
-  `➡️ digita *premium* pra liberar tudo (R$29,90/mês)\n` +
-  `ou volta amanhã que recarrega 🤙`;
+  `Você usou suas ${FREE_DAILY_LIMIT} análises grátis de hoje 🔒\n\n` +
+  `Acabou de descobrir que tem\n` +
+  `um nível acima das respostas comuns\n\n` +
+  `Por R$29,90/mês:\n` +
+  `- Análises ilimitadas\n` +
+  `- Acesso aos 5 tons\n` +
+  `- Loop de upgrade liberado\n` +
+  `- Suporte prioritário\n\n` +
+  `Manda *quero assinar* que eu te envio o pix`;
 
 
 // ── Mensagens da feature de print analysis ──────────────────────────────────
@@ -2808,6 +2813,10 @@ async function contadorRestante(message, trial, todayCount) {
     await client.sendMessage(message.from,
       `_${count}/${limit} — última análise de hoje_`
     );
+  } else if (count === limit - 1) {
+    await client.sendMessage(message.from,
+      `⚠️ você tem 1 análise grátis restante hoje\namanhã o contador zera ou desbloqueia ilimitado por R$29,90/mês`
+    );
   }
 }
 
@@ -3238,7 +3247,7 @@ client.on('message', async (message) => {
       return;
     }
 
-    if (cmd === 'mensal') {
+    if (cmd === 'mensal' || cmd === 'quero assinar' || cmd === 'assinar' || cmd === 'vou pagar' || cmd === 'quero o premium') {
       await enviarCobrancaPix(message, phone, PRECO_MENSAL);
       return;
     }
@@ -3654,8 +3663,9 @@ client.on('message', async (message) => {
   // ---------------------------------------------------------------------------
 
   const trial = await getTrialInfo(phone);
+  const isTesting = TESTING_PHONES.includes(phone);
 
-  if (!trial.isPremium) {
+  if (!isTesting && !trial.isPremium) {
     // Verifica limite ANTES de incrementar (corrige bug de contagem antecipada)
     const limitCheck = await canUseFeature(phone, trial.planKey, 'messages');
     if (!limitCheck.allowed) {
@@ -3667,12 +3677,12 @@ client.on('message', async (message) => {
 
       // Win-back: ex-wingman na janela de 2-15 dias
       if (trial.expiredAt && await verificarWinback(phone, trial.expiredAt)) {
-        await message.reply(
+        await client.sendMessage(message.from,
           `Deu ${FREE_DAILY_LIMIT} por hoje. Como você já assinou antes, tem uma oferta de volta:\n\n` +
           `*voltar* — R$19,90 no primeiro mês`
         );
       } else if (conversaQuente) {
-        await message.reply(`Bateu o limite de hoje — e logo agora que a conversa tá rolando.\n\nSe não dá pra esperar amanhã:\n\n*mensal* — R$29,90\n*anual* — R$299`);
+        await client.sendMessage(message.from, `Bateu o limite de hoje — e logo agora que a conversa tá rolando.\n\nSe não dá pra esperar amanhã:\n\n*mensal* — R$29,90\n*anual* — R$299`);
       } else {
         await client.sendMessage(message.from, limitCheck.upsellMessage || LIMITE_FREE_ESGOTADO);
       }
@@ -3681,9 +3691,9 @@ client.on('message', async (message) => {
   }
 
   // Incrementa uso após verificação (sem double-count em msgs bloqueadas)
-  const todayCount = await incrementFeatureUsage(phone, 'messages');
-  // Dual-write para manter dashboard funcionando durante transição
-  incrementDailyCount(phone).catch(() => {});
+  // Números de teste não contam no analytics
+  const todayCount = isTesting ? 0 : await incrementFeatureUsage(phone, 'messages');
+  if (!isTesting) incrementDailyCount(phone).catch(() => {});
 
   // Trial countdown desativado — sem mensagens proativas não solicitadas
 
