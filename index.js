@@ -1784,13 +1784,14 @@ function splitByToneBlocks(text) {
     const firstLine = trimmed.split('\n')[0].trim();
 
     if (isToneHeader(firstLine)) {
-      // Bloco de tom: header na linha 1, mensagem nas linhas seguintes
+      // Bloco de tom: header e mensagem em bolhas separadas (facilita copy-paste)
       const lines   = trimmed.split('\n');
       const header  = lines[0].trim();
       const msgLines = lines.slice(1)
         .map(l => stripPeriods(l.trim()))
         .filter(Boolean);
-      parts.push(msgLines.length > 0 ? header + '\n' + msgLines.join('\n') : header);
+      parts.push(header);
+      if (msgLines.length > 0) parts.push(msgLines.join('\n'));
     } else if (trimmed.startsWith('⎯⎯⎯') || trimmed.startsWith('→')) {
       // Hook de upgrade descartado — fluxo termina nas 3 opções
     }
