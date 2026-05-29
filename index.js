@@ -1741,10 +1741,13 @@ function splitByToneBlocks(text) {
     firstIdx = text.indexOf('━━━');
   }
 
-  // Preamble (ex: "funcionou\n..." em OUTCOME)
+  // Preamble (ex: "funcionou\n..." em OUTCOME) — máx 1 linha
   if (firstIdx > 0) {
     const preamble = text.slice(0, firstIdx).trim();
-    if (preamble) parts.push(preamble);
+    if (preamble) {
+      const firstLine = preamble.split('\n')[0].trim();
+      if (firstLine) parts.push(firstLine);
+    }
   }
 
   // Divide o restante por linhas em branco
@@ -1763,13 +1766,8 @@ function splitByToneBlocks(text) {
         .map(l => stripPeriods(l.trim()))
         .filter(Boolean);
       parts.push(msgLines.length > 0 ? header + '\n' + msgLines.join('\n') : header);
-    } else if (trimmed.startsWith('⎯⎯⎯')) {
-      // Gancho de upgrade: remove o separador ⎯⎯⎯
-      const hook = trimmed.replace(/^⎯⎯⎯\s*\n?/, '').trim();
-      if (hook) parts.push(hook);
-    } else if (trimmed.startsWith('→') && parts.length > 0) {
-      // Hook sem cabeçalho ⎯⎯⎯ (modelo pode omitir)
-      parts.push(trimmed);
+    } else if (trimmed.startsWith('⎯⎯⎯') || trimmed.startsWith('→')) {
+      // Hook de upgrade descartado — fluxo termina nas 3 opções
     }
   }
 
