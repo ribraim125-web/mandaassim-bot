@@ -1701,6 +1701,7 @@ function sanitizeOutput(text) {
     .replace(/<\/?output>/gi, '')                      // remove tags <output> e </output> do modelo
     .replace(/\*\*([^*]+)\*\*/g, '*$1*')              // **bold** → *bold*
     .replace(/ — /g, ' ')                              // travessão — → espaço
+    .replace(/(\w)\/(\w)/g, '$1 ou $2')               // barra entre palavras → " ou "
     .replace(/\n+[\-•]\s+/g, '\n\n')                  // \n- ou \n\n- item → linha em branco + texto
     .replace(/^[\-•]\s+/, '')                          // remove traço/bullet no início absoluto
     .replace(/\n{3,}/g, '\n\n')                        // limpa triple+ newlines
@@ -1866,14 +1867,7 @@ function splitByToneBlocks(text) {
     firstIdx = text.indexOf('━━━');
   }
 
-  // Preamble (ex: "funcionou\n..." em OUTCOME) — máx 1 linha
-  if (firstIdx > 0) {
-    const preamble = text.slice(0, firstIdx).trim();
-    if (preamble) {
-      const firstLine = preamble.split('\n')[0].trim();
-      if (firstLine) parts.push(firstLine);
-    }
-  }
+  // Qualquer texto antes do primeiro header é ignorado — REGRA CRÍTICA do prompt
 
   // Divide o restante por linhas em branco
   const segments = text.slice(firstIdx).split(/\n{2,}/);
@@ -1955,9 +1949,6 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
     const reviewed = await reviewIfNeeded(toneBlocks, phone);
     console.log(`[Resposta] gerada com ${sugestoes.length} chars, ${reviewed.length} blocos detectados, formato: tone | intent:${intent} | phone:${phone}`);
     await sendWithDelay(message.from, reviewed, { phone, intent });
-    // Gancho de retenção — 1 linha curta após as opções
-    const hook = RETENTION_HOOKS[Math.floor(Math.random() * RETENTION_HOOKS.length)];
-    setTimeout(() => client.sendMessage(message.from, hook).catch(() => {}), 1800);
     if (phone) {
       getAct3Suffix(phone).then(suffix => {
         if (suffix) client.sendMessage(message.from, suffix).catch(() => {});
@@ -4668,7 +4659,11 @@ client.on('message', async (message) => {
 
       // Se é 1ª análise V2: envia frase de espelhamento antes das 3 opções
       if (mirroringPromiseV2) {
-        const mirroringMsg = await mirroringPromiseV2;
+        const mirroringRaw = await mirroringPromiseV2;
+        // Garante UMA linha — modelo às vezes ignora instrução e gera lista
+        const mirroringMsg = mirroringRaw
+          ? mirroringRaw.split('\n').map(l => l.trim()).find(l => l.length > 0) || null
+          : null;
         if (mirroringMsg) {
           await client.sendMessage(message.from, mirroringMsg);
           await new Promise(r => setTimeout(r, readingDelay(mirroringMsg)));
