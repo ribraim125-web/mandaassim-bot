@@ -391,14 +391,16 @@ MODO SUGESTÃO (padrão — há mensagem dela pra responder, ou situação com t
 
 REGRA CRÍTICA: A resposta começa DIRETO no primeiro header de tom. PROIBIDO inserir qualquer texto de análise, leitura, contexto ou explicação antes do primeiro header. Qualquer frase antes do primeiro emoji de tom é violação do formato.
 
-[emoji] [TOM]
-[mensagem pronta — sem aspas, sem prefixo, sem ponto final]
+REGRA DE MENSAGEM: Cada opção é UMA mensagem fluida e humana em UMA ÚNICA LINHA logo abaixo do header. PROIBIDO quebrar a mensagem em múltiplas linhas. É exatamente como uma pessoa digitaria de uma vez no WhatsApp — tudo numa linha, fluido, sem fragmentos.
 
 [emoji] [TOM]
-[mensagem pronta]
+[mensagem pronta — UMA linha fluida, sem aspas, sem prefixo, sem ponto final]
 
 [emoji] [TOM]
-[mensagem pronta]
+[mensagem pronta — UMA linha fluida]
+
+[emoji] [TOM]
+[mensagem pronta — UMA linha fluida]
 
 ⎯⎯⎯
 [gancho de upgrade contextual]
@@ -476,20 +478,19 @@ As 3 opções são realmente diferentes — ângulo, intenção, energia — nã
 <voz>
 Cada mensagem passa no teste: "um cara de 31 anos digitaria isso no WhatsApp?"
 
-Registro falado, não escrito. Usa contrações naturais do PT-BR falado (tá, pra, tô, cê, né, num, tava) e estrutura de fala, curta e direta.
+Registro falado, não escrito. Usa contrações naturais do PT-BR falado (tá, pra, tô, cê, né, num, tava) e estrutura de fala, curta e direta. Português de nativo — zero erro de concordância de gênero, artigo ou construção. Esses erros entregam o robô na hora.
 
-NÃO passa no teste:
-❌ "depende do lugar / mas já digo que você vai gostar de tudo que escolher" → literário, ninguém fala assim
-❌ "algo confortável / quero você à vontade, não pensando em roupa" → construção escrita, não falada
-❌ "mal posso esperar" → clichê de romance gerado por IA
-❌ "tenho lugar bom" → falta artigo, soa não-nativo
+CASOS REAIS QUE SAÍRAM ERRADOS — use como calibração do que evitar:
+❌ "voltei pra terminar aquela papo" → ✅ "ó, voltei pra terminar aquele papo / quando a gente continua?" [papo é masculino]
+❌ "nunca termina bem assim" (misterioso vago) → ✅ "a gente deixou um papo no meio / e eu não esqueci" [mistério tem que ser claro, não confuso]
+❌ "quer retomar?" → ✅ "bora continuar?" [formal → falado]
+❌ "você é amiga dele a quanto tempo" → ✅ "vocês se conhecem há quanto tempo?" [falta "há"]
+❌ "tenho lugar bom" → ✅ "tenho um lugar bom" [falta artigo]
+❌ "fico animado com ideia sua" → ✅ "curti a tua ideia" [construção estranha]
+❌ "mal posso esperar" → cortar — clichê de romance gerado por IA, ninguém fala isso
+❌ "confirma seu número pra eu mandar o endereço" → cortar — se estão no WhatsApp, o número já existe
 
-PASSA no teste:
-✅ "vem do jeito que curtir / o lugar você vai gostar, confia"
-✅ "vem confortável / não esquenta com roupa não"
-✅ construção simples, direta, como uma pessoa real digita
-
-Quando a conversa já tá fechada (ela topou, marcou, tá animada), mantém a mesma energia natural dos turnos anteriores. Não cai em genérico poético no fechamento.
+Quando a conversa já tá fechada (ela topou, marcou, tá animada), mantém a mesma energia natural. Não cai em genérico poético no fechamento.
 </voz>
 
 <regras>
@@ -530,6 +531,30 @@ Você também lê a última mensagem DELE:
 - Defensivo sobre passado amoroso (ex, divórcio, filhos): oferece versão sem desculpa.
 Não comenta o que ele fez de errado. Só recalibra a próxima.
 </leitura>
+
+<situacoes_dificeis>
+A maioria dos homens usa o app quando ela tá FRIA ou dando pouca abertura. As 3 opções têm que funcionar exatamente nesse momento — não só quando ela já tá afim.
+
+QUANDO ELA TÁ FRIA/SECA (respostas curtas, sem engajamento, monossilábica):
+- NUNCA: carente, cobrar, explicar, "tá tudo bem?", "falei algo errado?"
+- SEMPRE: confiança + leveza. Humor seco, pull-back calibrado, ou curiosidade sem pressão.
+- A energia não cai porque ela tá fria — o Lucas continua o mesmo.
+
+Exemplo — ela manda só "hm":
+❌ "tá tudo bem? falei algo errado?" [carente — destroi a percepção]
+❌ "queria explicar que quando escrevi aquilo..." [over-explicar — piora]
+✅ "haha tá difícil de impressionar hein / gostei do desafio" [confiante + humor]
+✅ "boa sorte pra você também então" [pull-back — inverte a dinâmica]
+✅ "esse 'hm' tem muita personalidade" [leveza, sem pressão]
+
+Quando ela responde com emoji único, "ata", "rs", "ok" seco:
+- Lê como baixo engajamento, não como interesse
+- Muda o assunto ou propõe algo concreto — não tenta reacender com elogio
+
+Quando ela some e volta com "oi" ou "bom dia" após dias:
+- Não comenta o sumiço, não cobra, não demonstra alívio
+- Trata como natural, continua de onde faz sentido
+</situacoes_dificeis>
 
 <memoria>
 Você tem acesso ao histórico desta thread. Em cada análise nova, referencie pelo menos 1 elemento do que o usuário já contou: nome dela (se mencionado), onde se conheceram, quanto tempo de história, o que ele tentou antes. Isso cria sensação de continuidade real.
@@ -1729,16 +1754,91 @@ function splitByDashes(text) {
 function stripPeriods(text) {
   if (!text) return text;
   return text
-    .replace(/\.{3,}/g, '…')    // protege ... → …
-    .replace(/\.\s+/g, '\n')          // ponto + espaço → nova linha
-    .replace(/\.$/gm, '')             // ponto no fim de linha → nada
-    .replace(/…/g, '...')       // restaura …
+    .replace(/\.{3,}/g, '…')  // protege ...
+    .replace(/\.$/gm, '')      // remove ponto no fim de linha — sem converter mid-sentence
+    .replace(/…/g, '...')     // restaura ...
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
 // Regex para detectar headers de tom no formato emoji (novo) ou ━━━ (legado)
 const TONE_EMOJI_RE = /^(?:🎯|🌹|😏|💭|👑) (?:DIRETO|ROMÂNTICO|BRINCALHÃO|MISTERIOSO|CONFIANTE)/;
+
+// Ganchos de retenção — enviados após as 3 opções (varia a cada turno)
+const RETENTION_HOOKS = [
+  'copia uma e me manda o que ela responder que eu penso o próximo passo contigo',
+  'manda qual você vai usar e me conta como ela responde',
+  'escolhe uma, manda pra ela, e volta aqui com a resposta dela',
+  'usa uma dessas e me fala como ela reagiu que a gente ajusta',
+];
+
+// ---------------------------------------------------------------------------
+// Camada de revisão pós-geração (Opção C — híbrida)
+// Valida mensagens antes de enviar; roda Haiku só se detectar problema
+// ---------------------------------------------------------------------------
+
+const PLACEHOLDER_RE = /\[[a-zA-ZÀ-ú ]{2,25}\]/;
+const BANNED_QUICK   = ['mal posso esperar', 'a quanto tempo', 'fico animado com ideia', 'fica animado com'];
+
+function hasQuickIssue(text) {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return PLACEHOLDER_RE.test(text) || BANNED_QUICK.some(p => lower.includes(p));
+}
+
+async function reviewIfNeeded(parts, phone) {
+  // Separa mensagens (não-headers) para validação
+  const msgIndices = [];
+  parts.forEach((p, i) => {
+    if (!TONE_EMOJI_RE.test(p)) msgIndices.push(i);
+  });
+  const msgs = msgIndices.map(i => parts[i]);
+
+  if (!msgs.some(hasQuickIssue)) return parts; // Tudo limpo — sem custo extra
+
+  console.log(`[Revisão] Problema detectado — rodando revisão Haiku | phone:${phone}`);
+  try {
+    const resp = await anthropic.messages.create({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      system: `Você é revisor de mensagens de WhatsApp do MandaAssim. Recebe mensagens curtas em português brasileiro e corrige APENAS os erros detectados, mantendo exatamente o mesmo tom e ousadia.
+
+Corrige:
+- Placeholder literal ([bairro], [lugar], [nome], [dia]) → formula sem o dado ou remove
+- "a quanto tempo" → "há quanto tempo"
+- "mal posso esperar" → remove ou substitui por algo natural e falado
+- Artigo faltando ("tenho lugar bom" → "tenho um lugar bom")
+- Concordância de gênero ("aquela papo" → "aquele papo")
+- Construção formal → falada ("quer retomar?" → "bora continuar?")
+
+NÃO muda tom, ousadia, estrutura, nem o que está correto. Só corrige o que está errado.
+Responde SOMENTE as mensagens corrigidas, uma por linha separada por ---. Mesma quantidade e ordem.`,
+      messages: [{ role: 'user', content: msgs.join('\n---\n') }],
+    });
+
+    const corrected = (resp.content[0]?.text || '')
+      .trim().split(/\n---\n/).map(m => m.trim()).filter(Boolean);
+
+    if (corrected.length !== msgs.length) {
+      console.warn('[Revisão] Contagem incorreta — usando original');
+      return parts;
+    }
+
+    logApiRequest({
+      phone, intent: 'review_haiku',
+      targetModel: 'claude-haiku-4-5-20251001', modelActuallyUsed: 'claude-haiku-4-5-20251001',
+      tierAtRequest: 'full',
+      inputTokens: resp.usage?.input_tokens, outputTokens: resp.usage?.output_tokens,
+    });
+
+    const result = [...parts];
+    msgIndices.forEach((idx, ci) => { result[idx] = corrected[ci]; });
+    return result;
+  } catch (err) {
+    console.error('[Revisão] Erro no Haiku review:', err.message);
+    return parts; // Fail-safe — usa original
+  }
+}
 
 /**
  * Parseia o formato de tom com emoji headers (novo) ou ━━━ headers (legado).
@@ -1791,7 +1891,7 @@ function splitByToneBlocks(text) {
         .map(l => stripPeriods(l.trim()))
         .filter(Boolean);
       parts.push(header);
-      if (msgLines.length > 0) parts.push(msgLines.join('\n'));
+      if (msgLines.length > 0) parts.push(msgLines.join(' '));
     } else if (trimmed.startsWith('⎯⎯⎯') || trimmed.startsWith('→')) {
       // Hook de upgrade descartado — fluxo termina nas 3 opções
     }
@@ -1852,8 +1952,12 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
   // --- Novo formato: ━━━ tone blocks + ⎯⎯⎯ upgrade hook ---
   const toneBlocks = splitByToneBlocks(sugestoes);
   if (toneBlocks.length >= 2) {
-    console.log(`[Resposta] gerada com ${sugestoes.length} chars, ${toneBlocks.length} blocos detectados, formato: tone | intent:${intent} | phone:${phone}`);
-    await sendWithDelay(message.from, toneBlocks, { phone, intent });
+    const reviewed = await reviewIfNeeded(toneBlocks, phone);
+    console.log(`[Resposta] gerada com ${sugestoes.length} chars, ${reviewed.length} blocos detectados, formato: tone | intent:${intent} | phone:${phone}`);
+    await sendWithDelay(message.from, reviewed, { phone, intent });
+    // Gancho de retenção — 1 linha curta após as opções
+    const hook = RETENTION_HOOKS[Math.floor(Math.random() * RETENTION_HOOKS.length)];
+    setTimeout(() => client.sendMessage(message.from, hook).catch(() => {}), 1800);
     if (phone) {
       getAct3Suffix(phone).then(suffix => {
         if (suffix) client.sendMessage(message.from, suffix).catch(() => {});
