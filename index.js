@@ -2356,18 +2356,24 @@ class PersistentContextMap extends Map {
   }
 
   set(phone, value) {
-    super.set(phone, value);
-    this._scheduleFlush(phone);
+    super.set(phone, value); // memória primeiro — nunca pode falhar
+    try { this._scheduleFlush(phone); } catch (err) {
+      console.error('[Context] scheduleFlush erro:', err.message); // persistência é best-effort
+    }
     return this;
   }
 
   delete(phone) {
-    const existed = super.delete(phone);
-    const t = this._flushTimers.get(phone);
-    if (t) { clearTimeout(t); this._flushTimers.delete(phone); }
-    getSupabase().from('user_sessions').delete().eq('phone', phone).then(({ error }) => {
-      if (error) console.error('[Context] delete falhou:', error.message);
-    });
+    const existed = super.delete(phone); // memória primeiro
+    try {
+      const t = this._flushTimers.get(phone);
+      if (t) { clearTimeout(t); this._flushTimers.delete(phone); }
+      getSupabase().from('user_sessions').delete().eq('phone', phone).then(({ error }) => {
+        if (error) console.error('[Context] delete falhou:', error.message);
+      }, (err) => console.error('[Context] delete rejeitou:', err.message));
+    } catch (err) {
+      console.error('[Context] delete erro:', err.message);
+    }
     return existed;
   }
 
@@ -2375,12 +2381,17 @@ class PersistentContextMap extends Map {
     if (this._flushTimers.has(phone)) return; // já agendado — coalesce
     const t = setTimeout(() => {
       this._flushTimers.delete(phone);
-      const value = this.get(phone);
-      if (value === undefined) return;
-      getSupabase()
-        .from('user_sessions')
-        .upsert({ phone, context: value, updated_at: new Date().toISOString() }, { onConflict: 'phone' })
-        .then(({ error }) => { if (error) console.error('[Context] upsert falhou:', error.message); });
+      try {
+        const value = this.get(phone);
+        if (value === undefined) return;
+        getSupabase()
+          .from('user_sessions')
+          .upsert({ phone, context: value, updated_at: new Date().toISOString() }, { onConflict: 'phone' })
+          .then(({ error }) => { if (error) console.error('[Context] upsert falhou:', error.message); },
+                (err) => console.error('[Context] upsert rejeitou:', err.message));
+      } catch (err) {
+        console.error('[Context] flush erro:', err.message); // nunca propaga — não pode crashar o processo
+      }
     }, USER_SESSION_FLUSH_MS);
     if (t.unref) t.unref();
     this._flushTimers.set(phone, t);
