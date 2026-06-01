@@ -2340,7 +2340,70 @@ function buildGirlContext(profile) {
 // Contexto por usuário (memória de curto prazo para "outra"/"mais")
 // ---------------------------------------------------------------------------
 
-const userContext = new Map(); // phone -> { lastRequest, lastType, scenario, tonePreference, history[] }
+// ---------------------------------------------------------------------------
+// userContext — estado de sessão por telefone.
+// Map em memória com write-through para Supabase (tabela user_sessions), pra
+// sobreviver a restart/deploy. Todos os call sites usam .get/.set/.delete como
+// um Map normal; a persistência é transparente (debounced + fire-and-forget).
+// ---------------------------------------------------------------------------
+const USER_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // só hidrata sessões dos últimos 7 dias
+const USER_SESSION_FLUSH_MS = 2000;                  // coalesce múltiplos sets do mesmo turno
+
+class PersistentContextMap extends Map {
+  constructor() {
+    super();
+    this._flushTimers = new Map(); // phone -> timeout
+  }
+
+  set(phone, value) {
+    super.set(phone, value);
+    this._scheduleFlush(phone);
+    return this;
+  }
+
+  delete(phone) {
+    const existed = super.delete(phone);
+    const t = this._flushTimers.get(phone);
+    if (t) { clearTimeout(t); this._flushTimers.delete(phone); }
+    getSupabase().from('user_sessions').delete().eq('phone', phone).then(({ error }) => {
+      if (error) console.error('[Context] delete falhou:', error.message);
+    });
+    return existed;
+  }
+
+  _scheduleFlush(phone) {
+    if (this._flushTimers.has(phone)) return; // já agendado — coalesce
+    const t = setTimeout(() => {
+      this._flushTimers.delete(phone);
+      const value = this.get(phone);
+      if (value === undefined) return;
+      getSupabase()
+        .from('user_sessions')
+        .upsert({ phone, context: value, updated_at: new Date().toISOString() }, { onConflict: 'phone' })
+        .then(({ error }) => { if (error) console.error('[Context] upsert falhou:', error.message); });
+    }, USER_SESSION_FLUSH_MS);
+    if (t.unref) t.unref();
+    this._flushTimers.set(phone, t);
+  }
+
+  async hydrate() {
+    try {
+      const since = new Date(Date.now() - USER_SESSION_TTL_MS).toISOString();
+      const { data, error } = await getSupabase()
+        .from('user_sessions')
+        .select('phone, context')
+        .gte('updated_at', since);
+      if (error) { console.error('[Context] hydrate falhou:', error.message); return; }
+      let n = 0;
+      for (const row of data || []) { super.set(row.phone, row.context || {}); n++; }
+      console.log(`[Context] hidratado ${n} sessões do banco`);
+    } catch (err) {
+      console.error('[Context] hydrate erro:', err.message);
+    }
+  }
+}
+
+const userContext = new PersistentContextMap(); // phone -> { lastRequest, lastType, scenario, tonePreference, history[] }
 
 function saveUserContext(phone, request, type) {
   const current = userContext.get(phone) || {};
@@ -5106,6 +5169,9 @@ server.on('error', (err) => {
 
 client.on('ready', () => {
   console.log('[Bot] Conectado e pronto para receber mensagens!');
+
+  // Recarrega sessões persistidas pra sobreviver a restart/deploy (fire-and-forget)
+  userContext.hydrate();
 
   // Intercepta sendMessage globalmente para sanitizar ** → * e ponto final
   const _origSend = client.sendMessage.bind(client);
