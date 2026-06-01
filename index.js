@@ -1599,6 +1599,17 @@ function splitByDashes(text) {
 }
 
 /**
+ * Remove o gancho de upgrade (tudo a partir de ⎯⎯⎯ / ━━━ e linhas iniciadas por →).
+ * O gancho é interno do prompt e nunca deve chegar ao usuário nos caminhos de fallback.
+ */
+function stripUpgradeHook(text) {
+  if (!text) return text;
+  const sep = text.match(/\n?[ \t]*[⎯━─—]{3,}/);
+  const cut = sep ? text.slice(0, sep.index) : text;
+  return cut.replace(/^[ \t]*→.*$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
  * Remove pontos finais de mensagens sugeridas (Problem 4).
  * Preserva reticências (...). Converte ". " mid-sentence em quebra de linha.
  */
@@ -1843,7 +1854,20 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
       await client.sendMessage(message.from, opcoes[i].msg);
     }
   } else {
-    await message.reply(sugestoes.trim().replace(/\n{3,}/g, '\n\n'));
+    // Último recurso (ex.: MODO ANÁLISE/OUTCOME, sem opções de tom): nunca manda
+    // paredão e nunca vaza o gancho de upgrade. Tira diagnóstico/dica já enviados
+    // e quebra o resto em bolhas separadas por linha em branco.
+    const corpo = stripUpgradeHook(sugestoes)
+      .replace(/📍\s*_[^_\n]+_\n*/g, '')   // diagnóstico (já enviado acima)
+      .replace(/💡[^\n]*\n*/g, '')         // dica (já enviada acima)
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    const bolhas = corpo.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+    if (bolhas.length > 1) {
+      await sendWithDelay(message.from, bolhas, { phone, intent });
+    } else if (corpo) {
+      await message.reply(corpo);
+    }
   }
 
   // Ato 3 — sufixo narrativo na primeira análise (fire-and-forget)
