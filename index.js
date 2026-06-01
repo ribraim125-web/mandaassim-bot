@@ -2686,7 +2686,7 @@ async function transcreverAudio(base64Data, mimetype) {
 // nada), junta tudo num texto só e processa UMA vez. Nada é descartado.
 // ---------------------------------------------------------------------------
 
-const MSG_DEBOUNCE_MS = 3000; // espera 3s de silêncio antes de processar o burst
+const MSG_DEBOUNCE_MS = 1800; // espera 1.8s de silêncio antes de processar o burst
 const messageBuffer = new Map(); // phone -> { parts: [], timer, lastMessage }
 
 function flushMessageBuffer(chatId) {
@@ -2698,6 +2698,9 @@ function flushMessageBuffer(chatId) {
   const msg = buf.lastMessage;
   // Reescreve o corpo com o texto combinado (preserva o resto do objeto: from, getContact, etc.)
   try { msg.body = combined; } catch (_) {}
+  if (buf.parts.length > 1) {
+    console.log(`[Debounce] processando ${buf.parts.length} msgs juntas | ${chatId}`);
+  }
   handleIncomingMessage(msg).catch((err) => {
     console.error('[Debounce] erro ao processar burst:', err.message);
   });
@@ -2722,8 +2725,11 @@ client.on('message', (message) => {
       buf.parts.push(message.body);
       buf.lastMessage = message;
       if (buf.timer) clearTimeout(buf.timer);
-      buf.timer = setTimeout(() => flushMessageBuffer(chatId), MSG_DEBOUNCE_MS);
-      if (buf.timer.unref) buf.timer.unref();
+      // SEM unref: o timer SEMPRE dispara enquanto o processo viver — nunca segura mensagem pra sempre
+      buf.timer = setTimeout(() => {
+        try { flushMessageBuffer(chatId); }
+        catch (err) { console.error('[Debounce] erro no flush:', err.message); }
+      }, MSG_DEBOUNCE_MS);
       messageBuffer.set(chatId, buf);
       return;
     }
@@ -5264,6 +5270,26 @@ client.on('ready', () => {
   }
   setTimeout(verificarExpiracoes, 15000);
   setInterval(verificarExpiracoes, 6 * 60 * 60 * 1000);
+
+  // Watchdog de conexão — detecta "estado zumbi" (PM2 diz online, mas o WhatsApp
+  // Web caiu por dentro e as mensagens nem chegam). Reinicia limpo via PM2 antes
+  // que mensagens se percam em silêncio. Conservador: só age depois de ter visto
+  // CONNECTED ao menos 1x (garante que getState é confiável aqui) e só após ~4 min
+  // desconectado de verdade (2 checagens ruins seguidas).
+  let wppFailCount = 0;
+  let wppEverConnected = false;
+  setInterval(async () => {
+    let state = null;
+    try { state = await client.getState(); } catch (_) { state = null; }
+    if (state === 'CONNECTED') { wppEverConnected = true; wppFailCount = 0; return; }
+    if (!wppEverConnected) return; // getState pode não ser confiável — não age sem ter confirmado CONNECTED
+    wppFailCount++;
+    console.warn(`[Watchdog] WhatsApp não conectado (estado: ${state}) — checagem ${wppFailCount}/2`);
+    if (wppFailCount >= 2) {
+      console.error('[Watchdog] desconexão persistente — encerrando para PM2 reiniciar limpo');
+      process.exit(1);
+    }
+  }, 2 * 60 * 1000);
 });
 
 client.initialize();
