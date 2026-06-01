@@ -2655,22 +2655,64 @@ async function transcreverAudio(base64Data, mimetype) {
 }
 
 // ---------------------------------------------------------------------------
-// Rate limiting — proteção anti-flood (sem custo de API)
+// Debounce de mensagens — junta o "tiro rápido" do usuário numa resposta só.
+// No WhatsApp as pessoas digitam em pedaços ("oi" / "preciso de ajuda" / "com
+// uma mina") em poucos segundos. Em vez de descartar as mensagens rápidas (o
+// que deixava o bot mudo), a gente espera o usuário terminar (~3s sem mandar
+// nada), junta tudo num texto só e processa UMA vez. Nada é descartado.
 // ---------------------------------------------------------------------------
 
-const lastMessageTime = new Map(); // phone -> timestamp da última mensagem processada
-const RATE_LIMIT_MS = 4000; // mínimo 4 segundos entre mensagens por usuário
+const MSG_DEBOUNCE_MS = 3000; // espera 3s de silêncio antes de processar o burst
+const messageBuffer = new Map(); // phone -> { parts: [], timer, lastMessage }
 
-function isRateLimited(phone) {
-  const now = Date.now();
-  const last = lastMessageTime.get(phone) || 0;
-  if (now - last < RATE_LIMIT_MS) return true;
-  lastMessageTime.set(phone, now);
-  return false;
+function flushMessageBuffer(chatId) {
+  const buf = messageBuffer.get(chatId);
+  if (!buf) return;
+  messageBuffer.delete(chatId);
+  if (buf.timer) clearTimeout(buf.timer);
+  const combined = buf.parts.join('\n').trim();
+  const msg = buf.lastMessage;
+  // Reescreve o corpo com o texto combinado (preserva o resto do objeto: from, getContact, etc.)
+  try { msg.body = combined; } catch (_) {}
+  handleIncomingMessage(msg).catch((err) => {
+    console.error('[Debounce] erro ao processar burst:', err.message);
+  });
 }
 
-// Limpa o Map de rate limit a cada 1h para evitar memory leak
-setInterval(() => lastMessageTime.clear(), 60 * 60 * 1000);
+// Listener real: bufferiza texto, processa mídia/comandos na hora.
+client.on('message', (message) => {
+  try {
+    // Filtros baratos — não bufferiza o que nunca seria processado
+    if (message.isGroupMsg) return;
+    if (message.from === 'status@broadcast') return;
+    if (message.fromMe) return;
+    if (message.type === 'reaction') return;
+    if (message.type === 'e2e_notification') return;
+    if (message.type === 'notification_template') return;
+
+    const chatId = message.from;
+
+    // Só mensagens de texto entram no buffer de debounce
+    if (message.type === 'chat' && typeof message.body === 'string') {
+      const buf = messageBuffer.get(chatId) || { parts: [], timer: null, lastMessage: message };
+      buf.parts.push(message.body);
+      buf.lastMessage = message;
+      if (buf.timer) clearTimeout(buf.timer);
+      buf.timer = setTimeout(() => flushMessageBuffer(chatId), MSG_DEBOUNCE_MS);
+      if (buf.timer.unref) buf.timer.unref();
+      messageBuffer.set(chatId, buf);
+      return;
+    }
+
+    // Mídia/áudio/outros: esvazia qualquer texto pendente antes (preserva ordem), depois processa
+    if (messageBuffer.has(chatId)) flushMessageBuffer(chatId);
+    handleIncomingMessage(message).catch((err) => {
+      console.error('[Handler] erro:', err.message);
+    });
+  } catch (err) {
+    console.error('[Debounce] erro no listener:', err.message);
+  }
+});
 
 const SAUDACOES = new Set(['oi', 'olá', 'ola', 'hey', 'e aí', 'eai', 'opa', 'oie', 'hi']);
 
@@ -3092,7 +3134,7 @@ async function processInlineNotifications(phone, chatId) {
 // Processamento de mensagens
 // ---------------------------------------------------------------------------
 
-client.on('message', async (message) => {
+async function handleIncomingMessage(message) {
   if (message.isGroupMsg) return;
   if (message.from === 'status@broadcast') return;
   if (message.fromMe) return;
@@ -3161,14 +3203,6 @@ client.on('message', async (message) => {
     const earlyInterval = setInterval(() => earlyChat.sendStateTyping().catch(() => {}), 4000);
     stopEarlyTyping = () => { clearInterval(earlyInterval); earlyChat.clearState().catch(() => {}); };
   } catch (_) {}
-
-  // Rate limiting — ignora silenciosamente se mandando rápido demais
-  if (isRateLimited(phone)) {
-    stopEarlyTyping();
-
-    console.log(`[RateLimit] ${phone} bloqueado — mensagens muito rápidas.`);
-    return;
-  }
 
   // Limite de tamanho — mensagens absurdamente longas são ignoradas
   if (message.type === 'chat' && message.body && message.body.length > 2000) {
@@ -5090,7 +5124,7 @@ client.on('message', async (message) => {
     console.error('[Handler] Erro não capturado:', err.message, err.stack);
     try { await message.reply('travei aqui. manda de novo em 1 minuto'); } catch (_) {}
   }
-});
+}
 
 // ---------------------------------------------------------------------------
 // Notificações automáticas (renovação e win-back)
