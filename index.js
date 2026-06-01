@@ -1413,11 +1413,31 @@ async function retryWithBackoff(fn) {
 }
 
 async function classificarIntent(situacao) {
+  const validCategories = [...Object.keys(INTENT_MODEL_CONFIG), 'safety_block'];
   try {
     const response = await retryWithBackoff(() => openrouter.chat.completions.create({
       model: MODELS.CLASSIFIER_MODEL,
       max_tokens: 100,
       temperature: 0,
+      // JSON mode nativo — garante parse confiável (sem depender de texto livre)
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'intent_classification',
+          strict: true,
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              category:              { type: 'string', enum: validCategories },
+              confidence:            { type: 'number' },
+              reason:                { type: 'string' },
+              emotional_temperature: { type: 'string' },
+            },
+            required: ['category', 'confidence', 'reason', 'emotional_temperature'],
+          },
+        },
+      },
       messages: [
         { role: 'system', content: CLASSIFIER_PROMPT },
         { role: 'user',   content: `Situação: ${String(situacao).slice(0, 600)}` },
@@ -1425,14 +1445,13 @@ async function classificarIntent(situacao) {
     }));
     const raw = (response.choices[0]?.message?.content || '').trim();
 
-    // Tenta parsear JSON (novo formato)
+    // Parse do JSON estruturado (com fallback defensivo pro formato antigo)
     try {
       const parsed = JSON.parse(raw);
       const category = (parsed.category || '').toLowerCase();
       const confidence = parsed.confidence || 0;
       const reason = parsed.reason || '';
       const emotionalTemperature = parsed.emotional_temperature || 'morna';
-      const validCategories = [...Object.keys(INTENT_MODEL_CONFIG), 'safety_block'];
       const resolved = validCategories.includes(category) ? category : 'volume';
       console.log(`[Classifier] ${resolved} (confidence:${confidence}, temp:${emotionalTemperature}) — ${reason}`);
       return { category: resolved, confidence, reason, emotionalTemperature };
