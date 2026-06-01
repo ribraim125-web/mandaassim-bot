@@ -549,6 +549,31 @@ function createWebhookApp(waClient) {
     res.json(result);
   });
 
+  // Últimas respostas reais do bot (para auditoria de qualidade)
+  app.get('/admin/api/responses', async (req, res) => {
+    if (!validarAdminKey(req)) {
+      return res.status(401).json({ error: 'não autorizado' });
+    }
+
+    const supabase = getSupabase();
+    const limit = Math.min(parseInt(req.query.limit, 10) || 80, 300);
+    const intentFilter = req.query.intent;
+
+    let q = supabase
+      .from('api_requests')
+      .select('phone, intent, response_text, response_length_chars, model_actually_used, error, created_at')
+      .not('response_text', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (intentFilter) q = q.eq('intent', intentFilter);
+
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ error: error.message });
+
+    const result = (data ?? []).filter(r => !ADMIN_PHONES.includes(r.phone));
+    res.json(result);
+  });
+
   return app;
 }
 

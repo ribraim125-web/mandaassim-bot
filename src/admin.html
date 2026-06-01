@@ -210,13 +210,26 @@
       </div>
       <div id="table-container"><div class="loading">Carregando...</div></div>
     </div>
+
+    <!-- RESPOSTAS REAIS (auditoria de qualidade) -->
+    <div class="section-head" style="margin-top:32px">Últimas respostas do bot</div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <span class="table-title">Respostas reais</span>
+          <span class="pill" id="resp-count">—</span>
+        </div>
+        <input class="search" type="text" placeholder="Filtrar por intent ou número..." oninput="filterResponses(this.value)">
+      </div>
+      <div id="responses-container"><div class="loading">Carregando...</div></div>
+    </div>
   </main>
 </div>
 
 <script>
 const KEY = 'ma_admin_key';
 const getKey = () => sessionStorage.getItem(KEY);
-let allUsers = [], lastStats = null;
+let allUsers = [], lastStats = null, allResponses = [];
 
 function login() {
   const k = document.getElementById('key-input').value.trim();
@@ -248,14 +261,19 @@ async function loadAll() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   try {
-    const [stats, users] = await Promise.all([apiFetch('/admin/api/stats'), apiFetch('/admin/api/users')]);
-    lastStats = stats; allUsers = users;
+    const [stats, users, responses] = await Promise.all([
+      apiFetch('/admin/api/stats'),
+      apiFetch('/admin/api/users'),
+      apiFetch('/admin/api/responses').catch(() => []),
+    ]);
+    lastStats = stats; allUsers = users; allResponses = responses || [];
     renderUserCards(stats);
     renderRevenueCards(stats);
     renderEngagementCards(stats);
     renderChart(stats.chart7days || []);
     renderRanking(stats.todayRanking || []);
     renderTable(users);
+    renderResponses(allResponses);
     const now = new Date();
     document.getElementById('last-update').textContent = 'Atualizado às ' + now.toLocaleTimeString('pt-BR');
     document.getElementById('sidebar-meta').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -388,6 +406,49 @@ function renderTable(users) {
 
 function filterTable(q) {
   renderTable(allUsers.filter(u => String(u.phone).includes(q.replace(/\D/g,''))));
+}
+
+const escHtml = (s) => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function relTime(iso) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return 'agora';
+  if (diff < 3600) return Math.floor(diff/60) + 'min';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h';
+  return Math.floor(diff/86400) + 'd';
+}
+
+function renderResponses(rows) {
+  document.getElementById('resp-count').textContent = rows.length;
+  const box = document.getElementById('responses-container');
+  if (!rows.length) {
+    box.innerHTML = '<div class="empty">Nenhuma resposta registrada ainda. (precisa da migration 023 + tráfego novo)</div>';
+    return;
+  }
+  const html = rows.map(r => {
+    const txt = escHtml(r.response_text || '').replace(/\n/g, '<br>');
+    const err = r.error ? `<span class="badge expired" title="${escHtml(r.error)}">erro</span>` : '';
+    return `<tr>
+      <td class="muted" style="white-space:nowrap">${relTime(r.created_at)}</td>
+      <td class="mono">${formatPhone(r.phone)}</td>
+      <td><span class="badge free">${escHtml(r.intent || '—')}</span> ${err}</td>
+      <td style="max-width:560px;line-height:1.5">${txt || '<span class="muted">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  box.innerHTML = `
+    <table>
+      <thead><tr><th>Quando</th><th>Telefone</th><th>Intent</th><th>Resposta enviada</th></tr></thead>
+      <tbody>${html}</tbody>
+    </table>`;
+}
+
+function filterResponses(q) {
+  const t = q.toLowerCase().trim();
+  renderResponses(allResponses.filter(r =>
+    String(r.phone).includes(q.replace(/\D/g,'')) ||
+    String(r.intent || '').toLowerCase().includes(t)
+  ));
 }
 
 setInterval(loadAll, 60000);
