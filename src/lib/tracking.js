@@ -17,6 +17,11 @@ const MODEL_PRICES = {
     inputPer1M:  0.075,
     outputPer1M: 0.30,
   },
+  'openai/gpt-5-mini': {
+    inputPer1M:      0.25,
+    outputPer1M:     2.00,
+    cacheReadPer1M:  0.025,  // OpenAI cacheia input automaticamente (~10% do preço)
+  },
   'anthropic/claude-haiku-4-5-20251001': {
     inputPer1M:       1.00,
     outputPer1M:      5.00,

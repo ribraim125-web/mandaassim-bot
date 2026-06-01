@@ -8,10 +8,14 @@
  * NÃO mexer no MAIN_MODEL (geração principal / Haiku) sem cuidado.
  */
 module.exports = {
-  // Geração principal — Claude Haiku 4.5 (Anthropic direto).
-  MAIN_MODEL:             process.env.MAIN_MODEL             || 'claude-haiku-4-5-20251001',
-  // Mesma coisa, com prefixo de provedor usado no roteamento do index.js.
-  MAIN_MODEL_ROUTED:      process.env.MAIN_MODEL_ROUTED      || 'anthropic/claude-haiku-4-5-20251001',
+  // Geração principal do Tom Certo (via adapter). Default GPT-5 mini no OpenRouter.
+  // ROLLBACK FÁCIL: setar MAIN_MODEL='claude-haiku-4-5-20251001' (ou 'anthropic/claude-haiku-4-5-20251001')
+  // no .env volta pro Haiku direto na Anthropic, sem deploy.
+  MAIN_MODEL:             process.env.MAIN_MODEL             || 'openai/gpt-5-mini',
+  // Modelo de rollback/fallback automático da geração principal quando o MAIN cai.
+  MAIN_MODEL_ROLLBACK:    process.env.MAIN_MODEL_ROLLBACK    || 'claude-haiku-4-5-20251001',
+  // Haiku direto (Anthropic) — usado pelos intents que NÃO são Tom Certo (coach/ousadia/outcome/one_liner).
+  HAIKU_MODEL_ROUTED:     process.env.HAIKU_MODEL_ROUTED     || 'anthropic/claude-haiku-4-5-20251001',
 
   // Classificador de intenção (toda mensagem passa por aqui).
   CLASSIFIER_MODEL:       process.env.CLASSIFIER_MODEL       || 'google/gemini-2.5-flash-lite',

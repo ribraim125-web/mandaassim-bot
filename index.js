@@ -40,6 +40,7 @@ const { logApiRequest } = require('./src/lib/tracking');
 const { validateResponseArray, logViolations } = require('./src/lib/messageFormatValidator');
 const { canUseFeature, incrementFeatureUsage, getDailyUsage } = require('./src/config/features');
 const MODELS = require('./src/config/models');
+const { gerarRespostaPrincipal } = require('./src/lib/mainGeneration');
 const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
 const { analisarPrintConversaComHaiku } = require('./src/lib/printAnalysis');
 const { checkPrintLimit, incrementPrintCount, setPrintLastTime } = require('./src/lib/printLimits');
@@ -1362,7 +1363,7 @@ Disparar safety_block quando:
 </examples>`;
 
 // Todos os intents roteiam para Haiku 4.5 diretamente — sem degradação por tier
-const HAIKU_MODEL = MODELS.MAIN_MODEL_ROUTED;
+const HAIKU_MODEL = MODELS.HAIKU_MODEL_ROUTED;
 const HAIKU_FALLBACK = MODELS.FALLBACK_MODEL;
 
 const INTENT_MODEL_CONFIG = {
@@ -2004,7 +2005,33 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
 
   const userContent = `${prefixo}${historicoStr}\n\nSituação atual: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
 
-  // Tenta Haiku direto → fallback Gemini Flash se Anthropic cair
+  // Tom Certo (systemType 'full') → adapter de geração principal (MAIN_MODEL +
+  // structured output + rollback automático). O index não sabe qual provedor roda.
+  if (config.systemType === 'full') {
+    try {
+      const r = await gerarRespostaPrincipal({
+        systemPrompt, userContent,
+        maxTokens: config.maxTokens, temperature: config.temperature, intent,
+      });
+      logApiRequest({
+        phone, intent,
+        intentClassifierModel: MODELS.CLASSIFIER_MODEL,
+        targetModel: MODELS.MAIN_MODEL, modelActuallyUsed: r.modelUsed,
+        fallbackTriggered: r.fallbackTriggered, fallbackReason: r.fallbackTriggered ? 'model_error' : null,
+        inputTokens: r.usage.inputTokens, outputTokens: r.usage.outputTokens,
+        cacheReadTokens: r.usage.cacheReadTokens, cacheWriteTokens: r.usage.cacheWriteTokens,
+        latencyMs: r.latencyMs, responseLengthChars: r.text ? r.text.length : null,
+        responseText: r.text || null, userMessageLengthChars: situacao.length,
+        error: r.error,
+      });
+      return { text: r.text, intent };
+    } catch (err) {
+      console.error(`[MainGen] falha total (MAIN + rollback): ${err.message} — caindo no fluxo legado`);
+      // se o adapter falhar por completo, segue pro loop legado abaixo
+    }
+  }
+
+  // Demais intents (coach/ousadia/outcome/one_liner) e fallback: Haiku direto → Gemini
   const modelos = [config.model, HAIKU_FALLBACK].filter(Boolean);
   for (let i = 0; i < modelos.length; i++) {
     const model = modelos[i];
