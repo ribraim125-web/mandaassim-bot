@@ -321,6 +321,7 @@ async function analisarPerfilComHaiku(base64Data, mimeType, phone = '') {
     cacheWriteTokens,
     latencyMs,
     responseLengthChars: rawText.length,
+    responseText: rawText || null,
   });
 
   // Salva análise (sem imagem)

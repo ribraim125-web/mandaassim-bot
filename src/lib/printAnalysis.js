@@ -318,6 +318,7 @@ async function analisarPrintConversaComHaiku(base64Data, mimeType, phone = '') {
     cacheWriteTokens,
     latencyMs,
     responseLengthChars: rawText.length,
+    responseText: rawText || null,
   });
 
   // Salva análise no Supabase (sem a imagem)

@@ -430,6 +430,7 @@ async function analisarDebriefComHaiku(answers, phone = '') {
     targetModel: 'claude-haiku-4-5-20251001', modelActuallyUsed: 'claude-haiku-4-5-20251001',
     tierAtRequest: 'full', inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens,
     latencyMs, responseLengthChars: response.content[0]?.text?.length || 0,
+    responseText: response.content[0]?.text || null,
   });
 
   const rawText = response.content[0]?.text || '';

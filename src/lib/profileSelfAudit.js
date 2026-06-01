@@ -309,6 +309,7 @@ async function auditarPerfilProprio(base64Data, mimeType, phone = '') {
     cacheWriteTokens,
     latencyMs,
     responseLengthChars: rawText.length,
+    responseText: rawText || null,
   });
 
   // Salva auditoria (sem imagem)

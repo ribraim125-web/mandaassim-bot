@@ -125,6 +125,7 @@ async function logApiRequest(params) {
       estimated_cost_brl:         cost ? parseFloat(cost.brl.toFixed(4)) : null,
       latency_ms:                 params.latencyMs              || null,
       response_length_chars:      params.responseLengthChars    || null,
+      response_text:              params.responseText ? params.responseText.slice(0, 8000) : null,
       user_message_length_chars:  params.userMessageLengthChars || null,
       conversation_turn_number:   params.conversationTurnNumber || null,
       error:                      params.error                  || null,

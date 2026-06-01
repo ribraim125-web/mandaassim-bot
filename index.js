@@ -1925,6 +1925,7 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
       outputTokens: usage?.completion_tokens || null,
       latencyMs: Date.now() - t0,
       responseLengthChars: responseText ? responseText.length : null,
+      responseText: responseText || null,
       error: trackingError,
     });
   }
@@ -2026,6 +2027,7 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
       inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens,
       latencyMs: Date.now() - t0,
       responseLengthChars: text ? text.length : null,
+      responseText: text || null,
       userMessageLengthChars: situacao.length,
     });
 
