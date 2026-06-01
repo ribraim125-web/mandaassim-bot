@@ -10,6 +10,7 @@
  */
 
 const OpenAI = require('openai');
+const MODELS = require('../config/models');
 
 let _openrouter = null;
 function getOpenRouter() {
@@ -47,7 +48,7 @@ async function classificarTipoImagem(base64Data, mimeType) {
   try {
     const openrouter = getOpenRouter();
     const response = await openrouter.chat.completions.create({
-      model: 'google/gemini-2.0-flash-lite-001',
+      model: MODELS.IMAGE_CLASSIFIER_MODEL,
       max_tokens: 5,
       temperature: 0,
       messages: [
@@ -115,7 +116,7 @@ async function classificarPerfilSelfVsOther(base64Data, mimeType) {
   try {
     const openrouter = getOpenRouter();
     const response = await openrouter.chat.completions.create({
-      model: 'google/gemini-2.0-flash-lite-001',
+      model: MODELS.IMAGE_CLASSIFIER_MODEL,
       max_tokens: 5,
       temperature: 0,
       messages: [{

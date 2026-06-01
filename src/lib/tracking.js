@@ -13,17 +13,9 @@ const USD_TO_BRL = parseFloat(process.env.USD_TO_BRL || '5.50');
 // Preços por 1M de tokens (USD)
 // Fontes: openrouter.ai/models e console.anthropic.com/settings/billing
 const MODEL_PRICES = {
-  'google/gemini-2.0-flash-lite-001': {
+  'google/gemini-2.5-flash-lite': {
     inputPer1M:  0.075,
     outputPer1M: 0.30,
-  },
-  'google/gemini-2.0-flash-001': {
-    inputPer1M:  0.10,   // TODO: confirmar em openrouter.ai — user especificou $0.30 mas docs mostram $0.10
-    outputPer1M: 0.40,   // TODO: confirmar — user especificou $2.50 mas docs mostram $0.40
-  },
-  'google/gemini-2.0-flash': {
-    inputPer1M:  0.10,
-    outputPer1M: 0.40,
   },
   'anthropic/claude-haiku-4-5-20251001': {
     inputPer1M:       1.00,

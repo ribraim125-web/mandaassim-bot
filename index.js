@@ -39,6 +39,7 @@ const { getMessage: getFollowupMessage } = require('./src/followup/followupMessa
 const { logApiRequest } = require('./src/lib/tracking');
 const { validateResponseArray, logViolations } = require('./src/lib/messageFormatValidator');
 const { canUseFeature, incrementFeatureUsage, getDailyUsage } = require('./src/config/features');
+const MODELS = require('./src/config/models');
 const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
 const { analisarPrintConversaComHaiku } = require('./src/lib/printAnalysis');
 const { checkPrintLimit, incrementPrintCount, setPrintLastTime } = require('./src/lib/printLimits');
@@ -360,7 +361,7 @@ const openrouter = new OpenAI({
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Modelo para análise de imagens via visão nativa (OpenRouter)
-const IMAGE_ANALYSIS_MODEL = 'google/gemini-2.0-flash-001';
+const IMAGE_ANALYSIS_MODEL = MODELS.VISION_LEGACY_MODEL;
 const IMAGE_MAX_TOKENS = 1024;
 
 const SYSTEM_PROMPT = `<role>
@@ -1361,8 +1362,8 @@ Disparar safety_block quando:
 </examples>`;
 
 // Todos os intents roteiam para Haiku 4.5 diretamente — sem degradação por tier
-const HAIKU_MODEL = 'anthropic/claude-haiku-4-5-20251001';
-const HAIKU_FALLBACK = 'google/gemini-2.0-flash-001';
+const HAIKU_MODEL = MODELS.MAIN_MODEL_ROUTED;
+const HAIKU_FALLBACK = MODELS.FALLBACK_MODEL;
 
 const INTENT_MODEL_CONFIG = {
   one_liner: { model: HAIKU_MODEL, maxTokens: 200,  temperature: 0.90, systemType: 'minimal'  },
@@ -1414,7 +1415,7 @@ async function retryWithBackoff(fn) {
 async function classificarIntent(situacao) {
   try {
     const response = await retryWithBackoff(() => openrouter.chat.completions.create({
-      model: 'google/gemini-2.0-flash-001',
+      model: MODELS.CLASSIFIER_MODEL,
       max_tokens: 100,
       temperature: 0,
       messages: [
@@ -2034,7 +2035,7 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
       console.error(`[Roteamento] Falha em ${model}:`, err.message);
       logApiRequest({
         phone, intent,
-        intentClassifierModel: 'google/gemini-2.0-flash-001',
+        intentClassifierModel: MODELS.CLASSIFIER_MODEL,
         targetModel: config.model, modelActuallyUsed: model,
         fallbackTriggered: isFallback, fallbackReason: isFallback ? 'model_error' : null,
         latencyMs: Date.now() - t0, userMessageLengthChars: situacao.length, error: trackingError,
@@ -2045,7 +2046,7 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
 
     logApiRequest({
       phone, intent,
-      intentClassifierModel: 'google/gemini-2.0-flash-001',
+      intentClassifierModel: MODELS.CLASSIFIER_MODEL,
       targetModel: config.model, modelActuallyUsed: model,
       fallbackTriggered: isFallback, fallbackReason: isFallback ? 'model_error' : null,
       inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens,
@@ -2502,7 +2503,7 @@ async function gerarPerguntaContexto(situacaoOriginal, qa = []) {
     : '';
   try {
     const response = await openrouter.chat.completions.create({
-      model: 'google/gemini-2.0-flash-lite-001',
+      model: MODELS.UTILITY_MODEL,
       max_tokens: 80,
       temperature: 0.7,
       messages: [
@@ -2533,7 +2534,7 @@ async function precisaDeMaisContexto(situacaoOriginal, qa) {
   try {
     const historico = qa.map(({ q, a }) => `P: "${q}" → R: "${a}"`).join('\n');
     const response = await openrouter.chat.completions.create({
-      model: 'google/gemini-2.0-flash-lite-001',
+      model: MODELS.UTILITY_MODEL,
       max_tokens: 10,
       temperature: 0,
       messages: [{
@@ -2658,7 +2659,7 @@ _[uma linha: por que essa abordagem funciona pra esse perfil específico]_`;
 
 async function transcreverAudio(base64Data, mimetype) {
   const response = await openrouter.chat.completions.create({
-    model: 'google/gemini-2.0-flash-lite-001',
+    model: MODELS.AUDIO_MODEL,
     max_tokens: 800,
     temperature: 0,
     messages: [{

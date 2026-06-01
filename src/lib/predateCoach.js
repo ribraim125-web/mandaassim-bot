@@ -13,6 +13,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 const { logApiRequest } = require('./tracking');
+const MODELS = require('../config/models');
 
 // ── Preços Haiku 4.5 ─────────────────────────────────────────────────────────
 const PRICES = { input: 1.00, output: 5.00, cache_write: 1.25, cache_read: 0.10 };
@@ -115,7 +116,7 @@ async function parsearDataEncontro(texto) {
       baseURL: 'https://openrouter.ai/api/v1',
     });
     const resp = await openrouter.chat.completions.create({
-      model: 'google/gemini-2.0-flash-lite-001',
+      model: MODELS.DATE_PARSE_MODEL,
       max_tokens: 30,
       temperature: 0,
       messages: [{
