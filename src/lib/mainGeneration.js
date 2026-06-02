@@ -1,30 +1,30 @@
 /**
- * mainGeneration.js — adapter da geração principal (Tom Certo).
+ * mainGeneration.js — adapter da geração de TODOS os intents de texto.
  *
- * Abstrai o provedor: o resto do código chama `gerarRespostaPrincipal()` e recebe
- * o texto final montado, SEM saber se rodou no GPT-5 mini (OpenRouter) ou no
- * Haiku (Anthropic).
+ * Roda 100% via OpenRouter (ZERO Anthropic na geração de texto):
+ *  - MAIN_MODEL = 'openai/gpt-5-mini' (primário)
+ *  - fallback automático = MAIN_MODEL_ROLLBACK = 'google/gemini-2.5-flash-lite'
  *
- *  - MODELS.MAIN_MODEL = 'openai/gpt-5-mini'  → SDK OpenAI / baseURL OpenRouter,
- *    structured output via response_format json_schema ESTRITO. Cache de prompt
- *    da OpenAI é automático (prompts grandes), reportado em prompt_tokens_details.
- *  - MODELS.MAIN_MODEL anthropic/claude... → SDK Anthropic, tool use forçado +
- *    prompt caching ephemeral.
+ * Dois modos (param `structured`):
+ *  - structured=true  (volume/premium): response_format json_schema ESTRITO com
+ *    3 opções {tom, mensagem}. Os separadores 🎯/🌹/... são montados NO CÓDIGO
+ *    (montarRespostaEstruturada) — nunca pedimos formato em texto livre.
+ *  - structured=false (coaching/ousadia/outcome/one_liner): texto livre com o
+ *    prompt ORIGINAL intacto; o formato nativo do intent é renderizado no
+ *    enviarResposta (splitByDashes / parsearOpcoes / etc.).
  *
- * O FORMATO é montado NO CÓDIGO a partir do JSON (montarRespostaEstruturada) —
- * nunca pedimos separadores em texto livre. Saída visual idêntica à atual.
- *
- * Rollback: setar MAIN_MODEL='claude-haiku-4-5-20251001' no .env (sem deploy).
+ * Cache de prompt da OpenAI é automático (prompts grandes), em prompt_tokens_details.
+ * Rollback manual: setar MAIN_MODEL no .env (sem deploy).
  */
 
 const OpenAI = require('openai');
-const Anthropic = require('@anthropic-ai/sdk');
 const MODELS = require('../config/models');
 const { estimateCost } = require('./tracking');
 const { aplicarFormatoEstruturado } = require('../../prompts/structuredFormat');
 
-// Clientes próprios (lazy) — mantém o adapter independente do index.js.
-let _openrouter = null, _anthropic = null;
+// Cliente OpenRouter (lazy). Geração de texto roda 100% via OpenRouter
+// (GPT-5 mini + fallback Gemini) — zero Anthropic aqui.
+let _openrouter = null;
 function openrouter() {
   if (!_openrouter) {
     _openrouter = new OpenAI({
@@ -35,18 +35,14 @@ function openrouter() {
   }
   return _openrouter;
 }
-function anthropic() {
-  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  return _anthropic;
-}
 
 // Tom → emoji (bate com TONE_EMOJI_RE / splitByToneBlocks do index.js).
 const TONE_EMOJI = {
   'DIRETO': '🎯', 'ROMÂNTICO': '🌹', 'BRINCALHÃO': '😏', 'MISTERIOSO': '💭', 'CONFIANTE': '👑',
 };
 
-// Schema ÚNICO, neutro de provedor (serve tanto pro tool use Anthropic quanto
-// pro json_schema estrito da OpenAI). Espelha os blocos reais do Tom Certo.
+// Schema do json_schema estrito (OpenRouter/OpenAI) pro modo structured.
+// Espelha os blocos reais do Tom Certo (3 opções tom+mensagem).
 const RESPONSE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -77,8 +73,6 @@ const RESPONSE_SCHEMA = {
   required: ['opcoes'],
 };
 
-const TOOL_NAME = 'entregar_resposta';
-
 /**
  * Monta o texto final no formato exato que splitByToneBlocks já lê (header +
  * mensagem, blocos separados por linha em branco). Como é o código que monta,
@@ -98,80 +92,64 @@ function montarRespostaEstruturada(input) {
   return segs.join('\n\n');
 }
 
-function isAnthropicModel(model) {
-  return model.startsWith('anthropic/') || model.startsWith('claude');
-}
-
 function opcoesValidas(input) {
   return !!(input && Array.isArray(input.opcoes) && input.opcoes.length);
 }
 
-// Chama um modelo específico e devolve { text, malformed, usage }.
-async function chamarModelo(model, { systemPrompt, userContent, maxTokens, temperature }) {
-  // [P1] Caminho ESTRUTURADO (vale pra QUALQUER modelo aqui — GPT-5 mini ou Haiku
-  // no rollback): troca a instrução velha de "imprima 🎯/⎯⎯⎯" pela nota de formato
-  // estruturado, pra nenhum modelo enfiar emoji/header dentro do campo `mensagem`.
-  const sys = aplicarFormatoEstruturado(systemPrompt);
+// Chama um modelo via OpenRouter (zero Anthropic na geração de texto).
+//   structured=true  → json_schema estrito (3 opções) + [P1]; o código monta os
+//                       separadores. Pra volume/premium (Tom Certo).
+//   structured=false → texto livre, prompt ORIGINAL intacto (sem [P1]); o
+//                       enviarResposta renderiza o formato nativo do intent.
+async function chamarModelo(model, { systemPrompt, userContent, maxTokens, temperature, structured }) {
+  // [P1] só no caminho estruturado — em texto livre o output_format original
+  // de cada intent (---, 🔥/😏/⚡, etc.) precisa ficar intacto.
+  const sys = structured ? aplicarFormatoEstruturado(systemPrompt) : systemPrompt;
 
-  if (isAnthropicModel(model)) {
-    const modelId = model.replace('anthropic/', '');
-    const msg = await anthropic().messages.create({
-      model: modelId,
-      max_tokens: maxTokens,
-      system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }],
-      tools: [{ name: TOOL_NAME, description: 'Entrega a resposta do MandaAssim de forma estruturada.', input_schema: RESPONSE_SCHEMA }],
-      tool_choice: { type: 'tool', name: TOOL_NAME },
-      messages: [{ role: 'user', content: userContent }],
-    });
-    const toolUse = msg.content.find(b => b.type === 'tool_use');
-    const malformed = !opcoesValidas(toolUse?.input);
-    return {
-      text: malformed
-        ? (msg.content.find(b => b.type === 'text')?.text || '')
-        : montarRespostaEstruturada(toolUse.input),
-      malformed,
-      modelUsed: modelId,
-      usage: {
-        inputTokens:      msg.usage?.input_tokens                || 0,
-        outputTokens:     msg.usage?.output_tokens               || 0,
-        cacheReadTokens:  msg.usage?.cache_read_input_tokens     || 0,
-        cacheWriteTokens: msg.usage?.cache_creation_input_tokens || 0,
-      },
-    };
-  }
-
-  // OpenRouter (GPT-5 mini e compatíveis) — json_schema estrito.
-  const resp = await openrouter().chat.completions.create({
+  const req = {
     model,
     max_tokens: maxTokens,
     temperature,
-    response_format: {
-      type: 'json_schema',
-      json_schema: { name: 'tom_certo', strict: true, schema: RESPONSE_SCHEMA },
-    },
     messages: [
       { role: 'system', content: sys },
       { role: 'user', content: userContent },
     ],
-  });
+  };
+  if (structured) {
+    req.response_format = {
+      type: 'json_schema',
+      json_schema: { name: 'tom_certo', strict: true, schema: RESPONSE_SCHEMA },
+    };
+  }
+
+  const resp = await openrouter().chat.completions.create(req);
   const raw = resp.choices[0]?.message?.content || '';
+  const u = resp.usage || {};
+  const cached = u.prompt_tokens_details?.cached_tokens || 0;
+  const usage = {
+    // estimateCost soma input cheio + cacheRead à parte; pra OpenAI o
+    // prompt_tokens já inclui o cache, então subtraímos pra não duplicar.
+    inputTokens:      Math.max(0, (u.prompt_tokens || 0) - cached),
+    outputTokens:     u.completion_tokens || 0,
+    cacheReadTokens:  cached,
+    cacheWriteTokens: 0,
+  };
+
+  if (!structured) {
+    // Texto livre: devolve cru. "malformado" não se aplica (formato nativo é
+    // validado/renderizado no enviarResposta).
+    return { text: raw || 'Não consegui gerar respostas. Tente descrever melhor a situação.', malformed: false, modelUsed: model, usage };
+  }
+
+  // Estruturado: parseia o JSON e monta os blocos no código.
   let input = null;
   try { input = JSON.parse(raw); } catch (_) { /* malformado */ }
   const malformed = !opcoesValidas(input);
-  const u = resp.usage || {};
-  const cached = u.prompt_tokens_details?.cached_tokens || 0;
   return {
     text: malformed ? raw : montarRespostaEstruturada(input),
     malformed,
     modelUsed: model,
-    usage: {
-      // estimateCost soma input cheio + cacheRead à parte; pra OpenAI o
-      // prompt_tokens já inclui o cache, então subtraímos pra não duplicar.
-      inputTokens:      Math.max(0, (u.prompt_tokens || 0) - cached),
-      outputTokens:     u.completion_tokens || 0,
-      cacheReadTokens:  cached,
-      cacheWriteTokens: 0,
-    },
+    usage,
   };
 }
 
@@ -179,22 +157,23 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
 let _total = 0, _malformed = 0;
 
 /**
- * Gera a resposta principal do Tom Certo. Tenta MAIN_MODEL; se falhar, faz
- * rollback automático pro MAIN_MODEL_ROLLBACK (Haiku). Loga modelo, taxa de
- * malformado, latência, tokens e custo.
+ * Gera a resposta de um intent de texto. Tenta MAIN_MODEL (GPT-5 mini); se
+ * falhar, fallback automático pro MAIN_MODEL_ROLLBACK (Gemini 2.5 Flash-Lite).
+ * Zero Anthropic. `structured` decide schema de 3 opções vs texto livre.
  *
  * @returns {Promise<{ text, malformed, modelUsed, usage, latencyMs, fallbackTriggered, cost, error }>}
  */
-async function gerarRespostaPrincipal({ systemPrompt, userContent, maxTokens = 900, temperature = 0.85, intent = 'volume' }) {
+async function gerarRespostaPrincipal({ systemPrompt, userContent, maxTokens = 900, temperature = 0.85, intent = 'volume', structured = false }) {
   const t0 = Date.now();
+  const opts = { systemPrompt, userContent, maxTokens, temperature, structured };
   let r, fallbackTriggered = false, error = null;
   try {
-    r = await chamarModelo(MODELS.MAIN_MODEL, { systemPrompt, userContent, maxTokens, temperature });
+    r = await chamarModelo(MODELS.MAIN_MODEL, opts);
   } catch (e) {
     error = e.message;
     fallbackTriggered = true;
-    console.error(`[MainGen] ${MODELS.MAIN_MODEL} falhou (${e.message}) — rollback pro ${MODELS.MAIN_MODEL_ROLLBACK}`);
-    r = await chamarModelo(MODELS.MAIN_MODEL_ROLLBACK, { systemPrompt, userContent, maxTokens, temperature });
+    console.error(`[MainGen] ${MODELS.MAIN_MODEL} falhou (${e.message}) — fallback pro ${MODELS.MAIN_MODEL_ROLLBACK}`);
+    r = await chamarModelo(MODELS.MAIN_MODEL_ROLLBACK, opts);
   }
 
   const latencyMs = Date.now() - t0;
@@ -204,7 +183,7 @@ async function gerarRespostaPrincipal({ systemPrompt, userContent, maxTokens = 9
   const cost = estimateCost(r.modelUsed, r.usage.inputTokens, r.usage.outputTokens, r.usage.cacheReadTokens, r.usage.cacheWriteTokens);
 
   console.log(
-    `[MainGen] model:${r.modelUsed}${fallbackTriggered ? ' (rollback)' : ''} | intent:${intent} | ` +
+    `[MainGen] model:${r.modelUsed}${fallbackTriggered ? ' (fallback)' : ''} | intent:${intent} [${structured ? 'structured' : 'livre'}] | ` +
     `malformado:${r.malformed ? 'SIM' : 'nao'} (${_malformed}/${_total} = ${pct}%) | ${latencyMs}ms | ` +
     `in:${r.usage.inputTokens} cache_read:${r.usage.cacheReadTokens} out:${r.usage.outputTokens} | ` +
     `$${cost ? cost.usd.toFixed(5) : '?'}`

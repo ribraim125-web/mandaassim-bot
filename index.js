@@ -1362,17 +1362,16 @@ Disparar safety_block quando:
 </example>
 </examples>`;
 
-// Todos os intents roteiam para Haiku 4.5 diretamente — sem degradação por tier
-const HAIKU_MODEL = MODELS.HAIKU_MODEL_ROUTED;
-const HAIKU_FALLBACK = MODELS.FALLBACK_MODEL;
-
+// Todos os intents de TEXTO geram via adapter (MAIN_MODEL=GPT-5 mini, fallback
+// Gemini 2.5). `structured: true` = schema de 3 opções (volume/premium); os
+// demais usam texto livre, preservando o formato nativo de cada systemType.
 const INTENT_MODEL_CONFIG = {
-  one_liner: { model: HAIKU_MODEL, maxTokens: 200,  temperature: 0.90, systemType: 'minimal'  },
-  volume:    { model: HAIKU_MODEL, maxTokens: 900,  temperature: 0.85, systemType: 'full'     },
-  premium:   { model: HAIKU_MODEL, maxTokens: 900,  temperature: 0.80, systemType: 'full'     },
-  coaching:  { model: HAIKU_MODEL, maxTokens: 900,  temperature: 0.75, systemType: 'coach'    },
-  ousadia:   { model: HAIKU_MODEL, maxTokens: 500,  temperature: 0.95, systemType: 'ousadia'  },
-  outcome:   { model: HAIKU_MODEL, maxTokens: 500,  temperature: 0.80, systemType: 'outcome'  },
+  one_liner: { maxTokens: 200,  temperature: 0.90, systemType: 'minimal',  structured: false },
+  volume:    { maxTokens: 900,  temperature: 0.85, systemType: 'full',     structured: true  },
+  premium:   { maxTokens: 900,  temperature: 0.80, systemType: 'full',     structured: true  },
+  coaching:  { maxTokens: 900,  temperature: 0.75, systemType: 'coach',    structured: false },
+  ousadia:   { maxTokens: 500,  temperature: 0.95, systemType: 'ousadia',  structured: false },
+  outcome:   { maxTokens: 500,  temperature: 0.80, systemType: 'outcome',  structured: false },
 };
 
 
@@ -1993,7 +1992,7 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
 
   const config = INTENT_MODEL_CONFIG[intent] || INTENT_MODEL_CONFIG['premium'];
   const systemPrompt = getSystemPrompt(config.systemType, girlContext);
-  console.log(`[Roteamento] intent:${intent} (confidence:${classConfidence}) → ${config.model}`);
+  console.log(`[Roteamento] intent:${intent} (confidence:${classConfidence}) → ${MODELS.MAIN_MODEL} [${config.structured ? 'structured' : 'livre'}]`);
 
   // Histórico recente da sessão (sliding window)
   const ctx = userContext.get(phone);
@@ -2005,104 +2004,38 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
 
   const userContent = `${prefixo}${historicoStr}\n\nSituação atual: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
 
-  // Tom Certo (systemType 'full') → adapter de geração principal (MAIN_MODEL +
-  // structured output + rollback automático). O index não sabe qual provedor roda.
-  if (config.systemType === 'full') {
-    try {
-      const r = await gerarRespostaPrincipal({
-        systemPrompt, userContent,
-        maxTokens: config.maxTokens, temperature: config.temperature, intent,
-      });
-      logApiRequest({
-        phone, intent,
-        intentClassifierModel: MODELS.CLASSIFIER_MODEL,
-        targetModel: MODELS.MAIN_MODEL, modelActuallyUsed: r.modelUsed,
-        fallbackTriggered: r.fallbackTriggered, fallbackReason: r.fallbackTriggered ? 'model_error' : null,
-        inputTokens: r.usage.inputTokens, outputTokens: r.usage.outputTokens,
-        cacheReadTokens: r.usage.cacheReadTokens, cacheWriteTokens: r.usage.cacheWriteTokens,
-        latencyMs: r.latencyMs, responseLengthChars: r.text ? r.text.length : null,
-        responseText: r.text || null, userMessageLengthChars: situacao.length,
-        error: r.error,
-      });
-      return { text: r.text, intent };
-    } catch (err) {
-      console.error(`[MainGen] falha total (MAIN + rollback): ${err.message} — caindo no fluxo legado`);
-      // se o adapter falhar por completo, segue pro loop legado abaixo
-    }
-  }
-
-  // Demais intents (coach/ousadia/outcome/one_liner) e fallback: Haiku direto → Gemini
-  const modelos = [config.model, HAIKU_FALLBACK].filter(Boolean);
-  for (let i = 0; i < modelos.length; i++) {
-    const model = modelos[i];
-    const isFallback = i > 0;
-    const t0 = Date.now();
-    let text = null;
-    let trackingError = null;
-    let inputTokens = null, outputTokens = null, cacheReadTokens = null, cacheWriteTokens = null;
-
-    try {
-      if (model.startsWith('anthropic/') && process.env.ANTHROPIC_API_KEY) {
-        const modelId = model.replace('anthropic/', '');
-        const msg = await retryWithBackoff(() => anthropic.messages.create({
-          model: modelId,
-          max_tokens: config.maxTokens,
-          system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: userContent }],
-        }));
-        text = msg.content[0]?.text || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
-        inputTokens      = msg.usage?.input_tokens                || null;
-        outputTokens     = msg.usage?.output_tokens               || null;
-        cacheReadTokens  = msg.usage?.cache_read_input_tokens     || null;
-        cacheWriteTokens = msg.usage?.cache_creation_input_tokens || null;
-        console.log(`[Haiku] ${modelId} | cache_read:${cacheReadTokens || 0} cache_write:${cacheWriteTokens || 0} out:${outputTokens}`);
-        if (msg.stop_reason === 'max_tokens') {
-          console.warn(`[Truncamento] ${modelId} atingiu max_tokens=${config.maxTokens} | intent:${intent} | phone:${phone}`);
-        }
-      } else {
-        const response = await retryWithBackoff(() => openrouter.chat.completions.create({
-          model,
-          max_tokens: config.maxTokens,
-          temperature: config.temperature,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user',   content: userContent },
-          ],
-        }));
-        text = response.choices[0]?.message?.content || 'Não consegui gerar respostas. Tente descrever melhor a situação.';
-        inputTokens  = response.usage?.prompt_tokens     || null;
-        outputTokens = response.usage?.completion_tokens || null;
-        if (response.choices[0]?.finish_reason === 'length') {
-          console.warn(`[Truncamento] ${model} atingiu max_tokens=${config.maxTokens} | intent:${intent} | phone:${phone}`);
-        }
-      }
-    } catch (err) {
-      trackingError = err.message;
-      console.error(`[Roteamento] Falha em ${model}:`, err.message);
-      logApiRequest({
-        phone, intent,
-        intentClassifierModel: MODELS.CLASSIFIER_MODEL,
-        targetModel: config.model, modelActuallyUsed: model,
-        fallbackTriggered: isFallback, fallbackReason: isFallback ? 'model_error' : null,
-        latencyMs: Date.now() - t0, userMessageLengthChars: situacao.length, error: trackingError,
-      });
-      if (model === modelos[modelos.length - 1]) throw err;
-      continue;
-    }
-
+  // Geração de texto — TODOS os intents via adapter: GPT-5 mini (MAIN_MODEL) com
+  // fallback automático Gemini 2.5 Flash-Lite. Zero Anthropic/Haiku aqui.
+  // `structured` = schema de 3 opções (volume/premium); demais = texto livre,
+  // preservando o formato nativo de cada systemType (renderizado no enviarResposta).
+  try {
+    const r = await gerarRespostaPrincipal({
+      systemPrompt, userContent,
+      maxTokens: config.maxTokens, temperature: config.temperature,
+      intent, structured: config.structured,
+    });
     logApiRequest({
       phone, intent,
       intentClassifierModel: MODELS.CLASSIFIER_MODEL,
-      targetModel: config.model, modelActuallyUsed: model,
-      fallbackTriggered: isFallback, fallbackReason: isFallback ? 'model_error' : null,
-      inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens,
-      latencyMs: Date.now() - t0,
-      responseLengthChars: text ? text.length : null,
-      responseText: text || null,
-      userMessageLengthChars: situacao.length,
+      targetModel: MODELS.MAIN_MODEL, modelActuallyUsed: r.modelUsed,
+      fallbackTriggered: r.fallbackTriggered, fallbackReason: r.fallbackTriggered ? 'model_error' : null,
+      inputTokens: r.usage.inputTokens, outputTokens: r.usage.outputTokens,
+      cacheReadTokens: r.usage.cacheReadTokens, cacheWriteTokens: r.usage.cacheWriteTokens,
+      latencyMs: r.latencyMs, responseLengthChars: r.text ? r.text.length : null,
+      responseText: r.text || null, userMessageLengthChars: situacao.length,
+      error: r.error,
     });
-
-    return { text, intent };
+    return { text: r.text, intent };
+  } catch (err) {
+    // MAIN (GPT-5 mini) e fallback (Gemini) caíram — sem caminho legado. Resposta graciosa.
+    console.error(`[MainGen] falha total (GPT-5 mini + Gemini): ${err.message}`);
+    logApiRequest({
+      phone, intent,
+      intentClassifierModel: MODELS.CLASSIFIER_MODEL,
+      targetModel: MODELS.MAIN_MODEL, modelActuallyUsed: null,
+      error: err.message, userMessageLengthChars: situacao.length,
+    });
+    return { text: 'travei aqui. manda de novo em 1 minuto', intent };
   }
 }
 
