@@ -2708,7 +2708,9 @@ function flushMessageBuffer(chatId) {
 }
 
 // Listener real: bufferiza texto, processa mídia/comandos na hora.
-client.on('message', (message) => {
+// IMPORTANTE: só a função aqui — o registro client.on('message', ...) acontece
+// DEPOIS de `const client = new Client(...)`, pra evitar TDZ no top-level do módulo.
+function onMensagemRecebida(message) {
   try {
     // Filtros baratos — não bufferiza o que nunca seria processado
     if (message.isGroupMsg) return;
@@ -2743,7 +2745,7 @@ client.on('message', (message) => {
   } catch (err) {
     console.error('[Debounce] erro no listener:', err.message);
   }
-});
+}
 
 const SAUDACOES = new Set(['oi', 'olá', 'ola', 'hey', 'e aí', 'eai', 'opa', 'oie', 'hi']);
 
@@ -2900,6 +2902,9 @@ const client = new Client({
     ],
   },
 });
+
+// Registra o listener de mensagens DEPOIS da declaração de `client` (evita o TDZ).
+client.on('message', onMensagemRecebida);
 
 client.on('qr', (qr) => {
   console.log('\n[Bot] Escaneie o QR Code abaixo com o WhatsApp:\n');
