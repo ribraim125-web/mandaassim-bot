@@ -24,6 +24,13 @@ const { aplicarFormatoEstruturado } = require('../../prompts/structuredFormat');
 
 // Cliente OpenRouter (lazy). Geração de texto roda 100% via OpenRouter
 // (GPT-5 mini + fallback Gemini) — zero Anthropic aqui.
+// Timeout por request da geração (rede de segurança): se o MAIN travar, falha
+// rápido e cai no fallback Gemini em vez de pendurar a resposta do usuário.
+const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS) || 30000;
+// Esforço de raciocínio do GPT-5 mini. 'minimal' = baixa latência (default).
+// Tunável sem deploy: subir pra 'low'/'medium' se algum intent perder qualidade.
+const REASONING_EFFORT = process.env.GEN_REASONING_EFFORT || 'minimal';
+
 let _openrouter = null;
 function openrouter() {
   if (!_openrouter) {
@@ -110,6 +117,10 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
     model,
     max_tokens: maxTokens,
     temperature,
+    // GPT-5 mini é modelo de raciocínio — sem isto ele "pensa" por default e
+    // estoura a latência (~22s). 'minimal' = baixa latência, ideal pra WhatsApp.
+    // Param unificado do OpenRouter (mapeia pro reasoning_effort nativo do GPT-5).
+    reasoning: { effort: REASONING_EFFORT },
     messages: [
       { role: 'system', content: sys },
       { role: 'user', content: userContent },
@@ -122,7 +133,7 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
     };
   }
 
-  const resp = await openrouter().chat.completions.create(req);
+  const resp = await openrouter().chat.completions.create(req, { timeout: GEN_TIMEOUT_MS });
   const raw = resp.choices[0]?.message?.content || '';
   const u = resp.usage || {};
   const cached = u.prompt_tokens_details?.cached_tokens || 0;
