@@ -30,6 +30,8 @@ const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS) || 30000;
 // Esforço de raciocínio do GPT-5 mini. 'minimal' = baixa latência (default).
 // Tunável sem deploy: subir pra 'low'/'medium' se algum intent perder qualidade.
 const REASONING_EFFORT = process.env.GEN_REASONING_EFFORT || 'minimal';
+// Verbosity do GPT-5 — controla o tamanho da resposta. 'low' = curto (WhatsApp).
+const VERBOSITY = process.env.GEN_VERBOSITY || 'low';
 
 let _openrouter = null;
 function openrouter() {
@@ -121,6 +123,8 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
     // estoura a latência (~22s). 'minimal' = baixa latência, ideal pra WhatsApp.
     // Param unificado do OpenRouter (mapeia pro reasoning_effort nativo do GPT-5).
     reasoning: { effort: REASONING_EFFORT },
+    // Verbosity do GPT-5 — 'low' = respostas curtas (ideal pra WhatsApp).
+    verbosity: VERBOSITY,
     messages: [
       { role: 'system', content: sys },
       { role: 'user', content: userContent },

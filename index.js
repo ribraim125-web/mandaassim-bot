@@ -1366,12 +1366,12 @@ Disparar safety_block quando:
 // Gemini 2.5). `structured: true` = schema de 3 opções (volume/premium); os
 // demais usam texto livre, preservando o formato nativo de cada systemType.
 const INTENT_MODEL_CONFIG = {
-  one_liner: { maxTokens: 200,  temperature: 0.90, systemType: 'minimal',  structured: false },
-  volume:    { maxTokens: 900,  temperature: 0.85, systemType: 'full',     structured: true  },
-  premium:   { maxTokens: 900,  temperature: 0.80, systemType: 'full',     structured: true  },
-  coaching:  { maxTokens: 900,  temperature: 0.75, systemType: 'coach',    structured: false },
-  ousadia:   { maxTokens: 500,  temperature: 0.95, systemType: 'ousadia',  structured: false },
-  outcome:   { maxTokens: 500,  temperature: 0.80, systemType: 'outcome',  structured: false },
+  one_liner: { maxTokens: 120, temperature: 0.90, systemType: 'minimal',  structured: false },
+  volume:    { maxTokens: 400, temperature: 0.85, systemType: 'full',     structured: true  },
+  premium:   { maxTokens: 400, temperature: 0.80, systemType: 'full',     structured: true  },
+  coaching:  { maxTokens: 300, temperature: 0.75, systemType: 'coach',    structured: false },
+  ousadia:   { maxTokens: 200, temperature: 0.95, systemType: 'ousadia',  structured: false },
+  outcome:   { maxTokens: 250, temperature: 0.80, systemType: 'outcome',  structured: false },
 };
 
 
@@ -1509,12 +1509,23 @@ ZERO coach speak
 Tom: irmão mais velho que viveu isso também
 </rules>`;
 
+// Regra de brevidade pro WhatsApp — anexada aos prompts longos. NÃO altera voz,
+// personalidade nem safety; só força resposta curta. (one_liner já é ≤5 palavras.)
+const BREVITY_RULE = `
+
+<brevidade_whatsapp>
+REGRA DE TAMANHO (WhatsApp): resposta CURTA e direta — o cara bate o olho e manda. Só o essencial.
+- SEM textão. SEM recap do que ele disse. SEM explicar o "porquê" longo. SEM pergunta no final.
+- Mantém o formato/estrutura, mas com o MÍNIMO de palavras. Corta tudo que não for a jogada em si.
+(Voz, tom, ousadia e regras de segurança continuam exatamente iguais — só mais curto.)
+</brevidade_whatsapp>`;
+
 function getSystemPrompt(systemType, girlContext = '') {
-  if (systemType === 'minimal'  || systemType === 'one_liner') return SYSTEM_PROMPT_MINIMAL;
-  if (systemType === 'ousadia')  return SYSTEM_PROMPT_OUSADIA + girlContext;
-  if (systemType === 'coach')    return SYSTEM_PROMPT_COACH + girlContext;
-  if (systemType === 'outcome')  return SYSTEM_PROMPT_OUTCOME + girlContext;
-  return SYSTEM_PROMPT + girlContext; // full / premium
+  if (systemType === 'minimal'  || systemType === 'one_liner') return SYSTEM_PROMPT_MINIMAL; // já ultra-curto
+  if (systemType === 'ousadia')  return SYSTEM_PROMPT_OUSADIA + girlContext + BREVITY_RULE;
+  if (systemType === 'coach')    return SYSTEM_PROMPT_COACH + girlContext + BREVITY_RULE;
+  if (systemType === 'outcome')  return SYSTEM_PROMPT_OUTCOME + girlContext + BREVITY_RULE;
+  return SYSTEM_PROMPT + girlContext + BREVITY_RULE; // full / premium
 }
 
 function extrairDiagnostico(texto) {
