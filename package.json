@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "smoke": "node scripts/smoke.js",
     "dev": "node --watch index.js",
     "create-slug": "node scripts/create-slug.js",
     "acquisition-report": "node scripts/acquisition-report.js",
