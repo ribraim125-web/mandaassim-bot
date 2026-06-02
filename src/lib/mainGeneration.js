@@ -9,9 +9,8 @@
  *  - structured=true  (volume/premium): response_format json_schema ESTRITO com
  *    3 opções {tom, mensagem}. Os separadores 🎯/🌹/... são montados NO CÓDIGO
  *    (montarRespostaEstruturada) — nunca pedimos formato em texto livre.
- *  - structured=false (coaching/ousadia/outcome/one_liner): texto livre com o
- *    prompt ORIGINAL intacto; o formato nativo do intent é renderizado no
- *    enviarResposta (splitByDashes / parsearOpcoes / etc.).
+ *  - structured=false (coaching): texto livre com o prompt ORIGINAL intacto;
+ *    o formato é renderizado no enviarResposta (splitByDashes / etc.).
  *
  * Cache de prompt da OpenAI é automático (prompts grandes), em prompt_tokens_details.
  * Rollback manual: setar MAIN_MODEL no .env (sem deploy).
