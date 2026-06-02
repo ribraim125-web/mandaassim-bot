@@ -53,9 +53,9 @@ const RESPONSE_SCHEMA = {
   properties: {
     opcoes: {
       type: 'array',
-      minItems: 1,
-      maxItems: 3,
-      description: 'Normalmente 3 opções de mensagem pronta, cada uma com um tom diferente que se encaixe na situação.',
+      // SEM minItems/maxItems: o structured output ESTRITO da OpenAI rejeita essas
+      // keywords (400). O "máx 3" é garantido pela descrição + slice(0,3) no código.
+      description: 'De 1 a 3 opções de mensagem pronta (normalmente 3), cada uma com um tom diferente que se encaixe na situação.',
       items: {
         type: 'object',
         additionalProperties: false,
@@ -85,7 +85,8 @@ const TOOL_NAME = 'entregar_resposta';
  * é SEMPRE válido — saída visual idêntica à atual.
  */
 function montarRespostaEstruturada(input) {
-  const opcoes = Array.isArray(input?.opcoes) ? input.opcoes : [];
+  // máx 3 (garantia em código, já que o schema estrito não pode usar maxItems)
+  const opcoes = (Array.isArray(input?.opcoes) ? input.opcoes : []).slice(0, 3);
   const segs = [];
   for (const o of opcoes) {
     const tom = String(o?.tom || '').toUpperCase();
