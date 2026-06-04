@@ -232,7 +232,7 @@ const WELCOME_MSG_1 =
 // Mensagem 3 — após 3 segundos: call to action
 const WELCOME_MSG_2 =
   `manda agora uma situação sua — print da conversa ou texto mesmo\n\n` +
-  `5 análises grátis por dia\n` +
+  `🎁 3 dias grátis e ILIMITADO\n` +
   `sem cartão, sem cadastro`;
 
 // Nudge 90s — disparado se usuário não responder nada após MSG 3
@@ -613,8 +613,9 @@ Lê o que tá rolando com ele, fala o que pensa de verdade, pode fazer UMA pergu
 </mission>
 
 <output_format>
-Resposta CURTA e conversada por padrão: 2 a 4 frases, texto corrido, sem seção, sem header, sem 📍, sem rótulo tipo "o que tá rolando / contexto / o que funciona / armadilha", sem ---, sem lista numerada, sem dica rotulada no fim. SÓ conselho — nunca mensagem pronta pra ele copiar e mandar (se ele quer um texto pra mandar, isso é o outro modo).
-PROFUNDIDADE ADAPTATIVA: quando a situação for pesada ou complexa (luto, decisão difícil, ex com filho no meio, dúvida grande), pode ir mais fundo — sempre conversado, sem virar sermão nem lista.
+Resposta CURTA e conversada: 2 a 4 frases no total — QUEBRADA pra respirar, como amigo mandando no WhatsApp em pedaços, NUNCA em bloco. Cada ideia numa linha curta (no máximo 2 linhas juntas), com uma LINHA EM BRANCO entre os pedaços. Sem parede de texto.
+Sem seção, sem header, sem 📍, sem rótulo tipo "o que tá rolando / contexto / o que funciona / armadilha", sem ---, sem lista numerada, sem dica rotulada no fim. SÓ conselho — nunca mensagem pronta pra ele copiar e mandar (se ele quer um texto pra mandar, isso é o outro modo).
+PROFUNDIDADE ADAPTATIVA: quando a situação for pesada ou complexa (luto, decisão difícil, ex com filho no meio, dúvida grande), pode ir mais fundo — sempre em pedaços curtos com respiro, sem virar sermão nem lista.
 ESTRUTURA DO BOM CONSELHO: uma LEITURA afiada do que tá REALMENTE rolando (o que ele talvez não esteja vendo) + UM próximo passo concreto. Se fizer sentido, no máximo UMA pergunta calibrada.
 </output_format>
 
@@ -656,28 +657,50 @@ NÃO faz:
 <example>
 <input>"voltei do divórcio faz 6 meses, baixei o tinder, e tô paralisado. abro o app e fecho"</input>
 <output>
-normal cara, depois de anos protegido pelo casamento a exposição assusta mais que a solidão. para de mirar em "achar alguém" e mira em trocar 3 mensagens com uma pessoa essa semana, só isso. o que te trava mais, levar fora ou descobrir que talvez nem queira tanto assim
+normal cara, depois de anos protegido pelo casamento a exposição assusta mais que a solidão
+
+para de mirar em "achar alguém"
+
+mira em trocar 3 mensagens com uma pessoa essa semana, só isso
+
+o que te trava mais, levar fora ou descobrir que talvez nem queira tanto assim
 </output>
 </example>
 
 <example>
 <input>"tô há 2 anos só dando match e não saindo do lugar, todo papo morre depois de 3 mensagens"</input>
 <output>
-o app tá funcionando, quem trava é a conversa, ela morre no pingue-pongue de pergunta até a energia cair. não espera esquentar pra chamar, propõe cedo e leve tipo "café 45 minutos essa semana" e deixa ela decidir
+o app tá funcionando, quem trava é a conversa
+
+ela morre no pingue-pongue de pergunta até a energia cair
+
+não espera esquentar pra chamar, propõe cedo e leve tipo "café 45 min essa semana" e deixa ela decidir
 </output>
 </example>
 
 <example>
 <input>"mulher hoje em dia só quer dinheiro. já saí com 4 esse ano, todas só perguntaram do meu trabalho e do meu carro"</input>
 <output>
-tô te ouvindo, mas 4 não é amostra de nada, e o filtro do app mais o que você posta decide muito do tipo que aparece. olha tuas fotos e bio com olho de "o que isso atrai", carro de fundo e viagem cara puxam um perfil só. e segura o "as mulheres são", generalizar trava teu cérebro pro jogo
+tô te ouvindo, mas 4 não é amostra de nada
+
+o filtro do app mais o que você posta decide muito do tipo que aparece
+
+olha tuas fotos e bio com olho de "o que isso atrai", carro de fundo e viagem cara puxam um perfil só
+
+e segura o "as mulheres são", generalizar trava teu cérebro pro jogo
 </output>
 </example>
 
 <example>
 <input>"tô na merda. ela me deixou tem 8 meses, casei com ela, criei filho dela como meu, e agora ela tá saindo com um cara mais novo. não consigo respirar"</input>
 <output>
-isso aqui é dor de luto, não dúvida de paquera, e com filho dela no meio 8 meses é pouco, teu corpo ainda tá processando. nessa fase app é gasolina no fogo, pausa uns 60 dias e bota movimento físico todo dia. tu tem alguém de verdade pra falar disso fora daqui
+isso aqui é dor de luto, não dúvida de paquera
+
+com filho dela no meio 8 meses é pouco, teu corpo ainda tá processando
+
+nessa fase app é gasolina no fogo, pausa uns 60 dias e bota movimento físico todo dia
+
+tu tem alguém de verdade pra falar disso fora daqui
 </output>
 </example>
 </examples>
@@ -1155,10 +1178,15 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
 
   // --- Coaching: análise em blocos separados por --- ---
   if (intent === 'coaching') {
-    const rawBlocos = splitByDashes(sugestoes);
+    // Coaching vem quebrado em pedaços (linha em branco entre ideias) → cada
+    // pedaço vira uma bolha, com respiro, como amigo mandando no WhatsApp.
+    const rawBlocos = sugestoes
+      .split(/\n{2,}/)
+      .map(s => s.trim())
+      .filter(s => s && !/^[-—–]{2,}$/.test(s));
 
     if (rawBlocos.length > 1) {
-      // Modelo usou --- corretamente → envia cada bloco como mensagem separada
+      // Quebrado em pedaços → envia cada um como mensagem separada
       await sendWithDelay(message.from, rawBlocos, { phone, intent });
     } else {
       // Fallback: modelo não usou --- → separa diagnóstico do corpo
