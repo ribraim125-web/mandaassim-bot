@@ -55,11 +55,17 @@ const RESPONSE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
+    // CoT oculto (decisão A): força o modelo a pensar antes de escrever. NUNCA é
+    // enviado ao usuário — montarRespostaEstruturada ignora este campo.
+    analise: {
+      type: 'string',
+      description: 'Raciocínio interno: vibe, subtexto, interesse, gancho específico da conversa, o que evitar e os 3 ângulos distintos escolhidos. NÃO vai pro usuário — serve só pra você pensar antes de escrever as opções.',
+    },
     opcoes: {
       type: 'array',
       // SEM minItems/maxItems: o structured output ESTRITO da OpenAI rejeita essas
       // keywords (400). O "máx 3" é garantido pela descrição + slice(0,3) no código.
-      description: 'De 1 a 3 opções de mensagem pronta (normalmente 3), cada uma com um tom diferente que se encaixe na situação.',
+      description: 'De 1 a 3 opções de mensagem pronta (normalmente 3), cada uma com um tom diferente E um ângulo distinto (observacional / provocação leve / calorosa que avança).',
       items: {
         type: 'object',
         additionalProperties: false,
@@ -73,12 +79,17 @@ const RESPONSE_SCHEMA = {
             type: 'string',
             description: 'A mensagem pronta pra ele copiar e mandar pra ela — UMA linha fluida, natural e coloquial, do jeito que um brasileiro digitaria no WhatsApp. Sem emoji de tom, sem header, sem aspas, sem ponto final, respeitando o limite de palavras do tom.',
           },
+          // CoT oculto por opção (decisão A): ignorado por montarRespostaEstruturada.
+          porque_funciona: {
+            type: 'string',
+            description: '1 linha curta explicando por que essa opção funciona nessa situação. Uso interno — NÃO vai pro usuário.',
+          },
         },
-        required: ['tom', 'mensagem'],
+        required: ['tom', 'mensagem', 'porque_funciona'],
       },
     },
   },
-  required: ['opcoes'],
+  required: ['analise', 'opcoes'],
 };
 
 /**

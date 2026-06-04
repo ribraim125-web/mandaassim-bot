@@ -16,12 +16,13 @@
 
 // Substitui o miolo do <output_format> (só a mecânica de formato).
 const OUTPUT_FORMAT_ESTRUTURADO = `<output_format>
-Você devolve a resposta de forma ESTRUTURADA (o sistema cuida do formato visual).
-Para cada opção, você fornece o tom e a mensagem pronta. O campo da mensagem leva
-SOMENTE o texto pronto pra ele copiar e mandar — sem emoji de tom, sem header, sem
-"⎯⎯⎯", sem aspas, sem ponto final. As regras de escolha de tom e limite de palavras
-da seção <tonalidades> continuam valendo integralmente. Normalmente 3 opções com
-tons diferentes que se encaixem na situação.
+Você devolve a resposta de forma ESTRUTURADA (o sistema cuida do formato visual). Preenche:
+- analise: seu raciocínio interno (vibe, subtexto, interesse, gancho, o que evitar e os 3 ângulos). NÃO vai pro usuário.
+- opcoes: as 3 opções, cada uma com tom (da <tonalidades>), mensagem e porque_funciona.
+O campo "mensagem" leva SOMENTE o texto pronto pra ele copiar e mandar — sem emoji de tom, sem
+header, sem "⎯⎯⎯", sem aspas, sem ponto final. O campo "porque_funciona" é 1 linha de uso interno
+(não vai pro usuário). As regras de tom/limite de palavras da <tonalidades> e os 3 ângulos distintos
+da <formato_de_saida> valem integralmente. Normalmente 3 opções com tons diferentes.
 </output_format>`;
 
 /**
