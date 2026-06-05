@@ -2526,10 +2526,14 @@ async function handleIncomingMessage(message) {
     if (!num.startsWith('9')) phone = `55${area}9${num}`;
   }
 
-  // Silencia contas WhatsApp Business (operadoras, bancos, apps, marketing)
+  // Conta WhatsApp Business NÃO é mais motivo pra ignorar. No Brasil muita gente
+  // comum (autônomo, vendedor, freela) usa o app Business como número pessoal —
+  // estavam sendo silenciados, cliente real ficava sem resposta (era o bug de
+  // "respondeu um e o outro não"). O filtro de operadora/empresa agora é 100% por
+  // CONTEÚDO (BUSINESS_MSG_PATTERN / SURVEY_BOT_PATTERN logo abaixo), que pega
+  // Claro & cia pelo texto. O flag fica só como log informativo.
   if (isBusinessAccount) {
-    console.log(`[Comercial] ${phone} é conta Business — ignorado silenciosamente`);
-    return;
+    console.log(`[Business] ${phone} é conta Business — atendido normalmente (filtro agora é por conteúdo)`);
   }
 
   // Detecta mensagens de sistema/automação por padrões inequívocos de empresas
