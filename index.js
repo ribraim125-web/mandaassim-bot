@@ -772,7 +772,7 @@ async function retryWithBackoff(fn) {
   }
 }
 
-async function classificarIntent(situacao) {
+async function classificarIntent(situacao, dialogo = '') {
   const validCategories = [...Object.keys(INTENT_MODEL_CONFIG), 'safety_block'];
   try {
     const response = await retryWithBackoff(() => openrouter.chat.completions.create({
@@ -800,7 +800,9 @@ async function classificarIntent(situacao) {
       },
       messages: [
         { role: 'system', content: CLASSIFIER_PROMPT },
-        { role: 'user',   content: `Situação: ${String(situacao).slice(0, 600)}` },
+        { role: 'user',   content: dialogo
+            ? `Conversa recente entre o usuário e o bot (pra saber se a mensagem nova é continuação ou assunto novo):\n${dialogo}\n\nMensagem nova do usuário: ${String(situacao).slice(0, 600)}`
+            : `Situação: ${String(situacao).slice(0, 600)}` },
       ],
     }));
     const raw = (response.choices[0]?.message?.content || '').trim();
@@ -1310,9 +1312,19 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
 async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', phone = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
 
-  const classResult = await classificarIntent(situacao);
+  // Diálogo recente (você + bot) — lido ANTES de classificar pra entender se a
+  // mensagem nova é continuação do papo ou assunto novo.
+  const ctxConversa = userContext.get(phone);
+  const history = Array.isArray(ctxConversa?.history) ? ctxConversa.history : [];
+  const dialogo = formatarDialogo(history);
+
+  const classResult = await classificarIntent(situacao, dialogo);
   const intent = classResult.category;
   const classConfidence = classResult.confidence;
+
+  // Registra o turno DELE no histórico (depois de já ter lido o diálogo anterior,
+  // pra não duplicar a mensagem atual dentro do próprio contexto).
+  pushConversationTurn(phone, 'user', situacao);
 
   // Safety block — responde com mensagem curta, não chama modelo
   if (intent === 'safety_block') {
@@ -1325,15 +1337,14 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   const systemPrompt = getSystemPrompt(config.systemType, girlContext);
   console.log(`[Roteamento] intent:${intent} (confidence:${classConfidence}) → ${MODELS.MAIN_MODEL} [${config.structured ? 'structured' : 'livre'}]`);
 
-  // Histórico recente da sessão (sliding window)
-  const ctx = userContext.get(phone);
-  const history = ctx?.history || [];
-  const historicoStr = history.length > 1
-    ? '\n\nHistórico recente desta conversa com a mina (contexto adicional):\n' +
-      history.slice(-8, -1).map((s, i) => `${i + 1}. ${s}`).join('\n')
+  // Contexto da conversa: é o papo ENTRE VOCÊS DOIS (usuário e MandaAssim), NÃO a
+  // conversa dele com a menina. Rótulo certo + instrução de continuidade — é isso
+  // que dá ao bot o "feeling" de saber se a msg nova é follow-up.
+  const contextoConversa = dialogo
+    ? `\n\nConversa recente entre você (MandaAssim) e ele — é o papo de vocês dois, NÃO a conversa dele com a menina:\n${dialogo}\n\nSe a mensagem nova dele for continuação desse papo, conecta com o que você já disse. Se ele mudou de assunto, foca no novo.`
     : '';
 
-  const userContent = `${prefixo}${historicoStr}\n\nSituação atual: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
+  const userContent = `${prefixo}${contextoConversa}\n\nMensagem nova dele: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
 
   // Geração de texto — TODOS os intents via adapter: GPT-5 mini (MAIN_MODEL) com
   // fallback automático Gemini 2.5 Flash-Lite. Zero Anthropic/Haiku aqui.
@@ -1356,6 +1367,8 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
       responseText: r.text || null, userMessageLengthChars: situacao.length,
       error: r.error,
     });
+    // Registra o turno do BOT — fecha o par (ele → você) pra continuidade real.
+    pushConversationTurn(phone, 'bot', r.text);
     return { text: r.text, intent };
   } catch (err) {
     // MAIN (GPT-5 mini) e fallback (Gemini) caíram — sem caminho legado. Resposta graciosa.
@@ -1751,15 +1764,37 @@ class PersistentContextMap extends Map {
 
 const userContext = new PersistentContextMap(); // phone -> { lastRequest, lastType, scenario, tonePreference, history[] }
 
-function saveUserContext(phone, request, type) {
+// history vira um LOG DE TURNOS da conversa entre o usuário e o bot:
+//   { r: 'u'|'b', t: texto }   (entradas antigas — string pura — = turno do usuário)
+// Gravado em analisarTextoComClaude (os dois lados, em ordem), pra o bot ter
+// memória real da conversa e saber se a próxima msg é continuação ou assunto novo.
+const MAX_TURNS = 16; // ~8 trocas
+
+function pushConversationTurn(phone, role, text) {
+  if (!phone || typeof text !== 'string' || !text.trim()) return;
   const current = userContext.get(phone) || {};
-  const history = current.history || [];
-  // Só registra situações em texto no histórico (não imagens)
-  if (type === 'text' && typeof request === 'string') {
-    history.push(request.slice(0, 200)); // limita tamanho por entrada
-    if (history.length > 10) history.shift(); // sliding window: máx 10
-  }
-  userContext.set(phone, { ...current, lastRequest: request, lastType: type, lastRequestAt: Date.now(), history });
+  const history = Array.isArray(current.history) ? current.history.slice() : [];
+  history.push({ r: role === 'bot' ? 'b' : 'u', t: text.slice(0, 220) });
+  while (history.length > MAX_TURNS) history.shift();
+  userContext.set(phone, { ...current, history });
+}
+
+// Renderiza o histórico de turnos como diálogo legível pro modelo. Compatível
+// com entradas antigas (string pura = fala do usuário).
+function formatarDialogo(history) {
+  if (!Array.isArray(history) || history.length === 0) return '';
+  return history.slice(-8).map((e) => {
+    if (typeof e === 'string') return `Ele: ${e}`;
+    return `${e.r === 'b' ? 'MandaAssim (você)' : 'Ele'}: ${e.t}`;
+  }).join('\n');
+}
+
+function saveUserContext(phone, request, type) {
+  // O histórico de turnos agora é gravado em analisarTextoComClaude
+  // (pushConversationTurn, os dois lados). Aqui só atualizamos o último pedido —
+  // o spread preserva o history existente.
+  const current = userContext.get(phone) || {};
+  userContext.set(phone, { ...current, lastRequest: request, lastType: type, lastRequestAt: Date.now() });
 }
 
 function setUserTonePreference(phone, tone) {
