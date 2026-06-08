@@ -1,0 +1,3 @@
+# Garante quebra de linha LF nos scripts shell — eles rodam no servidor Linux.
+# Sem isso, o CRLF do Windows faz o bash falhar com erros tipo $'\r': command not found.
+*.sh text eol=lf
