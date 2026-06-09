@@ -22,7 +22,7 @@ const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
 const OpenAI = require('openai');
-const Anthropic = require('@anthropic-ai/sdk');
+// Anthropic removido — visão e revisão agora rodam em GPT-5 mini via visionShim (OpenRouter)
 const { criarCobrancaPix, determinarPlano, PRECO_PRO } = require('./src/mercadopago');
 const { trackSubscriptionEvent } = require('./src/lib/subscriptionTracking');
 const {
@@ -370,8 +370,10 @@ const openrouter = new OpenAI({
   defaultHeaders: { 'HTTP-Referer': 'https://mandaassim.com', 'X-Title': 'MandaAssim' },
 });
 
-// Cliente direto da Anthropic (Haiku — mais barato e sem overhead do OpenRouter)
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// "anthropic" agora é o visionShim: mesma interface messages.create(), mas roda
+// GPT-5 mini via OpenRouter — ZERO Anthropic no projeto.
+const anthropic = require('./src/lib/visionShim');
+const VISION_MODEL = anthropic.VISION_MODEL;
 
 // Modelo para análise de imagens via visão nativa (OpenRouter)
 const IMAGE_ANALYSIS_MODEL = MODELS.VISION_LEGACY_MODEL;
@@ -1071,7 +1073,7 @@ async function reviewIfNeeded(parts, phone) {
   console.log(`[Revisão] Problema detectado — rodando revisão Haiku | phone:${phone}`);
   try {
     const resp = await anthropic.messages.create({
-      model:      'claude-haiku-4-5-20251001',
+      model:      VISION_MODEL,
       max_tokens: 300,
       system: `Você é revisor de mensagens de WhatsApp do MandaAssim. Recebe mensagens curtas em português brasileiro e corrige APENAS os erros detectados, mantendo exatamente o mesmo tom e ousadia.
 
@@ -1098,7 +1100,7 @@ Responde SOMENTE as mensagens corrigidas, uma por linha separada por ---. Mesma 
 
     logApiRequest({
       phone, intent: 'review_haiku',
-      targetModel: 'claude-haiku-4-5-20251001', modelActuallyUsed: 'claude-haiku-4-5-20251001',
+      targetModel: VISION_MODEL, modelActuallyUsed: VISION_MODEL,
       tierAtRequest: 'full',
       inputTokens: resp.usage?.input_tokens, outputTokens: resp.usage?.output_tokens,
     });
@@ -2422,7 +2424,7 @@ function storeUpgradeHookContext(phone, situation) {
 async function deliverHookFollowUp(message, phone, situation) {
   try {
     const msg = await retryWithBackoff(() => anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: VISION_MODEL,
       max_tokens: 280,
       system: `Você é o MandaAssim. O usuário respondeu ao seu gancho — ele quer saber mais sobre a situação específica dele.
 
@@ -2436,8 +2438,8 @@ Análise completa com histórico: *Parceiro* por R$29,90/mês. Digita *mensal* p
     }));
     const response = (msg.content[0]?.text || '').trim();
     if (response) await client.sendMessage(message.from, response);
-    logApiRequest({ phone, intent: 'hook_followup', targetModel: 'claude-haiku-4-5-20251001',
-      modelActuallyUsed: 'claude-haiku-4-5-20251001', tierAtRequest: 'full',
+    logApiRequest({ phone, intent: 'hook_followup', targetModel: VISION_MODEL,
+      modelActuallyUsed: VISION_MODEL, tierAtRequest: 'full',
       inputTokens: msg.usage?.input_tokens, outputTokens: msg.usage?.output_tokens }).catch?.(() => {});
   } catch (_) {
     await message.reply('deixa eu puxar isso... manda de novo em 1 minuto').catch(() => {});

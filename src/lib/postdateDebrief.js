@@ -16,12 +16,13 @@
  * - "Mulher é complicada mesmo"
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
+const visionShim = require('./visionShim');
+const { VISION_MODEL } = visionShim;
 const { createClient } = require('@supabase/supabase-js');
 const { logApiRequest } = require('./tracking');
 
 // ── Preços Haiku 4.5 ─────────────────────────────────────────────────────────
-const PRICES = { input: 1.00, output: 5.00, cache_write: 1.25, cache_read: 0.10 };
+const PRICES = { input: 0.25, output: 2.00, cache_write: 0, cache_read: 0.025 }; // GPT-5 mini
 const USD_TO_BRL = 5.75;
 
 // ── As 7 perguntas da mini-entrevista ────────────────────────────────────────
@@ -112,10 +113,8 @@ Schema:
 }`;
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
-let _anthropic = null;
 function getAnthropicClient() {
-  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  return _anthropic;
+  return visionShim; // GPT-5 mini via OpenRouter (interface compatível)
 }
 
 let _supabase = null;
@@ -163,7 +162,7 @@ async function salvarDebriefSessao(phone, answers, result) {
         outcome_summary:     outcomeSummary,
         encounter_quality:   result?.encounter_quality_assessment || null,
         next_step:           result?.next_step_recommendation || null,
-        model_used:          'claude-haiku-4-5-20251001',
+        model_used:          VISION_MODEL,
         created_at:          new Date().toISOString(),
       })
       .select('id')
@@ -400,7 +399,7 @@ async function analisarDebriefComHaiku(answers, phone = '') {
 
   try {
     response = await anthropic.messages.create({
-      model:      'claude-haiku-4-5-20251001',
+      model:      VISION_MODEL,
       max_tokens: 900,
       system: [{ type: 'text', text: SYSTEM_PROMPT_DEBRIEF, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userContent }],
@@ -409,7 +408,7 @@ async function analisarDebriefComHaiku(answers, phone = '') {
     trackingError = err.message;
     logApiRequest({
       phone, intent: 'postdate_debrief',
-      targetModel: 'claude-haiku-4-5-20251001', modelActuallyUsed: 'claude-haiku-4-5-20251001',
+      targetModel: VISION_MODEL, modelActuallyUsed: VISION_MODEL,
       tierAtRequest: 'full', latencyMs: Date.now() - t0, error: trackingError,
     });
     throw err;
@@ -427,7 +426,7 @@ async function analisarDebriefComHaiku(answers, phone = '') {
 
   logApiRequest({
     phone, intent: 'postdate_debrief',
-    targetModel: 'claude-haiku-4-5-20251001', modelActuallyUsed: 'claude-haiku-4-5-20251001',
+    targetModel: VISION_MODEL, modelActuallyUsed: VISION_MODEL,
     tierAtRequest: 'full', inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens,
     latencyMs, responseLengthChars: response.content[0]?.text?.length || 0,
     responseText: response.content[0]?.text || null,

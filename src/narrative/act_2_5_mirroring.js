@@ -8,13 +8,12 @@
  * Retorna array de strings (cada item = uma mensagem WhatsApp).
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
+const visionShim = require('../lib/visionShim');
+const { VISION_MODEL } = visionShim;
 const { logApiRequest } = require('../lib/tracking');
 
-let _anthropic = null;
 function getAnthropicClient() {
-  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  return _anthropic;
+  return visionShim; // GPT-5 mini via OpenRouter (interface compatível)
 }
 
 const PERSONA_LABELS = {
@@ -107,7 +106,7 @@ async function generateMirroringAct25(phone, persona, answers) {
   let response;
   try {
     response = await anthropic.messages.create({
-      model:      'claude-haiku-4-5-20251001',
+      model:      VISION_MODEL,
       max_tokens: 500,
       system: [{ type: 'text', text: SYSTEM_PROMPT_MIRRORING, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userContent }],
@@ -115,8 +114,8 @@ async function generateMirroringAct25(phone, persona, answers) {
   } catch (err) {
     logApiRequest({
       phone, intent: 'act_2_5_mirroring',
-      targetModel: 'claude-haiku-4-5-20251001',
-      modelActuallyUsed: 'claude-haiku-4-5-20251001',
+      targetModel: VISION_MODEL,
+      modelActuallyUsed: VISION_MODEL,
       tierAtRequest: 'full',
       latencyMs: Date.now() - t0,
       error: err.message,
@@ -131,8 +130,8 @@ async function generateMirroringAct25(phone, persona, answers) {
   const latencyMs = Date.now() - t0;
   logApiRequest({
     phone, intent: 'act_2_5_mirroring',
-    targetModel: 'claude-haiku-4-5-20251001',
-    modelActuallyUsed: 'claude-haiku-4-5-20251001',
+    targetModel: VISION_MODEL,
+    modelActuallyUsed: VISION_MODEL,
     tierAtRequest: 'full',
     inputTokens: response.usage?.input_tokens,
     outputTokens: response.usage?.output_tokens,
@@ -186,7 +185,7 @@ RESPOSTA: APENAS a frase, sem mais nada.`;
 
   try {
     const response = await anthropic.messages.create({
-      model:      'claude-haiku-4-5-20251001',
+      model:      VISION_MODEL,
       max_tokens: 80,
       system:     systemPrompt,
       messages:   [{ role: 'user', content: String(userMessage).slice(0, 500) }],
@@ -194,8 +193,8 @@ RESPOSTA: APENAS a frase, sem mais nada.`;
 
     logApiRequest({
       phone, intent: 'first_mirroring_v2',
-      targetModel:       'claude-haiku-4-5-20251001',
-      modelActuallyUsed: 'claude-haiku-4-5-20251001',
+      targetModel:       VISION_MODEL,
+      modelActuallyUsed: VISION_MODEL,
       tierAtRequest:     'full',
       inputTokens:       response.usage?.input_tokens,
       outputTokens:      response.usage?.output_tokens,
@@ -206,8 +205,8 @@ RESPOSTA: APENAS a frase, sem mais nada.`;
   } catch (err) {
     logApiRequest({
       phone, intent: 'first_mirroring_v2',
-      targetModel:       'claude-haiku-4-5-20251001',
-      modelActuallyUsed: 'claude-haiku-4-5-20251001',
+      targetModel:       VISION_MODEL,
+      modelActuallyUsed: VISION_MODEL,
       tierAtRequest:     'full',
       latencyMs:         Date.now() - t0,
       error:             err.message,

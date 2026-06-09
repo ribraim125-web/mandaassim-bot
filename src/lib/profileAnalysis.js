@@ -10,16 +10,18 @@
  * 6. Tracking em api_requests
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
+const visionShim = require('./visionShim');
+const { VISION_MODEL } = visionShim;
 const { createClient } = require('@supabase/supabase-js');
 const { logApiRequest } = require('./tracking');
 
 // ── Preços Haiku 4.5 ─────────────────────────────────────────────────────────
+// Preços GPT-5 mini (OpenRouter)
 const PRICES = {
-  input:       1.00,
-  output:      5.00,
-  cache_write: 1.25,
-  cache_read:  0.10,
+  input:       0.25,
+  output:      2.00,
+  cache_write: 0,
+  cache_read:  0.025,
 };
 const USD_TO_BRL = 5.75;
 
@@ -85,10 +87,8 @@ Schema:
 }`;
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
-let _anthropic = null;
 function getAnthropicClient() {
-  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  return _anthropic;
+  return visionShim; // GPT-5 mini via OpenRouter (interface compatível)
 }
 
 let _supabase = null;
@@ -249,7 +249,7 @@ async function analisarPerfilComHaiku(base64Data, mimeType, phone = '') {
 
   try {
     response = await anthropic.messages.create({
-      model:      'claude-haiku-4-5-20251001',
+      model:      VISION_MODEL,
       max_tokens: 1024,
       system: [
         {
@@ -279,8 +279,8 @@ async function analisarPerfilComHaiku(base64Data, mimeType, phone = '') {
     logApiRequest({
       phone,
       intent:            'profile_analysis',
-      targetModel:       'claude-haiku-4-5-20251001',
-      modelActuallyUsed: 'claude-haiku-4-5-20251001',
+      targetModel:       VISION_MODEL,
+      modelActuallyUsed: VISION_MODEL,
       tierAtRequest:     'full',
       latencyMs:         Date.now() - t0,
       error:             trackingError,
@@ -312,8 +312,8 @@ async function analisarPerfilComHaiku(base64Data, mimeType, phone = '') {
   logApiRequest({
     phone,
     intent:             'profile_analysis',
-    targetModel:        'claude-haiku-4-5-20251001',
-    modelActuallyUsed:  'claude-haiku-4-5-20251001',
+    targetModel:        VISION_MODEL,
+    modelActuallyUsed:  VISION_MODEL,
     tierAtRequest:      'full',
     inputTokens,
     outputTokens,
