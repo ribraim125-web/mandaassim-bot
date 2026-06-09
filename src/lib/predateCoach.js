@@ -70,7 +70,7 @@ Schema:
   "drink_limit_note": "string",
   "timing_advice": "string — sobre chegada",
   "duration_advice": "string — sobre duração e como encerrar em alta",
-  "post_date_message_suggestion": "string — mensagem real pra mandar depois, 1 linha",
+  "post_date_message_suggestion": "string — mensagem real pra mandar depois, 1 linha. TESTE DO DESCARTE: se serviria pra QUALQUER encontro com QUALQUER pessoa, está errada. Ancora num momento concreto que rolou no date (uma piada, um prato, algo que ela falou). Sem ponto final, falado. NUNCA 'curti muito, bora repetir?'",
   "encouragement": "string — 2-4 linhas, tom de amigo, honesto",
   "day_before_tip": "string — dica curta pro dia anterior (roupa + confirmar local)"
 }`;
@@ -263,7 +263,7 @@ function formatarRespostaPreDate(result) {
   msgs.push(msg2.trim());
 
   // ── Msg 3: Depois do encontro ─────────────────────────────────────────────
-  const postMsg = result.post_date_message_suggestion || `curti muito, bora repetir?`;
+  const postMsg = result.post_date_message_suggestion || `bora repetir? dessa vez eu escolho o lugar`;
   let msg3 = `*Depois do encontro:*\n\n`;
   msg3 += `Manda em 1-3h 👇`;
   msgs.push(msg3.trim());

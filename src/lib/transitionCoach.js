@@ -55,12 +55,11 @@ AVALIAÇÃO DE PRONTIDÃO:
 - "red_flags": sinais claros de desinteresse, fantasma recente, ou ela está se afastando
 
 FORMATO DAS MENSAGENS SUGERIDAS:
-- Curtas, naturais, diretas — como uma mensagem de WhatsApp de verdade
-- Nenhuma mensagem deve parecer script ou copiada
-- Específica ao que ele disse sobre ela (hobby, interesse)
-- Soft: mais leve, abre espaço ("bora tomar um café?")
-- Balanced: direta mas sem pressão ("tenho um lugar legal aqui, bora na sexta?")
-- Direct: assume que vai acontecer ("sábado à tarde eu passo onde você estiver")
+- Curtas, naturais, diretas — como uma mensagem de WhatsApp de verdade. Sem ponto final, sem travessão, falado.
+- TESTE DO DESCARTE: se a mensagem serviria pra QUALQUER pessoa, está errada — reescreve. Ancora num detalhe concreto que ELE contou sobre ela (um hobby, algo que ela falou, um lugar que ela curte). Mensagem sem âncora não é boa.
+- Soft: mais leve, abre espaço (ex.: "vi que tu curte café de verdade, bora num que torra na hora?")
+- Balanced: direta mas sem pressão (ex.: "achei um lugar com a tua cara aqui, sexta tu topa?") — NUNCA "um lugar legal" genérico, diz POR QUE combina com ela
+- Direct: assume que vai acontecer, mas SEM presumir a localização dela (ex.: "sexta de tarde eu te levo num lugar que tu vai gostar") — nunca "passo onde você estiver"
 
 Retorne APENAS JSON válido, sem markdown.
 

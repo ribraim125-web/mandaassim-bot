@@ -994,11 +994,14 @@ function stripPeriods(text) {
 const TONE_EMOJI_RE = /^(?:🎯|🌹|😏|💭|👑) (?:DIRETO|ROMÂNTICO|BRINCALHÃO|MISTERIOSO|CONFIANTE)/;
 
 // Ganchos de retenção — enviados após as 3 opções (varia a cada turno)
+// Gancho de retorno: mantém o loop (ele volta contar o desfecho = engajamento),
+// mas com voz de amigo confiante — frame de autonomia ("tu já sabe", "manda com
+// confiança"), não de carência/dependência do app.
 const RETENTION_HOOKS = [
-  'copia uma e me manda o que ela responder que eu penso o próximo passo contigo',
-  'manda qual você vai usar e me conta como ela responde',
-  'escolhe uma, manda pra ela, e volta aqui com a resposta dela',
-  'usa uma dessas e me fala como ela reagiu que a gente ajusta',
+  'manda com confiança e depois me conta no que deu',
+  'tu já sabe qual encaixa melhor, joga lá e me fala como ela reagiu',
+  'escolhe a tua cara, manda, e volta contar o desfecho que a gente vê o próximo lance',
+  'usa uma dessas e me diz como ela respondeu, se quiser ajustar a próxima',
 ];
 
 // ---------------------------------------------------------------------------
@@ -2058,9 +2061,20 @@ async function transcreverAudio(base64Data, mimetype) {
 const MSG_DEBOUNCE_MS = 1800; // espera 1.8s de silêncio antes de processar o burst
 const messageBuffer = new Map(); // phone -> { parts: [], timer, lastMessage }
 
+// chatIds com um handleIncomingMessage rodando AGORA — trava por conversa.
+const inFlight = new Set();
+
 function flushMessageBuffer(chatId) {
   const buf = messageBuffer.get(chatId);
   if (!buf) return;
+  // Lock por conversa: se já tem um processamento rodando pra esse chat, NÃO
+  // dispara outro em paralelo (evita 2 handlers do mesmo usuário embaralhando
+  // histórico e contador de limite). Deixa no buffer; o .finally abaixo reprocessa
+  // o que chegou assim que o atual terminar — preservando a ordem.
+  if (inFlight.has(chatId)) {
+    if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
+    return;
+  }
   messageBuffer.delete(chatId);
   if (buf.timer) clearTimeout(buf.timer);
   const combined = buf.parts.join('\n').trim();
@@ -2070,9 +2084,14 @@ function flushMessageBuffer(chatId) {
   if (buf.parts.length > 1) {
     console.log(`[Debounce] processando ${buf.parts.length} msgs juntas | ${chatId}`);
   }
-  handleIncomingMessage(msg).catch((err) => {
-    console.error('[Debounce] erro ao processar burst:', err.message);
-  });
+  inFlight.add(chatId);
+  handleIncomingMessage(msg)
+    .catch((err) => console.error('[Debounce] erro ao processar burst:', err.message))
+    .finally(() => {
+      inFlight.delete(chatId);
+      // Chegou mensagem nova enquanto processava? processa agora, em ordem.
+      if (messageBuffer.has(chatId)) flushMessageBuffer(chatId);
+    });
 }
 
 // Esvazia TODO o buffer de uma vez — usado no shutdown pra não descartar em
