@@ -1364,7 +1364,7 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
   return responseText;
 }
 
-async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', phone = '') {
+async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext = '', phone = '', preClass = null) {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
 
   // Diálogo recente (você + bot) — lido ANTES de classificar pra entender se a
@@ -1373,7 +1373,8 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   const history = Array.isArray(ctxConversa?.history) ? ctxConversa.history : [];
   const dialogo = formatarDialogo(history);
 
-  const classResult = await classificarIntent(situacao, dialogo);
+  // Reusa a classificação feita no handler (evita 2ª chamada ao classificador)
+  const classResult = preClass || await classificarIntent(situacao, dialogo);
   const intent = classResult.category;
   const classConfidence = classResult.confidence;
 
@@ -4133,18 +4134,27 @@ async function handleIncomingMessage(message) {
     const reconquistaExtra = RECONQUISTA_KEYWORDS.test(text) ? RECONQUISTA_CONTEXT : '';
     const personaExtra = getPersonaContext(ctx?.userPersona);
 
-    // --- Coaching: inicia conversa de contexto se situação for vaga ---
+    // --- Mensagem curta: classifica ANTES de decidir o fluxo ---
+    // O gate antigo era só contagem de palavras (<12) e sequestrava TUDO que era
+    // curto ("oi", "quero testar", "ela me deu vácuo") pro interrogatório de
+    // coaching. Agora o classificador decide primeiro: meta/volume seguem direto
+    // e só coaching vago entra na coleta de contexto.
     const temHistorico = (ctx?.history?.length || 0) > 0;
     const temPerfil = !!(girlProfile?.girl_context || girlProfile?.current_situation);
+    let preClass = null;
     if (situacaoEhVaga(text, temHistorico, temPerfil)) {
-      const stopTypingCtxQ = await startTyping(message);
-      const primeiraPergunta = await gerarPerguntaContexto(text, []);
-      stopTypingCtxQ();
-      const current = userContext.get(phone) || {};
-      userContext.set(phone, { ...current, coachingState: { originalRequest: text, qa: [], lastQuestion: primeiraPergunta } });
-      console.log(`[Coaching] Iniciando contexto para ${phone}`);
-      await client.sendMessage(message.from, primeiraPergunta);
-      return;
+      preClass = await classificarIntent(text, formatarDialogo(ctx?.history || []));
+      if (preClass.category === 'coaching') {
+        const stopTypingCtxQ = await startTyping(message);
+        const primeiraPergunta = await gerarPerguntaContexto(text, []);
+        stopTypingCtxQ();
+        const current = userContext.get(phone) || {};
+        userContext.set(phone, { ...current, coachingState: { originalRequest: text, qa: [], lastQuestion: primeiraPergunta } });
+        console.log(`[Coaching] Iniciando contexto para ${phone}`);
+        await client.sendMessage(message.from, primeiraPergunta);
+        return;
+      }
+      // meta/volume/safety: segue pro fluxo normal com a classificação já feita
     }
 
     // V2: espelhamento de 1 frase na primeira análise (corre em paralelo)
@@ -4155,7 +4165,7 @@ async function handleIncomingMessage(message) {
 
     const stopTyping3 = await startTyping(message);
     try {
-      const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra + personaExtra, phone);
+      const result = await analisarTextoComClaude(text, toneHint, girlContext + reconquistaExtra + personaExtra, phone, preClass);
       stopTyping3();
       saveUserContext(phone, text, 'text');
       if (recentSuccess) {
