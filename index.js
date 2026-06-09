@@ -227,22 +227,21 @@ const MENSAGEM_RENOVACAO =
 // Mensagem 1 — imediata
 const WELCOME_MSG_0 =
   `e aí 👊 sou o MandaAssim\n\n` +
-  `deixa eu te mostrar rapidão 👇`;
+  `travou no que responder pra uma mina? cola aqui o print da conversa (ou só conta a situação por texto) e eu te devolvo 3 respostas prontas pra mandar — em 20 segundos`;
 
-// Mensagem 2 — após 2 segundos: produto funcionando ao vivo
+// Mensagem 2 — após 2 segundos: demo curta de COMO funciona
 const WELCOME_MSG_1 =
-  `ela te mandou isso 👇\n\n` +
-  `_'interessante kkk'_\n\n` +
-  `ao invés de ficar travado, você joga aqui. em 20 segundos eu te dou:\n\n` +
-  `🔥 'o que especificamente?'\n` +
-  `😏 'você devia ter perguntado antes'\n` +
-  `⚡ 'vou deixar você descobrir'\n\n` +
-  `copia a que combina, manda pra ela`;
+  `tipo assim 👇 ela te manda _'interessante kkk'_ e você fica sem saber o que falar\n\n` +
+  `eu te dou na hora:\n\n` +
+  `🔥 o que especificamente?\n` +
+  `😏 você devia ter perguntado antes\n` +
+  `⚡ vou deixar você descobrir\n\n` +
+  `aí é só copiar a que tu curtir e mandar`;
 
-// Mensagem 3 — após 3 segundos: call to action
+// Mensagem 3 — após 3 segundos: call to action + trial
 const WELCOME_MSG_2 =
-  `manda agora uma situação sua — print da conversa ou texto mesmo\n\n` +
-  `🎁 3 dias grátis e ILIMITADO\n` +
+  `bora? manda agora teu print ou escreve a situação (tipo _'match novo travou'_)\n\n` +
+  `🎁 você ganhou *3 dias grátis e ILIMITADO* pra testar\n` +
   `sem cartão, sem cadastro`;
 
 // Nudge 90s — disparado se usuário não responder nada após MSG 3
