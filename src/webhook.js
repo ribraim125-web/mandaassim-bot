@@ -145,8 +145,24 @@ function validarAssinatura(req) {
  */
 function createWebhookApp(waClient) {
   const app = express();
+
+  // Proxy reverso (nginx/cloudflare): TRUST_PROXY=true no .env pra req.ip
+  // refletir o cliente real (sem isso o rate limit veria só o IP do proxy).
+  if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 1);
+
   app.use(express.json({ limit: '100kb' })); // rejeita payloads gigantes
   app.use(webhookRateLimit);
+
+  // /admin* só via localhost — a admin key trafegava em HTTP puro pela internet.
+  // Acesso: túnel SSH → ssh -L 3000:localhost:3000 root@servidor → http://localhost:3000/admin
+  // O webhook do MP continua público (precisa). Pra liberar acesso remoto direto
+  // (SÓ atrás de TLS!): ADMIN_REMOTE_ACCESS=true no .env.
+  app.use('/admin', (req, res, next) => {
+    if (process.env.ADMIN_REMOTE_ACCESS === 'true') return next();
+    const ip = req.ip || req.connection?.remoteAddress || '';
+    if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return next();
+    return res.status(404).send('Not Found'); // 404 (não 401) — não revela que o painel existe
+  });
 
   app.post('/webhook/mercadopago', async (req, res) => {
     // Responde 200 imediatamente — o MP requer resposta rápida
