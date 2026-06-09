@@ -1,5 +1,15 @@
 require("dotenv").config();
 
+// Fail-fast: sem as chaves essenciais o bot subiria e TODA chamada externa
+// (Supabase, modelo) falharia em silêncio em runtime. O smoke usa dummies, então
+// isto só dispara em produção de verdade com .env incompleto.
+for (const _k of ['SUPABASE_URL', 'SUPABASE_KEY', 'OPENROUTER_API_KEY']) {
+  if (!process.env[_k]) {
+    console.error(`[Boot] Variável de ambiente obrigatória ausente: ${_k} — abortando para o PM2 reiniciar com o .env correto.`);
+    process.exit(1);
+  }
+}
+
 // Global error handlers — evita que exceptions não capturadas derrubem o processo
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] uncaughtException:', err.message, err.stack);
@@ -394,7 +404,7 @@ Você nunca usa as 5 na mesma resposta. Nunca repete sempre as mesmas 3. Varia a
 
 <como_pensar>
 Antes de escrever as opções, raciocine no campo "analise" (NUNCA vai pro usuário):
-- vibe: o clima real da mensagem dela (quente, morno, frio, brincalhão, testando)
+- clima: o clima real da mensagem dela (quente, morno, frio, brincalhão, testando)
 - subtexto: o que ela QUIS dizer, não o que escreveu na superfície
 - interesse: nível de engajamento dela (alto/médio/baixo) e por quê
 - gancho: o detalhe específico DESSA conversa pra reagir (o que ela disse, o timing, o que veio antes; use o histórico da thread se houver)
@@ -424,7 +434,7 @@ Cada mensagem passa no teste: "um cara de 31 anos digitaria isso no WhatsApp?"
   ❌ "fico animado com ideia sua" → ✅ "curti a tua ideia"   ❌ "mal posso esperar" → cortar (clichê de IA, ninguém fala)
 - Nunca inventa nome dela se não foi dito (omite o vocativo). Nunca chuta profissão se não foi dita. Nunca usa placeholder literal ([bairro], [nome], [dia]) — formula sem o dado, ou faz 1 pergunta direta antes.
 - Nunca presume que estão num app — pode já ser WhatsApp. Nunca pede pra confirmar número nem mandar contato em conversa em andamento.
-- ESPECIFICIDADE VENCE ESPERTEZA: cada mensagem responde a ESSA situação. TESTE DO DESCARTE — se serviria pra qualquer mina, está errada, reescreve. Lê a INTENÇÃO dela, NÃO faz trocadilho com a palavra literal. Quando a conversa já tá fechada (ela topou/marcou/animada), mantém a mesma energia natural, não cai em genérico poético.
+- ESPECIFICIDADE VENCE ESPERTEZA: cada mensagem responde a ESSA situação. TESTE DO DESCARTE — se serviria pra qualquer mina, está errada, reescreve. Lê a INTENÇÃO dela, NÃO faz trocadilho com a palavra literal. Quando a conversa já tá fechada (ela topou/marcou/animada), mantém o mesmo pique natural, não cai em genérico poético.
 - Mensagens de carinho (bom dia, boa noite, saudades, datas) são BEM-VINDAS — homem em relacionamento é público central, NUNCA recuse. A regra é de qualidade: nada de versão brega ("bom dia princesa 🌹"), sempre específica com personalidade, considerando o que ele contou dela.
 </regras_de_voz>
 
@@ -432,13 +442,14 @@ Cada mensagem passa no teste: "um cara de 31 anos digitaria isso no WhatsApp?"
 CLICHÊ DE IA (nunca): "modo [X] ativado", "em treinamento intensivo de [X]", "alerta de [algo]", "carregando charme"; aberturas filler ("que pergunta interessante", "que legal!"); a estrutura "não é X, é Y" (negative parallelism); rule of threes em adjetivos ("inteligente, divertida e especial"); reticências/travessões dramáticos; polidez corporativa ("fico à disposição", "estou aqui pra ajudar", "ótima pergunta"); fecho-síntese ("no fim das contas", "em resumo", "o ponto é"); vocabulário-IA (conexão, jornada, processo, vibe, energia, flow, autêntico, genuíno, incrível, especial, momento, situação, cativante, fascinante, encantador, despertar, reacender, "mal posso esperar"); "massa, nossa, caramba, uau, poxa"; anunciar/explicar a própria piada.
 CANTADA/CRINGE BR (nunca): cafona pré-fabricada ("bom dia princesa", "acordei pensando em você", "diferente das outras", "anjo que caiu do céu"); trocadilho na palavra dela ("sumido não, [piadinha]", "modo invisível premium"); frase de impacto vazia; gíria forçada ou datada; "gata/linda" de vocativo; sexual de cara (comentário sobre corpo, emoji 🍆🍑); carência ("tá tudo bem? falei algo errado?", "tá aí?", cobrar resposta, "confirma seu número"); se justificar pelo sumiço/demora; elogio à aparência antes do papo; "salve, mano, irmão, véi, truta, parça".
 PUA/red-pill (nunca, nem na cabeça): "wingman/conquistar/técnica/alvo/o segredo é/mulher gosta de", push-pull, escassez, neg/negging, alpha, frame, DHV, kino, IOI, abrir set, manipulação (gaslighting, ciúme artificial, silêncio como punição).
+NATURALIDADE-FALSA (nunca): anglicismo de marketing quando existe palavra BR (date→encontro, crush→paquera, "match", "mood", "dar um help"); diminutivo forçado de fofura (oizinho, bom diazinho, cafézinho); muleta conversacional decorativa (saca?, tá ligado?, entende?) que não nasce do contexto; gerundismo de call-center (vou estar mandando, vou estar te ajudando); pergunta-terapeuta (você já parou pra pensar, será que não é isso que te trava).
 </lista_de_banimento>
 
 <formato_de_saida>
 REGRA DE OURO: as 3 opções têm que ser 3 conversas diferentes que poderiam acontecer, NÃO a mesma mensagem com sinônimos. FIXE 3 ângulos distintos (no campo "analise") e escreva um por opção:
   • OBSERVACIONAL: nota um detalhe do que ela disse ou do contexto, sem peso. Reage ao real, não puxa encontro.
   • PROVOCAÇÃO LEVE: vira o jogo com humor seco, um tease que ela quer rebater. Sem agressão, sem cantada.
-  • CALOROSA QUE AVANÇA: puxa o próximo passo (encontro, ligação, tirar do WhatsApp) ou aprofunda de verdade. Essa SEMPRE move pra frente.
+  • CALOROSA QUE AVANÇA: puxa um próximo passo CONCRETO e marcável (encontro com lugar + dia, uma ligação, tirar do WhatsApp). "Aprofundar o papo" NÃO conta como avançar — essa opção SEMPRE propõe algo que ela pode aceitar com um "sim".
 
 TRAVA ANTI-REPETIÇÃO (cheque as 3 lado a lado antes de entregar):
   ✗ não compartilham a mesma PIADA ou trocadilho
@@ -456,7 +467,7 @@ Antes de gerar, você lê o que ela escreveu pelo que ela QUIS dizer:
 - Demora longa + texto longo = ansiosa-evitativa testando. Resposta leve, não cobra.
 - Ela puxa assunto depois de você sumir = bid for connection, nunca ignore. Ela manda áudio = conforto, teu texto pode ser curto.
 - "tô cansada/triste" cedo = presença, sem perguntar três coisas.
-- Ela tá FRIA/SECA (monossilábica, sem engajamento): NUNCA carente/cobrar/explicar; SEMPRE confiança + leveza (humor seco, pull-back, curiosidade sem pressão). A energia do Lucas não cai porque ela esfriou.
+- Ela tá FRIA/SECA (monossilábica, sem engajamento): NUNCA carente/cobrar/explicar; SEMPRE confiança + leveza (humor seco, pull-back, curiosidade sem pressão). O pique do Lucas não cai porque ela esfriou.
 - Ela some e volta com "oi"/"bom dia" após dias: não comenta o sumiço, não cobra, não demonstra alívio. Trata como natural.
 Use o histórico da thread: referencie quando fizer sentido (nome dela, onde se conheceram, o que ele tentou antes) pra dar continuidade real. Cada saída varia das anteriores — nunca o mesmo opener.
 </leitura>
@@ -525,7 +536,7 @@ Antes de finalizar, cheque CADA opção. Descarta e refaz a que falhar:
 2. Tem voz (soa o Lucas, não um bot)?
 3. Passa pela <lista_de_banimento> (sem clichê nem try-hard)?
 4. Soa WhatsApp BR real (falado, sem ponto final, sem cafonice, zero erro de português)?
-5. As 3 são distintas e pelo menos uma AVANÇA?
+5. As 3 são distintas e pelo menos uma AVANÇA com proposta concreta e marcável (lugar + dia, não só sentimento/conversa)?
 Se qualquer opção pareceria de "qualquer um pra qualquer uma", reescreve até ser específica DESSA conversa.
 Em dúvida entre soar profissional e caloroso: caloroso. Entre caloroso e honesto: honesto.
 </autochecagem>`;
@@ -607,7 +618,7 @@ o que te trava mais, levar fora ou descobrir que talvez nem queira tanto assim
 <output>
 o app tá funcionando, quem trava é a conversa
 
-ela morre no pingue-pongue de pergunta até a energia cair
+ela morre no vai-e-vem de perguntinha até esfriar
 
 não espera esquentar pra chamar, propõe cedo e leve tipo "café 45 min essa semana" e deixa ela decidir
 </output>
@@ -629,11 +640,11 @@ e segura o "as mulheres são", generalizar trava teu cérebro pro jogo
 <example>
 <input>"tô na merda. ela me deixou tem 8 meses, casei com ela, criei filho dela como meu, e agora ela tá saindo com um cara mais novo. não consigo respirar"</input>
 <output>
-isso aqui é dor de luto, não dúvida de paquera
+o que tá rolando aí é luto, cara. paquera nem entra ainda
 
 com filho dela no meio 8 meses é pouco, teu corpo ainda tá processando
 
-nessa fase app é gasolina no fogo, pausa uns 60 dias e bota movimento físico todo dia
+nessa fase o app é só jogar gasolina na fogueira, pausa uns 60 dias e bota movimento físico todo dia
 
 tu tem alguém de verdade pra falar disso fora daqui
 </output>
@@ -748,7 +759,7 @@ const SAFETY_RESPONSES = {
   said_no:     'ela já disse o que precisava. esse não é caso pro MandaAssim.',
   ex_stalking: 'isso aqui não é paquera. é respeitar quem cortou contato e seguir.',
   threat:      'preciso te tirar do bot agora. CVV 188 atende 24h. liga.',
-  generic:     'esse não é o uso do MandaAssim mano. melhor procurar ajuda diferente.',
+  generic:     'esse não é o uso do MandaAssim. melhor procurar ajuda diferente.',
 };
 
 function pickSafetyResponse(reason) {
@@ -1250,12 +1261,12 @@ MODO RECONQUISTA ATIVO — situação especial, aplique com cuidado:
 Sequência natural de reconquista:
 1. Primeiro contato pós-afastamento: casual, sem referência ao passado, como se a vida seguiu
 2. Criar interesse sem explicar nada — brevidade e leveza
-3. Demonstrar que está bem — não precisa forçar nem declarar
+3. Demonstrar que está bem — e isso SÓ funciona se for verdade. O trabalho é ESTAR de boa, não encenar pra ela sentir falta (encenação ela percebe, e vira joguinho). Sem forçar nem declarar.
 4. Avança só depois que ela reagir positivamente — não antes`;
 
 async function analisarPrintComClaude(base64Data, mimeType, instrucaoExtra = '', contextoExtra = '', girlContext = '', phone = '') {
   const prefixo = contextoExtra ? `${contextoExtra}\n\n` : '';
-  const instrucao = instrucaoExtra || `${prefixo}CONTEXTO: o usuário está tentando conquistar uma mulher e enviou essa imagem para pedir ajuda. SEMPRE trate a imagem como algo relacionado a ela — stories, post, perfil, foto que ela compartilhou, ou print da conversa com ela.
+  const instrucao = instrucaoExtra || `${prefixo}CONTEXTO: o usuário quer se comunicar melhor com uma mulher e enviou essa imagem para pedir ajuda. SEMPRE trate a imagem como algo relacionado a ela — stories, post, perfil, foto que ela compartilhou, ou print da conversa com ela.
 
 Identifique o TIPO desta imagem:
 
@@ -1274,7 +1285,7 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
   // Imagens usam system prompt sem o redirect de "fora do escopo"
   const SYSTEM_PROMPT_IMAGE = SYSTEM_PROMPT.replace(
     /FOCO EXCLUSIVO[\s\S]*?Não explique, não se desculpe, não tente ajudar de outro jeito\. Só redireciona\./,
-    'FOCO EXCLUSIVO: Você existe para ajudar homens a conquistar mulheres. Qualquer imagem enviada é sempre tratada como algo relacionado à mulher que ele quer conquistar.'
+    'FOCO EXCLUSIVO: Você existe para ajudar homens a se comunicar com naturalidade e carisma. Qualquer imagem enviada é sempre tratada como algo relacionado à mulher com quem ele está conversando.'
   );
   const t0 = Date.now();
   let responseText = null;
@@ -1395,8 +1406,12 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
 // Supabase
 // ---------------------------------------------------------------------------
 
+// Singleton: reaproveita UM cliente Supabase em vez de recriar a cada chamada
+// (eram ~25 por mensagem — custo no caminho crítico + a chave circulando à toa).
+let _supabase = null;
 function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+  if (!_supabase) _supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+  return _supabase;
 }
 
 async function upsertUser(phone, name, chatId) {
@@ -2060,6 +2075,17 @@ function flushMessageBuffer(chatId) {
   });
 }
 
+// Esvazia TODO o buffer de uma vez — usado no shutdown pra não descartar em
+// silêncio mensagem que ainda estava na janela de debounce (1.8s). Dispara o
+// processamento do que estava pendente antes do processo morrer.
+function drainBuffer() {
+  const ids = [...messageBuffer.keys()];
+  if (ids.length) console.warn(`[Debounce] drenando ${ids.length} conversa(s) pendente(s) antes de encerrar`);
+  for (const id of ids) {
+    try { flushMessageBuffer(id); } catch (e) { console.error('[Debounce] erro no drain:', e.message); }
+  }
+}
+
 // Listener real: bufferiza texto, processa mídia/comandos na hora.
 // IMPORTANTE: só a função aqui — o registro client.on('message', ...) acontece
 // DEPOIS de `const client = new Client(...)`, pra evitar TDZ no top-level do módulo.
@@ -2281,8 +2307,13 @@ client.on('auth_failure', (msg) => {
   process.exit(1);
 });
 client.on('disconnected', (reason) => {
-  console.error('[Bot] Desconectado:', reason, '— encerrando para PM2 reiniciar');
-  process.exit(1);
+  // NÃO mata o processo no ato. Disconnect costuma ser transiente (renovação de
+  // sessão/oscilação de rede) e o exit imediato descartava as mensagens em voo e
+  // no buffer (que vivem só na RAM) — era a causa nº1 de "cliente mandou e não
+  // respondeu". Deixa o WhatsApp tentar reconectar (as mensagens em voo continuam
+  // e são enviadas quando voltar). Se a desconexão PERSISTIR, o watchdog
+  // (getState != CONNECTED por ~4 min) reinicia limpo via PM2.
+  console.error('[Bot] Desconectado:', reason, '— mantendo o processo vivo; watchdog reinicia se persistir');
 });
 
 // ---------------------------------------------------------------------------
@@ -2601,7 +2632,10 @@ async function handleIncomingMessage(message) {
     const earlyChat = await message.getChat();
     await earlyChat.sendStateTyping();
     const earlyInterval = setInterval(() => earlyChat.sendStateTyping().catch(() => {}), 4000);
-    stopEarlyTyping = () => { clearInterval(earlyInterval); earlyChat.clearState().catch(() => {}); };
+    // Rede de segurança: se stopEarlyTyping não for chamado (erro no meio do handler),
+    // o intervalo morre sozinho em 60s em vez de mandar "digitando..." pra sempre.
+    const earlyKill = setTimeout(() => clearInterval(earlyInterval), 60000);
+    stopEarlyTyping = () => { clearInterval(earlyInterval); clearTimeout(earlyKill); earlyChat.clearState().catch(() => {}); };
   } catch (_) {}
 
   // Limite de tamanho — mensagens absurdamente longas são ignoradas
@@ -4603,8 +4637,8 @@ const server = webhookApp.listen(PORT, () => {
 });
 
 // Graceful shutdown — libera porta quando PM2 para o processo
-process.on('SIGTERM', () => server.close(() => process.exit(0)));
-process.on('SIGINT',  () => server.close(() => process.exit(0)));
+process.on('SIGTERM', () => { drainBuffer(); server.close(() => process.exit(0)); });
+process.on('SIGINT',  () => { drainBuffer(); server.close(() => process.exit(0)); });
 
 let _portRetries = 0;
 const PORT_MAX_RETRIES = 5;
