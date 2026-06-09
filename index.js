@@ -557,6 +557,10 @@ Isto é uma CONVERSA que continua, não perguntas soltas. O contexto traz o papo
 - Nunca aja como se fosse a primeira mensagem dele quando já teve papo antes.
 </continuidade>
 
+<input_vago>
+Se ele foi vago ("tô inseguro com uma mulher", "tô mal", "preciso de ajuda") e o histórico não esclarece a situação, NÃO suponha o que aconteceu nem despeje conselho genérico. Reconhece em 1 frase curta e faz UMA pergunta específica pra entender (quem é ela, o que rolou por último, o que ele quer que aconteça). Conselho de verdade só com a situação real na mão — chutar contexto é pior que perguntar.
+</input_vago>
+
 <output_format>
 Resposta CURTA e conversada: 2 a 4 frases no total — QUEBRADA pra respirar, como amigo mandando no WhatsApp em pedaços, NUNCA em bloco. Cada ideia numa linha curta (no máximo 2 linhas juntas), com uma LINHA EM BRANCO entre os pedaços. Sem parede de texto.
 Sem seção, sem header, sem 📍, sem rótulo tipo "o que tá rolando / contexto / o que funciona / armadilha", sem ---, sem lista numerada, sem dica rotulada no fim. SÓ conselho — nunca mensagem pronta pra ele copiar e mandar (se ele quer um texto pra mandar, isso é o outro modo).
@@ -669,6 +673,7 @@ Você é o classificador do MandaAssim. Você lê o input do usuário (print, te
 <categories>
 - volume: o cara quer uma MENSAGEM PRONTA pra mandar pra ela. Há situação concreta de conversa/paquera — ela mandou algo e ele quer responder, ele quer abrir conversa, ela deu vácuo, resposta curta dela ("kkk", emoji, "ata"), clima quente e quer provocar, OU ele reportou um resultado ("ela respondeu X", "não respondeu", "ela sumiu") e quer o próximo texto. É o "o que eu mando?".
 - coaching: o cara quer CONSELHO/conversa, NÃO uma mensagem pronta. Dúvida, ansiedade ou desabafo sobre o processo (ex: "tô com medo de chamar", "vale a pena insistir?", "voltei do divórcio, travado", "acho que perdi a vibe"). Reflexão emocional ou estratégica, sem alvo concreto de mensagem pra mandar agora.
+- meta: a mensagem é SOBRE O BOT/serviço, não sobre uma mulher. Saudação solta pro bot ("oi", "e aí", "bom dia" sem situação), curiosidade ou teste ("quero testar", "como funciona?", "o que você faz?", "isso é pago?"), agradecimento ou feedback sobre o bot. NÃO há situação de paquera nem pedido de conselho — ele tá falando COM o bot SOBRE o bot.
 - safety_block: menor de idade; ela disse EXPLICITAMENTE pra parar/sumir ("me deixa em paz", "para de me procurar") e ele quer insistir; perseguição física (aparecer, seguir, vigiar); ameaça, violência, surto, ideação suicida. ATENÇÃO: "ela me bloqueou / sumiu / cortou contato" SOZINHO NÃO é safety_block — é reconquista normal → volume (mensagem) ou coaching (conselho).
 </categories>
 
@@ -677,7 +682,8 @@ Você é o classificador do MandaAssim. Você lê o input do usuário (print, te
 </output_format>
 
 <rules>
-1. DECISÃO volume vs coaching: "Ele precisa de um TEXTO pra copiar e mandar AGORA?" → volume. "Ele quer orientação/estratégia/desabafo?" → coaching.
+1. DECISÃO volume vs coaching: "Ele precisa de um TEXTO pra copiar e mandar AGORA?" → volume. "Ele quer orientação/estratégia/desabafo?" → coaching. "Ele tá falando do BOT em si, sem mulher nem situação?" → meta.
+1b. ATENÇÃO meta vs volume: "oi sumido" descrevendo o que ELA mandou → volume. "oi" solto dele pro bot, sem contexto de mulher → meta. Use o diálogo recente pra desambiguar.
 2. Em dúvida volume/coaching sem print: descreve uma mensagem dela ou situação concreta de conversa → volume; abstrato/sentimento → coaching.
 3. Em dúvida com safety_block: safety_block (segurança vence sempre)
 4. Confidence abaixo de 0.6: use "volume" como fallback seguro
@@ -739,6 +745,21 @@ NÃO disparar safety_block só porque "ela bloqueou / sumiu / cortou contato / t
 <input>texto: "ela me bloqueou faz tempo mas descobri onde ela trabalha, vou aparecer lá"</input>
 <output>{"category":"safety_block","confidence":0.95,"reason":"perseguição física de quem cortou contato","emotional_temperature":"fria"}</output>
 </example>
+
+<example>
+<input>texto: "oi, quero testar o MandaAssim"</input>
+<output>{"category":"meta","confidence":0.96,"reason":"quer testar o bot, sem situação de paquera","emotional_temperature":"morna"}</output>
+</example>
+
+<example>
+<input>texto: "como funciona isso aqui?"</input>
+<output>{"category":"meta","confidence":0.95,"reason":"pergunta sobre o serviço","emotional_temperature":"morna"}</output>
+</example>
+
+<example>
+<input>texto: "oi"</input>
+<output>{"category":"meta","confidence":0.85,"reason":"saudação solta pro bot, sem situação","emotional_temperature":"morna"}</output>
+</example>
 </examples>`;
 
 // Dois modos de texto via adapter (MAIN_MODEL=GPT-5 mini, fallback Gemini 2.5):
@@ -771,6 +792,19 @@ function pickSafetyResponse(reason) {
   return SAFETY_RESPONSES.generic;
 }
 
+// Respostas guiadas pra mensagens SOBRE o bot (saudação, "quero testar", "como
+// funciona"). Sem chamar modelo: rápido, barato e sempre no tom certo — em vez
+// de gerar análise sem sentido sobre "testar o MandaAssim".
+const META_RESPONSES = [
+  `tô na área 👊\n\nme manda o print da conversa com ela, ou escreve a situação — tipo _'ela me deixou no vácuo'_ ou _'match novo, travei no que falar'_\n\nte devolvo 3 respostas prontas pra mandar`,
+  `simples assim: cola aqui o print da conversa (ou conta a situação por texto)\n\neu leio o clima e te devolvo 3 opções de resposta prontas, cada uma com um tom diferente\n\nbora testar? manda aí`,
+  `funciono assim 👇\n\nvocê me manda o print da conversa ou descreve o que tá rolando — tipo _'chamei pra sair e ela me ignorou'_\n\nem 20 segundos te devolvo 3 respostas prontas pra escolher e mandar`,
+];
+
+function pickMetaResponse() {
+  return META_RESPONSES[Math.floor(Math.random() * META_RESPONSES.length)];
+}
+
 /**
  * Retry com backoff exponencial para erros 429 (rate-limit) e 5xx.
  * Delays: 2s → 5s → 10s (3 tentativas no total).
@@ -791,7 +825,7 @@ async function retryWithBackoff(fn) {
 }
 
 async function classificarIntent(situacao, dialogo = '') {
-  const validCategories = [...Object.keys(INTENT_MODEL_CONFIG), 'safety_block'];
+  const validCategories = [...Object.keys(INTENT_MODEL_CONFIG), 'safety_block', 'meta'];
   try {
     const response = await retryWithBackoff(() => openrouter.chat.completions.create({
       model: MODELS.CLASSIFIER_MODEL,
@@ -1352,6 +1386,15 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
     const safeMsg = pickSafetyResponse(classResult.reason);
     console.log(`[Safety] Bloqueado: ${classResult.reason}`);
     return { text: safeMsg, intent: 'safety_block' };
+  }
+
+  // Meta — mensagem sobre o bot (saudação, "quero testar", "como funciona").
+  // Resposta guiada fixa, sem chamar modelo — evita gerar análise sem sentido.
+  if (intent === 'meta') {
+    const metaMsg = pickMetaResponse();
+    console.log(`[Meta] Resposta guiada: ${classResult.reason}`);
+    pushConversationTurn(phone, 'bot', metaMsg);
+    return { text: metaMsg, intent: 'coaching' };
   }
 
   const config = INTENT_MODEL_CONFIG[intent] || INTENT_MODEL_CONFIG['volume'];
@@ -3261,6 +3304,44 @@ async function handleIncomingMessage(message) {
       return;
     }
 
+    // ── Resposta de contexto pendente do print ("quem é ela?") ───────────────
+    const ctxPendPrint = getUserContext(phone);
+    if (ctxPendPrint?.pendingPrintContext) {
+      const { data: imgDataQP, mimetype: imgMimeQP } = ctxPendPrint.pendingPrintContext;
+      const quickContext = text.slice(0, 300);
+
+      // Limpa a pendência e guarda o contexto na sessão
+      const currentQP = userContext.get(phone) || {};
+      userContext.set(phone, { ...currentQP, pendingPrintContext: null, printQuickContext: quickContext });
+
+      // Persiste no perfil dela — análises futuras já nascem com contexto
+      saveGirlProfile(phone, {
+        girl_context: quickContext,
+        current_situation: text.slice(0, 200),
+      }).catch(() => {});
+
+      await message.reply('Lendo a conversa... ⏳');
+      const stopTypingQP = await startTyping(message);
+      try {
+        const { messages: pmQP, structuredResult: printResultQP } = await analisarPrintConversaComHaiku(imgDataQP, imgMimeQP, phone, quickContext);
+        stopTypingQP();
+        incrementPrintCount(phone);
+        setPrintLastTime(phone);
+        saveUserContext(phone, { data: imgDataQP, mimetype: imgMimeQP }, 'image');
+        if (printResultQP) {
+          const ctxAfterQP = userContext.get(phone) || {};
+          userContext.set(phone, { ...ctxAfterQP, lastPrintResult: printResultQP });
+        }
+        await sendWithDelay(message.from, pmQP, { phone, intent: 'print_analysis' });
+        logJourneyEvent(phone, 'first_print_analyzed').catch(() => {});
+      } catch (err) {
+        stopTypingQP();
+        console.error('[PrintAnalysis] Erro (pós-contexto):', err.message);
+        await client.sendMessage(message.from, 'Print tá difícil de ler. Manda um mais nítido, mostrando as últimas 5-10 mensagens.');
+      }
+      return;
+    }
+
     // ── Resposta de desambiguação de imagem ("conversa" / "perfil") ──────────
     const ctxAmbig = getUserContext(phone);
     if (ctxAmbig?.pendingImageClassification) {
@@ -3289,7 +3370,8 @@ async function handleIncomingMessage(message) {
               } else {
                 await message.reply('Lendo a conversa... ⏳');
                 try {
-                  const { messages: pm, structuredResult: printResultAmbig } = await analisarPrintConversaComHaiku(imgData, imgMime, phone);
+                  const girlCtxAmbig = buildGirlContext(await getGirlProfile(phone)) || (userContext.get(phone) || {}).printQuickContext || '';
+                  const { messages: pm, structuredResult: printResultAmbig } = await analisarPrintConversaComHaiku(imgData, imgMime, phone, girlCtxAmbig);
                   incrementPrintCount(phone); setPrintLastTime(phone);
                   saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
                   if (printResultAmbig) {
@@ -4437,11 +4519,26 @@ async function handleIncomingMessage(message) {
             return;
           }
 
+          // ── Contexto antes da análise: sem saber quem é ela, a sugestão sai genérica ──
+          const ctxPrintGate = getUserContext(phone) || {};
+          if (!girlContextImg && !ctxPrintGate.printQuickContext) {
+            const currentGate = userContext.get(phone) || {};
+            userContext.set(phone, {
+              ...currentGate,
+              pendingPrintContext: { data: media.data, mimetype: media.mimetype },
+            });
+            await client.sendMessage(message.from,
+              `recebi o print 👊 antes de eu te dar as respostas — quem é ela e o que você quer?\n\n_(1 linha resolve: tipo "match do Tinder, quero marcar encontro" ou "minha ex, tentando reatar")_`
+            );
+            return;
+          }
+          const situacaoPrint = girlContextImg || ctxPrintGate.printQuickContext || '';
+
           const isFirstPrintV2 = ONBOARDING_V2 && !getUserContext(phone)?.lastRequest;
           if (!isFirstPrintV2) await message.reply('Lendo a conversa... ⏳');
           const stopTypingPrint = await startTyping(message);
           try {
-            const { messages: printMsgs, structuredResult: printResultMain } = await analisarPrintConversaComHaiku(media.data, media.mimetype, phone);
+            const { messages: printMsgs, structuredResult: printResultMain } = await analisarPrintConversaComHaiku(media.data, media.mimetype, phone, situacaoPrint);
             stopTypingPrint();
 
             incrementPrintCount(phone);
