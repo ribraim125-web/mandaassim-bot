@@ -1,5 +1,9 @@
 # Variáveis de ambiente (nunca subir!)
 .env
+.env.save
+.env.*.save
+.env.backup
+.env.bak
 
 # Sessão do WhatsApp (gerada automaticamente)
 .wwebjs_auth/
