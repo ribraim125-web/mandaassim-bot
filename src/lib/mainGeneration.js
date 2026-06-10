@@ -127,7 +127,9 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
 
   const req = {
     model,
-    max_tokens: maxTokens,
+    // Estruturado: folga extra — reasoning tokens do GPT-5 contam no max_tokens;
+    // sem folga o JSON chega truncado e a resposta quebra.
+    max_tokens: structured ? Math.max(maxTokens, 1500) : maxTokens,
     temperature,
     // GPT-5 mini é modelo de raciocínio — sem isto ele "pensa" por default e
     // estoura a latência (~22s). 'minimal' = baixa latência, ideal pra WhatsApp.
@@ -170,8 +172,15 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
   let input = null;
   try { input = JSON.parse(raw); } catch (_) { /* malformado */ }
   const malformed = !opcoesValidas(input);
+  if (malformed) {
+    console.error(`[MainGen] saída malformada (${raw.length} chars): ${raw.slice(0, 120)}...`);
+  }
   return {
-    text: malformed ? raw : montarRespostaEstruturada(input),
+    // NUNCA devolve o JSON cru — se malformado, o caller tenta o fallback e,
+    // em último caso, esta mensagem segura vai pro usuário.
+    text: malformed
+      ? 'Tive um engasgo aqui. Manda a situação de novo que eu leio na hora'
+      : montarRespostaEstruturada(input),
     malformed,
     modelUsed: model,
     usage,
@@ -194,6 +203,12 @@ async function gerarRespostaPrincipal({ systemPrompt, userContent, maxTokens = 9
   let r, fallbackTriggered = false, error = null;
   try {
     r = await chamarModelo(MODELS.MAIN_MODEL, opts);
+    if (r.malformed && structured) {
+      // JSON truncado/inválido — tenta o fallback antes de desistir
+      fallbackTriggered = true;
+      console.error(`[MainGen] ${MODELS.MAIN_MODEL} malformado — retry no ${MODELS.MAIN_MODEL_ROLLBACK}`);
+      r = await chamarModelo(MODELS.MAIN_MODEL_ROLLBACK, opts);
+    }
   } catch (e) {
     error = e.message;
     fallbackTriggered = true;
