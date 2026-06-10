@@ -1426,7 +1426,14 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
     ? `\n\nConversa recente entre você (MandaAssim) e ele — é o papo de vocês dois, NÃO a conversa dele com a menina:\n${dialogo}\n\nSe a mensagem nova dele for continuação desse papo, conecta com o que você já disse. Se ele mudou de assunto, foca no novo.`
     : '';
 
-  const userContent = `${prefixo}${contextoConversa}\n\nMensagem nova dele: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
+  // Último print analisado — dá ao modelo a visão da conversa DELE COM ELA,
+  // não só do papo bot↔usuário. É o que costura print → texto numa coisa só.
+  const lp = ctxConversa?.lastPrintResult;
+  const contextoPrint = lp?.situation_summary
+    ? `\n\nContexto da conversa dele com ela (do último print que você analisou): ${String(lp.situation_summary).slice(0, 300)}${lp.conversation_temperature ? ` | clima: ${lp.conversation_temperature}` : ''}. Se a mensagem nova dele for sobre essa mesma conversa, use esse contexto pra responder com continuidade.`
+    : '';
+
+  const userContent = `${prefixo}${contextoConversa}${contextoPrint}\n\nMensagem nova dele: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
 
   // Geração de texto — TODOS os intents via adapter: GPT-5 mini (MAIN_MODEL) com
   // fallback automático Gemini 2.5 Flash-Lite. Zero Anthropic/Haiku aqui.
@@ -1860,9 +1867,22 @@ function pushConversationTurn(phone, role, text) {
   if (!phone || typeof text !== 'string' || !text.trim()) return;
   const current = userContext.get(phone) || {};
   const history = Array.isArray(current.history) ? current.history.slice() : [];
-  history.push({ r: role === 'bot' ? 'b' : 'u', t: text.slice(0, 220) });
+  // 450 chars: as 3 opções do bot têm ~400 — cortar em 220 fazia ele esquecer
+  // metade do que sugeriu e quebrava a continuidade.
+  history.push({ r: role === 'bot' ? 'b' : 'u', t: text.slice(0, 450) });
   while (history.length > MAX_TURNS) history.shift();
   userContext.set(phone, { ...current, history });
+}
+
+// Registra uma análise de print no histórico de turnos. Sem isso, a próxima
+// mensagem de texto não sabe que o print existiu — a conversa vira ilhas isoladas.
+function registrarPrintNoHistorico(phone, structuredResult) {
+  if (!structuredResult) return;
+  const resumo = structuredResult.situation_summary || 'print de conversa';
+  pushConversationTurn(phone, 'user', `[mandou print da conversa com ela] ${resumo}`);
+  const s = structuredResult.suggested_next_message || {};
+  const sugestoes = [s.balanced, s.bold, s.safe].filter(Boolean).join(' | ');
+  if (sugestoes) pushConversationTurn(phone, 'bot', `[analisei o print e sugeri] ${sugestoes}`);
 }
 
 // Renderiza o histórico de turnos como diálogo legível pro modelo. Compatível
@@ -3349,6 +3369,7 @@ async function handleIncomingMessage(message) {
         if (printResultQP) {
           const ctxAfterQP = userContext.get(phone) || {};
           userContext.set(phone, { ...ctxAfterQP, lastPrintResult: printResultQP });
+          registrarPrintNoHistorico(phone, printResultQP);
         }
         await sendWithDelay(message.from, pmQP, { phone, intent: 'print_analysis' });
         logJourneyEvent(phone, 'first_print_analyzed').catch(() => {});
@@ -3395,6 +3416,7 @@ async function handleIncomingMessage(message) {
                   if (printResultAmbig) {
                     const ctxAfterAmbigPrint = userContext.get(phone) || {};
                     userContext.set(phone, { ...ctxAfterAmbigPrint, lastPrintResult: printResultAmbig });
+                    registrarPrintNoHistorico(phone, printResultAmbig);
                   }
                   await sendWithDelay(message.from, pm, { phone, intent: 'print_analysis' });
                 } catch (_) {
@@ -4575,6 +4597,7 @@ async function handleIncomingMessage(message) {
             if (printResultMain) {
               const ctxAfterPrint = userContext.get(phone) || {};
               userContext.set(phone, { ...ctxAfterPrint, lastPrintResult: printResultMain });
+              registrarPrintNoHistorico(phone, printResultMain);
             }
 
             // V2: mirroring antes dos resultados na 1ª análise
