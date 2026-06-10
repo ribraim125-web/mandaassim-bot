@@ -230,21 +230,21 @@ const MENSAGEM_RENOVACAO =
 // Mensagem 1 — imediata
 const WELCOME_MSG_0 =
   `e aí 👊 sou o *MandaAssim*\n\n` +
-  `me manda *o print da conversa* ou *conta a situação* — eu te devolvo *3 respostas prontas* pra copiar e mandar pra ela`;
+  `📸 manda o *print da conversa*\n` +
+  `💬 ou *conta a situação*\n\n` +
+  `e eu te devolvo *3 respostas prontas* pra copiar e colar ⚡`;
 
 // Mensagem 2 — após 2 segundos: demo curta de COMO funciona
 const WELCOME_MSG_1 =
-  `funciona assim 👇 ela manda _'bom dia, dormiu bem?'_ e você recebe na hora:\n\n` +
+  `exemplo 👇 ela mandou _'bom dia, dormiu bem?'_\n\n` +
   `🎯 *DIRETO*\ndormi, mas o dia só melhorou agora\n\n` +
-  `🌹 *ROMÂNTICO*\ndormi bem, mas acordar com mensagem sua foi a melhor parte\n\n` +
-  `😏 *BRINCALHÃO*\ndormi tão bem que até sonhei que você puxava assunto primeiro, olha aí\n\n` +
-  `é só copiar a que combinar com você e mandar`;
+  `🌹 *ROMÂNTICO*\nacordar com mensagem sua foi a melhor parte\n\n` +
+  `😏 *BRINCALHÃO*\nsonhei que você puxava assunto primeiro, olha aí`;
 
 // Mensagem 3 — após 3 segundos: call to action + trial
 const WELCOME_MSG_2 =
-  `*⚡ atenção:* toda vez que você mandar um print ou uma situação, eu te devolvo as *3 respostas* — 🎯 direto, 🌹 romântico e 😏 brincalhão\n\n` +
-  `🎁 você ganhou *3 dias grátis e ILIMITADO*\nsem cartão, sem cadastro\n\n` +
-  `bora? manda teu print ou escreve a situação agora 👇`;
+  `🎁 *3 dias grátis e ILIMITADO* — sem cartão\n\n` +
+  `bora? manda o print ou a situação 👇`;
 
 // Nudge 90s — disparado se usuário não responder nada após MSG 3
 const WELCOME_MSG_NUDGE =
@@ -394,15 +394,16 @@ MandaAssim, mecanismo "Tom Certo": o cara cola uma situação (texto ou print) e
 </contexto_do_produto>
 
 <tonalidades>
-Cinco categorias de tom — você escolhe 3 das 5 que mais se encaixam na situação:
+Seis categorias de tom — você escolhe as 3 que mais encaixam na situação:
 
 🎯 DIRETO — pragmático, vai pro próximo passo sem rodeio. Máx 10 palavras.
-🌹 ROMÂNTICO — afetivo sem ser melado, cria calor sem forçar. Máx 14 palavras.
-😏 BRINCALHÃO — humor seco, leveza, inverte o clima. Máx 14 palavras.
-💭 MISTERIOSO — implícito, deixa ela querer saber mais. Máx 14 palavras.
 👑 CONFIANTE — pressupõe que já está fechado, vai na frente. Máx 14 palavras.
+😏 BRINCALHÃO — humor seco, leveza, inverte o clima. Máx 14 palavras.
+🌹 ROMÂNTICO — afetivo sem ser melado, cria calor sem forçar. Máx 14 palavras.
+🤝 AMIGÁVEL — leve e próximo, sem pressão de flerte, conexão de verdade. Máx 14 palavras.
+🔥 SAFADO — ousado e provocante, tensão de verdade. SÓ quando o papo deles JÁ está quente/íntimo — nunca de cara com desconhecida. Máx 14 palavras.
 
-Você nunca usa as 5 na mesma resposta. Nunca repete sempre as mesmas 3. Varia a combinação conforme a situação.
+Você nunca usa todas na mesma resposta. Nunca repete sempre as mesmas 3 — ALTERNE conforme a situação e a temperatura do papo (papo quente pede 🔥, papo começando pede 🤝/😏, papo de casal pede 🌹).
 </tonalidades>
 
 <como_pensar>
@@ -924,16 +925,17 @@ const MODO_CONVERSA = `
 <modo_conversa>
 Você está numa CONVERSA CONTÍNUA de WhatsApp com ele. REGRA Nº1: ENTREGA SEMPRE. Seu trabalho é dar a MENSAGEM PRONTA, não conversar sobre a mensagem. Na dúvida, gera com o que tem — NUNCA trava o papo com pergunta.
 
-PADRÃO (quase sempre): 3 opções de mensagem pronta, cada uma num TOM diferente, no MESMO registro que ele tá usando (ele tá no flerte quente? as mensagens são quentes). Formato EXATO — cada opção é um bloco "EMOJI TOM" numa linha e a mensagem pronta na linha seguinte, blocos separados por linha em branco, NADA fora dos blocos:
+PADRÃO (quase sempre): 3 opções de mensagem pronta, cada uma num TOM diferente, no MESMO registro que ele tá usando (ele tá no flerte quente? as mensagens são quentes). Escolha 3 tons entre os 6 (🎯 DIRETO / 👑 CONFIANTE / 😏 BRINCALHÃO / 🌹 ROMÂNTICO / 🤝 AMIGÁVEL / 🔥 SAFADO) — os que mais encaixam na situação, alternando entre respostas. Formato EXATO — cada opção é um bloco "EMOJI TOM" numa linha e a mensagem pronta na linha seguinte, blocos separados por linha em branco, NADA fora dos blocos:
 🎯 DIRETO
 mensagem pronta aqui
 
-🌹 ROMÂNTICO
+😏 BRINCALHÃO
 outra mensagem aqui
 
-😏 BRINCALHÃO
+🔥 SAFADO
 terceira mensagem aqui
-Os 3 tons são SEMPRE esses: 🎯 DIRETO, 🌹 ROMÂNTICO, 😏 BRINCALHÃO — nessa ordem.
+
+COPY-PASTE PURO (regra sagrada): a linha abaixo do header é SÓ a mensagem pronta, exatamente como ela deve chegar no WhatsApp dela. PROIBIDO: aspas em volta, instrução antes ("responde curto e confiante:"), comentário depois, ponto final. O cara copia e cola SEM EDITAR NADA.
 
 VARIAÇÕES (só nesses casos):
 - Perguntou sobre você/como funciona → 1-2 linhas: manda o print ou conta a situação que eu devolvo as 3 respostas.
@@ -1075,7 +1077,7 @@ function stripPeriods(text) {
 }
 
 // Regex para detectar headers de tom no formato emoji (novo) ou ━━━ (legado)
-const TONE_EMOJI_RE = /^(?:🎯|🌹|😏|💭|👑) (?:DIRETO|ROMÂNTICO|BRINCALHÃO|MISTERIOSO|CONFIANTE)/;
+const TONE_EMOJI_RE = /^(?:🎯|🌹|😏|💭|👑|🤝|🔥) (?:DIRETO|ROMÂNTICO|BRINCALHÃO|MISTERIOSO|CONFIANTE|AMIGÁVEL|SAFADO)/;
 
 // Ganchos de retenção — enviados após as 3 opções (varia a cada turno)
 // Gancho de retorno: mantém o loop (ele volta contar o desfecho = engajamento),
@@ -1162,7 +1164,7 @@ Responde SOMENTE as mensagens corrigidas, uma por linha separada por ---. Mesma 
  * Retorna [] se o texto não usa nenhum dos formatos.
  */
 function splitByToneBlocks(text) {
-  const hasEmojiHeaders = /(?:^|\n)(?:🎯|🌹|😏|💭|👑) /.test(text);
+  const hasEmojiHeaders = /(?:^|\n)(?:🎯|🌹|😏|💭|👑|🤝|🔥) /.test(text);
   const hasDashHeaders  = text.includes('━━━');
   if (!hasEmojiHeaders && !hasDashHeaders) return [];
 
@@ -1175,7 +1177,7 @@ function splitByToneBlocks(text) {
   // Posição do primeiro header de tom
   let firstIdx;
   if (hasEmojiHeaders) {
-    const m = text.match(/(?:^|\n)((?:🎯|🌹|😏|💭|👑) )/);
+    const m = text.match(/(?:^|\n)((?:🎯|🌹|😏|💭|👑|🤝|🔥) )/);
     if (!m) return [];
     firstIdx = m.index + (m[0].startsWith('\n') ? 1 : 0);
   } else {
