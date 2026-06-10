@@ -2918,10 +2918,15 @@ async function handleIncomingMessage(message) {
     if (ONBOARDING_V2) {
       // V2: onboarding em 3 mensagens — mostra o produto funcionando antes de pedir qualquer coisa
       await client.sendMessage(message.from, WELCOME_MSG_0);
-      await new Promise(r => setTimeout(r, 3000));
+      let welcomeChat = null;
+      try { welcomeChat = await message.getChat(); } catch (_) {}
+      if (welcomeChat) { try { await welcomeChat.sendStateTyping(); } catch (_) {} }
+      await new Promise(r => setTimeout(r, 2000));
       await client.sendMessage(message.from, WELCOME_MSG_1);
-      await new Promise(r => setTimeout(r, 4000));
+      if (welcomeChat) { try { await welcomeChat.sendStateTyping(); } catch (_) {} }
+      await new Promise(r => setTimeout(r, 2000));
       await client.sendMessage(message.from, WELCOME_MSG_2);
+      if (welcomeChat) { try { await welcomeChat.clearState(); } catch (_) {} }
       ensureFDS(phone).catch(() => {});
       logJourneyEvent(phone, 'onboarding_v2_started', {}).catch(() => {});
       console.log(`[Boas-vindas] Enviada para: ${phone} (V2)`);
