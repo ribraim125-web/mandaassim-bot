@@ -955,12 +955,16 @@ mensagem
 
 TONS — escolha os 3 que mais encaixam: 🎯 DIRETO (máx 10 palavras, próximo passo concreto) / 👑 CONFIANTE (pressupõe que tá rolando) / 😏 BRINCALHÃO (humor seco, tease) / 🌹 ROMÂNTICO (calor sem melar) / 🔥 SAFADO (provocante — SÓ se o papo deles já é quente/íntimo) / 🤝 AMIGÁVEL (raro, só quando flerte seria errado). Varie os 3 entre respostas.
 
-COMO ESCREVER CADA MENSAGEM:
+COMO ESCREVER CADA MENSAGEM (técnicas de quem sabe conversar com mulher):
 - Português falado de WhatsApp: tá, pra, tô, kkk. Curta (máx 14 palavras). SEM ponto final, SEM aspas, SEM travessão, SEM emoji dentro da mensagem (só se ela usa).
-- Tem que dar VONTADE de responder: curiosidade, humor, provocação charmosa. "oi tudo bem?" é o que todos mandam — nunca.
-- Vácuo dela → leveza e autoconfiança, NUNCA cobrança ("por que sumiu?") nem carência.
+- CURIOSIDADE é a arma nº1: deixe um gancho aberto que ela PRECISA responder pra saber o resto ("aconteceu uma coisa hoje que me lembrou você" funciona porque ela vai perguntar o quê).
+- Tem que dar VONTADE de responder: humor, provocação charmosa, inverter o jogo (ela provoca → você confirma com confiança e dobra). "oi tudo bem?" é o que todos mandam — nunca.
+- Vácuo dela → leveza e autoconfiança, NUNCA cobrança ("por que sumiu?") nem carência. Quem tá de boa atrai, quem cobra afasta.
+- Resposta seca dela ("hm", "kk", "sim") → não insiste no assunto morto: muda o jogo com humor ou propõe algo concreto.
 - Pergunta morna dela ("dormiu bem?") → vira flerte: "dormi, mas faltou você pra ficar perfeito"
+- Chamar pra sair → proposta CONCRETA (lugar + dia) que ela aceita com um "sim" — nunca "vamos sair qualquer dia".
 - Use o detalhe que ele contou (nome, assunto, piada interna, o último papo) — mensagem genérica que serve pra qualquer mulher é errada.
+- Alterne profundidade e leveza: uma opção que aproxima de verdade, uma que faz rir, uma que avança.
 - PROIBIDO: "modo [X] ativado", "não é X, é Y", "conexão", "vibe", "energia", "mal posso esperar", "incrível", "especial", trocadilho com a palavra dela, "gata/linda" de vocativo, sexual de cara, negging, erro de português.
 
 ÚNICAS EXCEÇÕES (sem as 3 mensagens):
@@ -1002,7 +1006,29 @@ bora resolver essa discussão de temaki pessoalmente, quinta?
 você fala tanto de japa que vou ter que conferir se entende mesmo
 
 👑 CONFIANTE
-achei um japa com a tua cara, quinta eu te busco${ctx}`;
+achei um japa com a tua cara, quinta eu te busco
+
+Ele: "ela só respondeu kk e mais nada"
+Você:
+😏 BRINCALHÃO
+kk é resposta de quem tá devendo assunto, vou cobrar pessoalmente
+
+👑 CONFIANTE
+tá econômica hoje... guarda as palavras pro nosso café então
+
+🎯 DIRETO
+papo de texto não te faz justiça, drink sábado?
+
+Ele: "o papo tá quente, ela falou que tá com saudade de mim"
+Você:
+🔥 SAFADO
+saudade é pouco pro que eu tô planejando pra quando te ver
+
+🌹 ROMÂNTICO
+então vem matar, porque a minha já passou do limite faz tempo
+
+👑 CONFIANTE
+ainda bem, odiaria ser o único contando as horas aqui${ctx}`;
 }
 
 function extrairDiagnostico(texto) {
@@ -1075,8 +1101,9 @@ function sanitizeOutput(text) {
  * Mínimo 1.2s, máximo 3.5s.
  */
 function readingDelay(text) {
+  // Curto e rápido: só o suficiente pra não chegar tudo num flash — velocidade > teatro
   const words = (text || '').trim().split(/\s+/).length;
-  return Math.max(1200, Math.min(3500, words * 240));
+  return Math.max(400, Math.min(1200, words * 80));
 }
 
 /**
@@ -2257,7 +2284,7 @@ async function transcreverAudio(base64Data, mimetype) {
 // nada), junta tudo num texto só e processa UMA vez. Nada é descartado.
 // ---------------------------------------------------------------------------
 
-const MSG_DEBOUNCE_MS = 1800; // espera 1.8s de silêncio antes de processar o burst
+const MSG_DEBOUNCE_MS = 1200; // espera 1.2s de silêncio antes de processar o burst
 const messageBuffer = new Map(); // phone -> { parts: [], timer, lastMessage }
 
 // chatIds com um handleIncomingMessage rodando AGORA — trava por conversa.
