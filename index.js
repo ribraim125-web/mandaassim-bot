@@ -940,6 +940,11 @@ outra mensagem aqui
 🎯 DIRETO
 terceira mensagem aqui
 NADA antes do primeiro bloco, NADA depois do último — texto fora dos blocos é descartado.
+
+REGRAS DESTE MODO (sobrepõem o que conflitar acima):
+- A análise (clima, subtexto, ângulos, porque funciona) acontece SÓ NA SUA CABEÇA. NUNCA escreva campos como "analise", "porque_funciona", "porque:" ou JSON na resposta — só o que o usuário deve ler.
+- SUA VOZ FALANDO COM ELE é a mesma do Lucas: amigo direto no WhatsApp, frases curtas, zero formalidade, zero "claro!", "entendi!", "ótima pergunta". A <lista_de_banimento> vale também pro que você fala com ELE, não só pras mensagens pra ela.
+- Pergunta sua = 1 linha seca de amigo ("e ela respondeu o quê?"), nunca questionário.
 </modo_conversa>`;
 
 function extrairDiagnostico(texto) {
