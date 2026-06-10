@@ -229,23 +229,22 @@ const MENSAGEM_RENOVACAO =
 
 // Mensagem 1 — imediata
 const WELCOME_MSG_0 =
-  `e aí 👊 sou o MandaAssim\n\n` +
-  `travou no que responder pra uma mina? cola aqui o print da conversa (ou só conta a situação por texto) e eu te devolvo 3 respostas prontas pra mandar — em 20 segundos`;
+  `e aí 👊 sou o *MandaAssim*\n\n` +
+  `me manda *o print da conversa* ou *conta a situação* — eu te devolvo *3 respostas prontas* pra copiar e mandar pra ela`;
 
 // Mensagem 2 — após 2 segundos: demo curta de COMO funciona
 const WELCOME_MSG_1 =
-  `tipo assim 👇 ela te manda _'interessante kkk'_ e você fica sem saber o que falar\n\n` +
-  `eu te dou na hora:\n\n` +
-  `🔥 o que especificamente?\n` +
-  `😏 você devia ter perguntado antes\n` +
-  `⚡ vou deixar você descobrir\n\n` +
-  `aí é só copiar a que tu curtir e mandar`;
+  `funciona assim 👇 ela manda _'bom dia, dormiu bem?'_ e você recebe na hora:\n\n` +
+  `🎯 *DIRETO*\ndormi, mas o dia só melhorou agora\n\n` +
+  `🌹 *ROMÂNTICO*\ndormi bem, mas acordar com mensagem sua foi a melhor parte\n\n` +
+  `😏 *BRINCALHÃO*\ndormi tão bem que até sonhei que você puxava assunto primeiro, olha aí\n\n` +
+  `é só copiar a que combinar com você e mandar`;
 
 // Mensagem 3 — após 3 segundos: call to action + trial
 const WELCOME_MSG_2 =
-  `bora? manda agora teu print ou escreve a situação (tipo _'match novo travou'_)\n\n` +
-  `🎁 você ganhou *3 dias grátis e ILIMITADO* pra testar\n` +
-  `sem cartão, sem cadastro`;
+  `*⚡ atenção:* toda vez que você mandar um print ou uma situação, eu te devolvo as *3 respostas* — 🎯 direto, 🌹 romântico e 😏 brincalhão\n\n` +
+  `🎁 você ganhou *3 dias grátis e ILIMITADO*\nsem cartão, sem cadastro\n\n` +
+  `bora? manda teu print ou escreve a situação agora 👇`;
 
 // Nudge 90s — disparado se usuário não responder nada após MSG 3
 const WELCOME_MSG_NUDGE =
@@ -934,12 +933,13 @@ outra mensagem aqui
 
 😏 BRINCALHÃO
 terceira mensagem aqui
-(escolha os 3 tons que mais encaixam entre 🎯 DIRETO / 🌹 ROMÂNTICO / 😏 BRINCALHÃO / 💭 MISTERIOSO / 👑 CONFIANTE — varie conforme a situação)
+Os 3 tons são SEMPRE esses: 🎯 DIRETO, 🌹 ROMÂNTICO, 😏 BRINCALHÃO — nessa ordem.
 
 VARIAÇÕES (só nesses casos):
-- Desabafo ou pedido de conselho ("tô nervoso pro encontro sexta", "não sei se invisto nela") → modo coach: papo reto de amigo, máximo 4 linhas, leitura direta + o que fazer AGORA. PROIBIDO metáfora e filosofia ("batendo na porta do momento íntimo", "plantando sementes", "a chave é...") — isso é cringe, fala como gente. Se ajudar, fecha já com as 3 opções.
-- Perguntou sobre você/como funciona → 1-2 linhas e pede a situação ou o print.
+- Perguntou sobre você/como funciona → 1-2 linhas: manda o print ou conta a situação que eu devolvo as 3 respostas.
 - Continuação ("e se ela não responder?", "qual eu mando?") → conecta com o que você acabou de dizer e JÁ entrega a jogada, sem recomeçar.
+
+NÃO EXISTE MODO COACH/TERAPIA: se ele desabafar ("tô nervoso pro encontro", "não sei se invisto"), NÃO vire conselheiro — no máximo 1 linha reta de amigo e o foco volta pro que importa: as 3 opções de mensagem certas pro momento dele. PROIBIDO metáfora e filosofia ("batendo na porta do momento íntimo", "plantando sementes", "a chave é...").
 
 PERGUNTAR ANTES DE ENTREGAR: só quando faltar contexto de verdade (ex.: "ela me deu vácuo" sem dizer o que ele mandou → "o que você mandou pra ela?"). Máximo UMA pergunta de UMA linha, e quando ele responder QUALQUER coisa ("nada", "sei lá") — isso É a resposta: entrega as 3 opções imediatamente com o que tem. REPETIR UMA PERGUNTA JÁ FEITA É FALHA GRAVE.
 
@@ -3994,7 +3994,7 @@ async function handleIncomingMessage(message) {
     }
 
     // ── Trigger A: Coach de Transição ────────────────────────────────────────
-    if (isTransitionCoachEnabled(phone) && TRANSITION_COACH_KEYWORDS.test(text)) {
+    if (!UNIFIED_CHAT && isTransitionCoachEnabled(phone) && TRANSITION_COACH_KEYWORDS.test(text)) {
       // Plano livre: upsell
       if (!trial.isPremium) {
         await client.sendMessage(message.from, TRANSITION_COACH_UPSELL_FREE);
@@ -4031,7 +4031,7 @@ async function handleIncomingMessage(message) {
     }
 
     // ── Trigger A/C: Coach Pré-Date (Wingman Pro only) ──────────────────────
-    if (isPreDateCoachEnabled(phone) &&
+    if (!UNIFIED_CHAT && isPreDateCoachEnabled(phone) &&
         (PREDATE_COACH_KEYWORDS.test(text) || /^preparar encontro$/i.test(text))) {
       // Journey event: encontro mencionado (alimenta act_08 da narrativa)
       logJourneyEvent(phone, 'encounter_mentioned', {}, false).catch(() => {});
@@ -4058,7 +4058,7 @@ async function handleIncomingMessage(message) {
     }
 
     // ── Trigger B/C: Debrief Pós-Date (Wingman Pro only) ────────────────────
-    if (isPostdateDebriefEnabled(phone) &&
+    if (!UNIFIED_CHAT && isPostdateDebriefEnabled(phone) &&
         (POSTDATE_DEBRIEF_KEYWORDS.test(text) || POSTDATE_AUTO_TRIGGER_PATTERNS.test(text) ||
          /^debrief( encontro)?$/i.test(text))) {
       if (!trial.isPro) {
@@ -4084,7 +4084,7 @@ async function handleIncomingMessage(message) {
     }
 
     // ── Trigger A: Debrief proativo (resposta ao follow-up do worker) ─────────
-    if (isPostdateDebriefEnabled(phone)) {
+    if (!UNIFIED_CHAT && isPostdateDebriefEnabled(phone)) {
       const hasPendingDebrief = await temDebriefPendente(phone);
       if (hasPendingDebrief) {
         if (!trial.isPro) {
