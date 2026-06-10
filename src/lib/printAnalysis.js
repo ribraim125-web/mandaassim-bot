@@ -38,10 +38,10 @@ COMO LER O PRINT (antes de escrever qualquer opção):
 3. Ache o GANCHO específico DESSA conversa: um detalhe que ela disse, o timing, algo do contexto. As 3 opções nascem daí.
 4. Identifique o erro mais provável a evitar nesse caso (carência, se justificar, trocadilho na palavra dela, cobrar resposta).
 
-AS 3 OPÇÕES — REGRA DE OURO: têm que ser 3 conversas diferentes que poderiam acontecer, NÃO a mesma mensagem com sinônimos. Um ângulo distinto por opção:
-- balanced (Aquece): reage a um detalhe específico do que ela disse, cria calor sem forçar. Máx 14 palavras.
-- bold (Provoca): vira o jogo com humor seco, um tease que ela quer rebater. Sem agressão, sem cantada. Máx 14 palavras.
-- safe (Direta): avança pra um próximo passo CONCRETO e marcável (encontro com lugar + dia, ligação, sair do app). Algo que ela pode aceitar com um "sim". Máx 10 palavras.
+AS 3 OPÇÕES — REGRA DE OURO: são 3 mensagens em PRIMEIRA PESSOA, como se fosse ELE digitando PRA ELA, prontas pra copiar e colar. Têm que ser 3 conversas diferentes que poderiam acontecer, NÃO a mesma mensagem com sinônimos. Um ângulo distinto por opção:
+- balanced (Romântico/Aquece): reage a um detalhe específico do que ela disse, cria calor sem forçar. Máx 14 palavras.
+- bold (Brincalhão/Provoca): vira o jogo com humor seco, um tease que ela quer rebater. Sem agressão, sem cantada. Máx 14 palavras.
+- safe (Direto): avança pra um próximo passo CONCRETO e marcável (encontro com lugar + dia, ligação, sair do app). Algo que ela pode aceitar com um "sim". Máx 10 palavras.
 TRAVA ANTI-REPETIÇÃO: as 3 não compartilham a mesma piada, a mesma estrutura de frase nem a mesma abertura (primeira palavra diferente nas 3).
 TESTE DO DESCARTE: se a opção serviria pra qualquer conversa com qualquer mulher, está errada — reescreva ancorando num detalhe REAL do print.
 
@@ -190,63 +190,24 @@ function formatarRespostaPrint(result) {
     unknown: '📍',
   }[result.conversation_temperature] || '📍';
 
-  const interestLabel = {
-    low:       'interesse baixo',
-    medium:    'interesse médio',
-    high:      'interesse alto',
-    very_high: 'muito interesse',
-  }[result.match_interest_level] || 'sinal indefinido';
-
-  const situacao = result.situation_summary
-    ? result.situation_summary
-    : `${interestLabel} — conversa ${result.conversation_temperature || 'sem leitura clara'}`;
-
-  let msg1 = `${tempEmoji} _${situacao}_`;
-
-  // Adiciona leitura de red flags ou green flags relevantes
-  const redFlags = result.red_flags || [];
-  const greenFlags = result.green_flags || [];
-  const mistakes = result.user_mistakes_detected || [];
-
-  if (mistakes.length > 0) {
-    // Aponta o aprendizado, não o erro
-    msg1 += `\n\n💡 ${mistakes[0].replace(/^erro:/i, 'próxima vez:').replace(/^você /i, 'daqui pra frente: ')}`;
-  } else if (greenFlags.length > 0) {
-    msg1 += `\n\n✅ ${greenFlags[0]}`;
-  } else if (redFlags.length > 0) {
-    msg1 += `\n\n⚠️ ${redFlags[0]}`;
+  if (result.situation_summary) {
+    msgs.push(`${tempEmoji} _${result.situation_summary}_`);
   }
 
-  if (result.rationale) {
-    msg1 += `\n\n${result.rationale}`;
-  }
+  // ── Msg 2: 3 opções no MESMO formato do fluxo de texto — copy-paste puro ──
+  // (sem aspas, sem comentário, sem ponto final — blocos que splitByToneBlocks lê)
+  const limpar = (s) => String(s).trim().replace(/^["']+|["'.]+$/g, '');
+  const romantico  = result.suggested_next_message?.balanced;
+  const brincalhao = result.suggested_next_message?.bold;
+  const direto     = result.suggested_next_message?.safe;
 
-  msgs.push(msg1);
+  const blocos = [];
+  if (direto)     blocos.push(`🎯 DIRETO\n${limpar(direto)}`);
+  if (romantico)  blocos.push(`🌹 ROMÂNTICO\n${limpar(romantico)}`);
+  if (brincalhao) blocos.push(`😏 BRINCALHÃO\n${limpar(brincalhao)}`);
 
-  // ── Msg 2: 3 opções (Aquece / Provoca / Direta) ─────────────────────────
-  const aquece  = result.suggested_next_message?.balanced;
-  const provoca = result.suggested_next_message?.bold;
-  const direta  = result.suggested_next_message?.safe;
-
-  if (aquece || provoca || direta) {
-    let opcoesMsg = `Aqui vão suas opções:\n\n`;
-    if (aquece)  opcoesMsg += `🔥 *Aquece*\n"${aquece.trim()}"\n\n`;
-    if (provoca) opcoesMsg += `😏 *Provoca*\n"${provoca.trim()}"\n\n`;
-    if (direta)  opcoesMsg += `⚡ *Direta*\n"${direta.trim()}"`;
-    opcoesMsg += `\n\nQual vibe combina mais? Manda a que escolher — me conta como ela respondeu 🔥`;
-    msgs.push(opcoesMsg.trim());
-  } else if (result.suggested_next_message?.balanced) {
-    msgs.push(`Manda isso 👇`);
-    msgs.push(result.suggested_next_message.balanced.trim());
-  }
-
-  // ── Msg extra: sugestão proativa quando conversa está hot ────────────────
-  const isHot = result.conversation_temperature === 'hot';
-  const isHighInterest = result.match_interest_level === 'high' || result.match_interest_level === 'very_high';
-  if (isHot && isHighInterest) {
-    msgs.push(
-      `Pela temperatura da conversa, tá maduro pra você chamar pra sair. Quer ajuda com isso? Digita *como marco encontro* 👇`
-    );
+  if (blocos.length > 0) {
+    msgs.push(blocos.join('\n\n'));
   }
 
   return msgs;
