@@ -914,6 +914,34 @@ function getSystemPrompt(systemType, girlContext = '') {
   return SYSTEM_PROMPT + girlContext + BREVITY_RULE; // full (volume)
 }
 
+// ── MODO CONVERSA UNIFICADA ──────────────────────────────────────────────
+// Mata o roteamento por categorias: o GPT conversa direto (estilo ChatGPT),
+// decidindo sozinho se entrega as 3 opções, se faz UMA pergunta ou se aconselha.
+// Rollback sem deploy: UNIFIED_CHAT=false no .env.
+const UNIFIED_CHAT = process.env.UNIFIED_CHAT !== 'false';
+
+const MODO_CONVERSA = `
+
+<modo_conversa>
+Você está numa CONVERSA CONTÍNUA de WhatsApp com ele — como um amigo que responde na hora. Decida você mesmo o tipo de resposta:
+1. Ele trouxe uma situação e você TEM o que precisa → entrega DIRETO as 3 opções nos tons, sem introdução nem comentário.
+2. Falta UMA informação crucial pra não chutar (ex.: ele relatou o que mandou mas não disse como ela reagiu) → faz SÓ essa pergunta, curta e direta. Nada de formulário, nada de duas perguntas seguidas.
+3. Ele tá desabafando, pedindo conselho ou estratégia (coach de relacionamento) → conversa de verdade: leitura honesta + direção prática em até 6 linhas. SEM formato de opções.
+4. Ele perguntou sobre você/como funciona → responde em 2 linhas e pede a situação ou o print.
+5. Continuação do papo ("e se ela não responder?", "qual das 3 eu mando?") → responde conectando com o que você acabou de dizer, sem recomeçar do zero.
+
+FORMATO DAS 3 OPÇÕES (quando entregar): cada opção é um bloco com "EMOJI TOM" numa linha e a mensagem pronta na linha seguinte, blocos separados por linha em branco. Exemplo:
+😏 BRINCALHÃO
+mensagem pronta aqui
+
+👑 CONFIANTE
+outra mensagem aqui
+
+🎯 DIRETO
+terceira mensagem aqui
+NADA antes do primeiro bloco, NADA depois do último — texto fora dos blocos é descartado.
+</modo_conversa>`;
+
 function extrairDiagnostico(texto) {
   const match = texto.match(/📍\s*_([^_\n]+)_/);
   return match ? match[1].trim() : null;
@@ -1390,6 +1418,48 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   const history = Array.isArray(ctxConversa?.history) ? ctxConversa.history : [];
   const dialogo = formatarDialogo(history);
 
+  // Contexto da conversa: é o papo ENTRE VOCÊS DOIS (usuário e MandaAssim), NÃO a
+  // conversa dele com a menina. Rótulo certo + instrução de continuidade.
+  const contextoConversa = dialogo
+    ? `\n\nConversa recente entre você (MandaAssim) e ele — é o papo de vocês dois, NÃO a conversa dele com a menina:\n${dialogo}\n\nSe a mensagem nova dele for continuação desse papo, conecta com o que você já disse. Se ele mudou de assunto, foca no novo.`
+    : '';
+
+  // Último print analisado — dá ao modelo a visão da conversa DELE COM ELA.
+  const lp = ctxConversa?.lastPrintResult;
+  const contextoPrint = lp?.situation_summary
+    ? `\n\nContexto da conversa dele com ela (do último print que você analisou): ${String(lp.situation_summary).slice(0, 300)}${lp.conversation_temperature ? ` | clima: ${lp.conversation_temperature}` : ''}. Se a mensagem nova dele for sobre essa mesma conversa, use esse contexto pra responder com continuidade.`
+    : '';
+
+  // ── MODO CONVERSA UNIFICADA: sem classificador, sem rotas — o modelo decide ──
+  if (UNIFIED_CHAT) {
+    pushConversationTurn(phone, 'user', situacao);
+    const systemPromptUni = getSystemPrompt('default', girlContext) + MODO_CONVERSA;
+    const userContentUni = `${prefixo}${contextoConversa}${contextoPrint}\n\nMensagem nova dele: "${situacao}"`.trim();
+    console.log(`[Unified] conversa direta → ${MODELS.MAIN_MODEL} | hist:${history.length} turnos`);
+    try {
+      const r = await gerarRespostaPrincipal({
+        systemPrompt: systemPromptUni, userContent: userContentUni,
+        maxTokens: 700, temperature: 0.8,
+        intent: 'unified', structured: false,
+      });
+      logApiRequest({
+        phone, intent: 'unified',
+        targetModel: MODELS.MAIN_MODEL, modelActuallyUsed: r.modelUsed,
+        fallbackTriggered: r.fallbackTriggered, fallbackReason: r.fallbackTriggered ? 'model_error' : null,
+        inputTokens: r.usage.inputTokens, outputTokens: r.usage.outputTokens,
+        cacheReadTokens: r.usage.cacheReadTokens, cacheWriteTokens: r.usage.cacheWriteTokens,
+        latencyMs: r.latencyMs, responseLengthChars: r.text ? r.text.length : null,
+        responseText: r.text || null, userMessageLengthChars: situacao.length,
+        error: r.error,
+      });
+      pushConversationTurn(phone, 'bot', r.text);
+      return { text: r.text, intent: 'volume' };
+    } catch (err) {
+      console.error(`[Unified] falha total: ${err.message}`);
+      return { text: 'Tive um engasgo aqui. Manda de novo que eu leio na hora', intent: 'volume' };
+    }
+  }
+
   // Reusa a classificação feita no handler (evita 2ª chamada ao classificador)
   const classResult = preClass || await classificarIntent(situacao, dialogo);
   const intent = classResult.category;
@@ -1418,20 +1488,6 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   const config = INTENT_MODEL_CONFIG[intent] || INTENT_MODEL_CONFIG['volume'];
   const systemPrompt = getSystemPrompt(config.systemType, girlContext);
   console.log(`[Roteamento] intent:${intent} (confidence:${classConfidence}) → ${MODELS.MAIN_MODEL} [${config.structured ? 'structured' : 'livre'}]`);
-
-  // Contexto da conversa: é o papo ENTRE VOCÊS DOIS (usuário e MandaAssim), NÃO a
-  // conversa dele com a menina. Rótulo certo + instrução de continuidade — é isso
-  // que dá ao bot o "feeling" de saber se a msg nova é follow-up.
-  const contextoConversa = dialogo
-    ? `\n\nConversa recente entre você (MandaAssim) e ele — é o papo de vocês dois, NÃO a conversa dele com a menina:\n${dialogo}\n\nSe a mensagem nova dele for continuação desse papo, conecta com o que você já disse. Se ele mudou de assunto, foca no novo.`
-    : '';
-
-  // Último print analisado — dá ao modelo a visão da conversa DELE COM ELA,
-  // não só do papo bot↔usuário. É o que costura print → texto numa coisa só.
-  const lp = ctxConversa?.lastPrintResult;
-  const contextoPrint = lp?.situation_summary
-    ? `\n\nContexto da conversa dele com ela (do último print que você analisou): ${String(lp.situation_summary).slice(0, 300)}${lp.conversation_temperature ? ` | clima: ${lp.conversation_temperature}` : ''}. Se a mensagem nova dele for sobre essa mesma conversa, use esse contexto pra responder com continuidade.`
-    : '';
 
   const userContent = `${prefixo}${contextoConversa}${contextoPrint}\n\nMensagem nova dele: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
 
@@ -4181,7 +4237,9 @@ async function handleIncomingMessage(message) {
     const temHistorico = (ctx?.history?.length || 0) > 0;
     const temPerfil = !!(girlProfile?.girl_context || girlProfile?.current_situation);
     let preClass = null;
-    if (situacaoEhVaga(text, temHistorico, temPerfil)) {
+    // Modo unificado: sem interrogatório de coaching — o modelo pergunta sozinho
+    // quando faltar contexto, dentro da própria conversa.
+    if (!UNIFIED_CHAT && situacaoEhVaga(text, temHistorico, temPerfil)) {
       preClass = await classificarIntent(text, formatarDialogo(ctx?.history || []));
       if (preClass.category === 'coaching') {
         const stopTypingCtxQ = await startTyping(message);
