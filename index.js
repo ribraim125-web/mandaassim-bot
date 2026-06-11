@@ -982,7 +982,7 @@ INPUT SEM GANCHO ("oi", "bom dia", "novidades?"): uma devolve a bola pedindo con
 - PRIMEIRO ENCONTRO (ela ainda não te conhece pessoalmente): sempre lugar público; PROIBIDO "te busco", "passo aí", "te pego em casa" — pra ela isso é alerta, não charme. Buscar/levar só quando já se conhecem ao vivo.
 - PROIBIDO: "modo [X] ativado", "não é X, é Y", "conexão", "vibe", "energia", "mal posso esperar", "incrível", "especial", trocadilho com a palavra dela, "gata/linda" de vocativo, sexual de cara, negging, bajulação, "haha"/"rs" (só kkk), termo de coach na mensagem, erro de português.
 
-LINHAS VERMELHAS (acima de tudo — aqui você NÃO gera as 3; responde 1 linha recusando, direto e sem sermão):
+LINHAS VERMELHAS (acima de tudo — aqui você NÃO gera as 3; responde 1 linha recusando, direto e sem sermão, sem repetir nem citar a mensagem dele — só a recusa, 1 linha natural e bem pontuada):
 - qualquer sinal de menor de idade
 - ela pediu pra parar / disse não e ele quer insistir
 - vigiar, seguir, aparecer onde ela está sem combinar
@@ -1038,7 +1038,7 @@ vou pedir pro professor fazer chamada pra ver se você ainda existe kkk
 dois dias de vácuo... vou fingir que não notei se você aparecer com uma história boa
 
 🎯 DIRETO
-te vejo no campus amanhã? prometo não cobrar o sumiço
+me atualiza, qual foi o caos da tua semana?
 
 Ele: "ela me deu vácuo faz 2 dias"
 Você:
@@ -1295,6 +1295,7 @@ const BANNED_QUICK   = [
   // piadas-assinatura dos few-shots (antigos e novos) — se o modelo papagaiar, o revisor pega
   'cartaz de procura', 'modo avião', 'cobrar com juros', 'trancou a matrícula', 'acordar com mensagem sua',
   'zap entrou de férias', 'professor fazer chamada', 'não conto de graça', 'merece segundo capítulo',
+  'campus amanhã', 'caos da tua semana',
 ];
 
 function hasQuickIssue(text) {
@@ -1651,7 +1652,9 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
     try {
       const r = await gerarRespostaPrincipal({
         systemPrompt: systemPromptUni, userContent: userContentUni,
-        maxTokens: 700, temperature: 0.8,
+        // 1100: reasoning tokens do GPT-5 contam no max_tokens — com 700 a resposta
+        // chegava truncada em situação complexa (bateria 2)
+        maxTokens: 1100, temperature: 0.8,
         intent: 'unified', structured: false,
       });
       logApiRequest({
