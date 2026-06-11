@@ -68,25 +68,20 @@ const REVEAL_COPY = {
   NUDGE_10MIN:
     `ainda tô aqui\n\npra começar é simples: manda o print de uma conversa que tiver rolando — ou descreve a situação em texto mesmo, funciona do mesmo jeito`,
 
-  // Nudge trial dia 2 sem tocar em feature Pro
+  // Nudge trial dia 2
   TRIAL_DAY2:
-    `Tu ainda não testou as features Pro do teu trial.\n\n` +
-    `As 3 que mais mudam jogo: ler perfil dela antes da 1ª mensagem, ` +
-    `auditar teu próprio perfil e preparar pra encontro.\n\n` +
-    `Tem 24h. Manda *menu* que eu te mostro como ativar cada uma.`,
+    `Teu trial ilimitado fecha amanhã.\n\n` +
+    `Aproveita hoje: manda o print de qualquer conversa que tiver rolando ` +
+    `que eu te devolvo as 3 mensagens prontas.`,
 
-  // Menu completo (sob demanda)
+  // Menu completo (sob demanda) — produto é um só: mensagens (Pro descontinuado)
   MENU:
     `O que eu faço:\n\n` +
-    `*GRÁTIS (3 análises/dia)*\n` +
-    `1. Responder mensagem dela: manda print, eu mando 3 opções\n` +
-    `2. Analisar conversa inteira: manda print longo, eu leio o tom dela\n` +
-    `3. Conversa direta: me conta o que tá rolando em texto, eu te falo o que fazer\n\n` +
-    `*PRO (R$79,90/mês, trial 3 dias sem cartão)*\n` +
-    `4. Ler perfil dela antes de tu mandar a 1ª mensagem\n` +
-    `5. Auditar teu próprio perfil (Tinder ou Bumble)\n` +
-    `6. Preparar pra encontro + debrief depois\n\n` +
-    `É só pedir. Digita *pro* pra ativar o trial.`,
+    `1. *Responder mensagem dela* — manda o print, eu te devolvo 3 opções prontas\n` +
+    `2. *Ler a conversa inteira* — manda print longo, eu leio o tom dela e o que fazer\n` +
+    `3. *Conversa direta* — descreve a situação em texto que eu te ajudo na hora\n\n` +
+    `Trial: 3 dias ilimitado. Depois, 5 análises grátis por dia.\n` +
+    `*Parceiro* (R$29,90/mês): mensagens ilimitadas + análise de print → digita *mensal*`,
 };
 
 // ---------------------------------------------------------------------------

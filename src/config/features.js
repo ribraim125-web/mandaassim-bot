@@ -18,6 +18,11 @@ const { createClient } = require('@supabase/supabase-js');
 // null = ilimitado
 // ---------------------------------------------------------------------------
 
+// Texto único para features desativadas (Pro descontinuado — foco no core de mensagens)
+const FORA_DO_AR =
+  `Esse recurso tá fora do ar por enquanto 🔧\n\n` +
+  `Manda o print da *conversa* com ela (ou descreve a situação) que eu te devolvo as 3 mensagens prontas.`;
+
 const FEATURES = {
   // Feature principal: mensagens de conquista
   messages: {
@@ -43,21 +48,21 @@ const FEATURES = {
 
   // Camada 1 — Análise de print de conversa
   print_analysis: {
-    trial:        { daily: 1 },
+    trial:        { daily: 3 },
     free:         { daily: 0 },     // bloqueado — upsell
-    parceiro:     { daily: 5 },
-    parceiro_pro: { daily: 5 },
+    parceiro:     { daily: 15 },    // na prática ilimitado; teto anti-abuso
+    parceiro_pro: { daily: 15 },
     upsell: {
       free: () =>
         `Análise de print é do *Parceiro* 🔍\n\n` +
         `Você manda o print da conversa, eu leio o que tá rolando — interesse dela, temperatura, o que faz sentido responder agora.\n\n` +
         `📅 *Mensal* — R$29,90/mês → digita *mensal*`,
       trial: () =>
-        `Deu 1 análise de print por hoje — limite do trial.\n\nQuer ilimitado? Digita *mensal* (R$29,90).`,
+        `Deu 3 análises de print por hoje — limite do trial.\n\nQuer mais? Digita *mensal* (R$29,90).`,
       parceiro: () =>
-        `Deu 5 análises de print hoje — limite do plano. Amanhã cedo renova.\n\nEnquanto isso, descreve em texto o que ela mandou. Funciona igual.`,
+        `Deu 15 análises de print hoje — limite do plano. Amanhã cedo renova.\n\nEnquanto isso, descreve em texto o que ela mandou. Funciona igual.`,
       parceiro_pro: () =>
-        `Deu 5 análises de print hoje — limite do plano. Amanhã cedo renova.`,
+        `Deu 15 análises de print hoje — limite do plano. Amanhã cedo renova.`,
     },
   },
 
@@ -68,14 +73,9 @@ const FEATURES = {
     parceiro:     { daily: 0 },     // bloqueado — exclusivo Pro
     parceiro_pro: { daily: 10 },
     upsell: {
-      free: () =>
-        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-        `Você manda print do perfil dela. Eu leio o que tá ali — gosto, vibe, o que ela quer mostrar — e te entrego a primeira mensagem feita pra ela.\n\n` +
-        `Digita *pro* 👇`,
-      trial: () =>
-        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
-      parceiro: () =>
-        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      free: () => FORA_DO_AR,
+      trial: () => FORA_DO_AR,
+      parceiro: () => FORA_DO_AR,
       parceiro_pro: () =>
         `Deu 10 análises de perfil hoje — limite do plano. Amanhã cedo renova.`,
     },
@@ -96,9 +96,8 @@ const FEATURES = {
       trial: () =>
         `Saber quando e como chamar pra sair é do *Parceiro* (R$29,90/mês).\n\nDigita *mensal* 👇`,
       parceiro: () =>
-        `Você já usou as 2 sessões desse recurso esse mês.\n\n` +
-        `Renova mês que vem, ou faz upgrade pro *Parceiro Pro*, que é sem limite.\n\n` +
-        `Digita *pro* se quiser.`,
+        `Você já usou as 2 sessões desse recurso esse mês. Renova mês que vem.\n\n` +
+        `Enquanto isso me conta a situação que eu te ajudo com as mensagens.`,
     },
   },
 
@@ -109,16 +108,9 @@ const FEATURES = {
     parceiro:     { monthly: 0 },    // bloqueado — exclusivo Pro
     parceiro_pro: { monthly: null },
     upsell: {
-      free: () =>
-        `Preparação pra encontro é do *Parceiro Pro* (R$79,90/mês) 🗓️\n\n` +
-        `Você me conta quando, onde e o que tá te preocupando — eu te dou o plano: roupa, papo, o que evitar, como encerrar em alta.\n\n` +
-        `Digita *pro* 👇`,
-      trial: () =>
-        `Preparação pra encontro é do *Parceiro Pro* (R$79,90/mês).\n\nDigita *pro* 👇`,
-      parceiro: () =>
-        `Preparação pra encontro é do *Parceiro Pro* (R$79,90/mês) 🗓️\n\n` +
-        `Você me conta quando, onde e o que tá te preocupando — eu te dou o plano: roupa, papo, o que evitar, como encerrar em alta.\n\n` +
-        `Digita *pro* 👇`,
+      free: () => FORA_DO_AR,
+      trial: () => FORA_DO_AR,
+      parceiro: () => FORA_DO_AR,
     },
   },
 
@@ -129,14 +121,9 @@ const FEATURES = {
     parceiro:     { daily: 0 },
     parceiro_pro: { daily: 30 },
     upsell: {
-      free: () =>
-        `Olhar seu próprio perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-        `Você manda print do seu Tinder/Bumble. Eu olho foto por foto, leio a bio, e te falo na lata o que tá funcionando e o que tira match.\n\n` +
-        `Digita *pro* 👇`,
-      trial: () =>
-        `Olhar seu próprio perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
-      parceiro: () =>
-        `Olhar seu próprio perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      free: () => FORA_DO_AR,
+      trial: () => FORA_DO_AR,
+      parceiro: () => FORA_DO_AR,
       parceiro_pro: () =>
         `Deu 30 análises de perfil hoje — limite do plano. Amanhã cedo renova.`,
     },
@@ -149,14 +136,9 @@ const FEATURES = {
     parceiro:     { daily: 0 },
     parceiro_pro: { daily: 30 },
     upsell: {
-      free: () =>
-        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-        `Você manda print do perfil dela. Eu leio o que tá ali — gosto, vibe, o que ela quer mostrar — e te entrego a primeira mensagem feita pra ela.\n\n` +
-        `Digita *pro* 👇`,
-      trial: () =>
-        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
-      parceiro: () =>
-        `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\nDigita *pro* 👇`,
+      free: () => FORA_DO_AR,
+      trial: () => FORA_DO_AR,
+      parceiro: () => FORA_DO_AR,
       parceiro_pro: () =>
         `Deu 30 análises de perfil hoje — limite do plano. Amanhã cedo renova.`,
     },
@@ -169,17 +151,9 @@ const FEATURES = {
     parceiro:     { monthly: 0 },    // bloqueado — exclusivo Pro
     parceiro_pro: { monthly: null },
     upsell: {
-      free: () =>
-        `Conversar sobre como foi o encontro é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-        `Você me conta o que rolou — eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar.\n\n` +
-        `Sem rodeio. Honestidade total.\n\n` +
-        `Digita *pro* 👇`,
-      trial: () =>
-        `Conversar sobre como foi o encontro é do *Parceiro Pro* (R$79,90/mês).\n\nDigita *pro* 👇`,
-      parceiro: () =>
-        `Conversar sobre como foi o encontro é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-        `Você me conta o que rolou — eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar.\n\n` +
-        `Digita *pro* 👇`,
+      free: () => FORA_DO_AR,
+      trial: () => FORA_DO_AR,
+      parceiro: () => FORA_DO_AR,
     },
   },
 };

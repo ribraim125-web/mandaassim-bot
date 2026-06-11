@@ -2,8 +2,8 @@
  * printLimits.js — controle de limites para análise de prints
  *
  * Limites:
- * - Premium ativo: 5 análises/dia
- * - Trial ativo: 1 análise/dia
+ * - Premium ativo: 15 análises/dia (na prática ilimitado; teto só anti-abuso)
+ * - Trial ativo: 3 análises/dia
  * - Free (pós-trial): 0 (vê upsell)
  *
  * Cooldown: 30 segundos entre análises do mesmo usuário (evita duplo envio)
@@ -13,8 +13,8 @@
  */
 
 const PRINT_LIMITS = {
-  premium: 5,
-  trial:   1,
+  premium: 15,
+  trial:   3,
 };
 
 const PRINT_COOLDOWN_MS = 30_000; // 30 segundos

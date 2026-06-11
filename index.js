@@ -290,20 +290,14 @@ const PRINT_UPSELL_MESSAGE =
   `📆 *Anual* R$299 → *anual*`;
 
 const PRINT_LIMIT_REACHED_PREMIUM =
-  `Deu 5 análises de print hoje, o limite do plano.\n\nAmanhã cedo renova. Enquanto isso, descreve em texto o que ela mandou, funciona igual.`;
+  `Deu 15 análises de print hoje, o limite do plano.\n\nAmanhã cedo renova. Enquanto isso, descreve em texto o que ela mandou, funciona igual.`;
 
 const PRINT_LIMIT_REACHED_TRIAL =
-  `Deu 1 análise de print por hoje, limite do trial.\n\nQuer ilimitado? *mensal* (R$29,90) ou *anual* (R$299).`;
+  `Deu 3 análises de print por hoje, limite do trial.\n\nQuer mais? *mensal* (R$29,90) ou *anual* (R$299).`;
 
 const PROFILE_UPSELL_MESSAGE =
-  `Análise de Perfil é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-  `Você manda print do perfil dela. Eu leio o que tá ali: gosto, vibe, o que ela quer mostrar. Te entrego a primeira mensagem certa pra abrir conversa. Não aquele "oi tudo bem". Uma feita pra ela.\n\n` +
-  `No Pro entra também:\n\n` +
-  `Análise de conversa (sem limite)\n` +
-  `Olhar o perfil dela (30/dia)\n` +
-  `Olhar seu próprio perfil (30/dia)\n` +
-  `Mensagens sem limite\n\n` +
-  `Pra liberar: digita *pro*`;
+  `Análise de perfil tá fora do ar por enquanto 🔧\n\n` +
+  `Manda o print da *conversa* com ela (ou descreve a situação) que eu te devolvo as 3 mensagens prontas.`;
 
 const PROFILE_LIMIT_REACHED_PRO =
   `Deu 10 análises de perfil hoje, o limite do plano.\n\nAmanhã cedo renova.`;
@@ -318,26 +312,22 @@ const TRANSITION_COACH_UPSELL_FREE =
   `Pra liberar: digita *mensal* ou *anual*`;
 
 const TRANSITION_COACH_UPSELL_PREMIUM_LIMIT =
-  `Você já usou as 2 sessões de transição do mês.\n\n` +
-  `Renova mês que vem, ou faz upgrade pro *Parceiro Pro*, que é sem limite. Pra ver: digita *pro*`;
+  `Você já usou as 2 sessões de transição do mês. Renova mês que vem.\n\n` +
+  `Enquanto isso me conta a situação que eu te ajudo com as mensagens.`;
 
 // ── Mensagens da feature de Coach Pré-Date ───────────────────────────────────
 
 const PREDATE_COACH_UPSELL_FREE =
-  `Preparação pra encontro é do *Parceiro Pro* (R$79,90/mês) 🗓️\n\n` +
-  `Você me conta quando, onde e o que tá te preocupando. Eu te dou o plano: roupa, papo, o que evitar, como encerrar em alta.\n\n` +
-  `E quando voltar do encontro, a gente conversa sobre como foi.\n\n` +
-  `Digita *pro* 👇`;
+  `Preparação pra encontro tá fora do ar por enquanto 🔧\n\n` +
+  `Mas me conta a situação que eu te ajudo com as mensagens pra chegar lá confiante.`;
 
 const PREDATE_COACH_UPSELL_PRO_ONLY = PREDATE_COACH_UPSELL_FREE; // alias semântico
 
 // ── Mensagens da feature de Debrief Pós-Date ─────────────────────────────────
 
 const POSTDATE_DEBRIEF_UPSELL_FREE =
-  `Conversar sobre como foi o encontro é do *Parceiro Pro* (R$79,90/mês) 🔍\n\n` +
-  `Você me conta o que rolou. Eu leio o que aconteceu, o que ela sinalizou, onde você acertou, o que melhorar.\n\n` +
-  `Sem rodeio. Honestidade total.\n\n` +
-  `Digita *pro* 👇`;
+  `Esse papo de pós-encontro tá fora do ar por enquanto 🔧\n\n` +
+  `Mas me conta o que rolou e o que ela mandou depois, que eu te ajudo com a próxima mensagem.`;
 
 // ── Mensagens da feature de Mindset Opt-In ───────────────────────────────────
 
@@ -3096,8 +3086,8 @@ async function handleIncomingMessage(message) {
       let statusText;
       if (trial.isPro) {
         const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
-        const graceNote = trial.inGrace ? `\n_⚠️ Venceu — renova pra não perder acesso. Digita *pro*._` : (validade ? `\n_Válido até ${validade}_` : '');
-        statusText = `🔥 *Parceiro Pro* — mensagens ilimitadas + Análise de Perfil${graceNote}`;
+        const graceNote = trial.inGrace ? `\n_⚠️ Venceu — renova pra não perder acesso. Digita *mensal*._` : (validade ? `\n_Válido até ${validade}_` : '');
+        statusText = `🔥 *Parceiro Pro* — mensagens ilimitadas${graceNote}`;
       } else if (trial.isPremium) {
         const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
         const graceNote = trial.inGrace ? `\n_⚠️ Venceu — renova pra não perder acesso. Digita *mensal* ou *anual*._` : (validade ? `\n_Válido até ${validade}_` : '');
@@ -3136,32 +3126,16 @@ async function handleIncomingMessage(message) {
       return;
     }
 
-    // Plano anual Pro (R$799) — oferta D+60
-    if (cmd === 'anual pro' || cmd === '/anual pro') {
+    // Plano Pro DESCONTINUADO — produto agora é um só (Parceiro R$29,90).
+    // Quem digita "pro"/"anual pro"/"upgrade" é redirecionado pro mensal.
+    if (cmd === 'pro' || cmd === 'parceiro pro' || cmd === 'wingman pro' || cmd === 'upgrade' || cmd === 'anual pro' || cmd === '/anual pro') {
       const trial = await getTrialInfo(phone);
-      if (trial.isPro) {
-        await message.reply(`Você já tá no *Parceiro Pro*. Pra migrar pro plano anual (R$799), manda *mensal* e a gente troca na hora.`);
+      if (trial.isPremium || trial.isPro) {
+        await message.reply('Você já é *Parceiro* — mensagens ilimitadas, pode mandar à vontade.');
         return;
       }
-      await enviarCobrancaPix(message, phone, PRECO_ANUAL_PRO);
-      return;
-    }
-
-    if (cmd === 'pro' || cmd === 'parceiro pro' || cmd === 'wingman pro' || cmd === 'upgrade') {
-      const trial = await getTrialInfo(phone);
-      if (trial.isPro) {
-        await message.reply('🔥 Você já tá no *Parceiro Pro*. Tudo liberado, pode usar à vontade.');
-        return;
-      }
-      // Gera Pix Pro (R$79,90 padrão)
-      await enviarCobrancaPixPro(message, phone);
-      trackSubscriptionEvent({
-        phone,
-        eventType:  'upgrade_offered',
-        planFrom:   trial.planKey || (trial.isPremium ? 'parceiro' : (trial.inTrial ? 'trial' : 'free')),
-        planTo:     'parceiro_pro',
-        triggerCtx: 'command_pro',
-      });
+      await message.reply(`O plano é um só: *Parceiro* — R$29,90/mês 🌟\n\nMensagens ilimitadas + análise de print. Gerando teu Pix 👇`);
+      await enviarCobrancaPix(message, phone, PRECO_MENSAL);
       return;
     }
 
@@ -3333,7 +3307,7 @@ async function handleIncomingMessage(message) {
     if (cmd === 'pausar' || cmd === '/pausar' || cmd.startsWith('pausar ') || cmd.startsWith('/pausar ')) {
       const trialForPause = await getTrialInfo(phone);
       if (!trialForPause.isPremium) {
-        await message.reply(`você tá no plano free, não tem cobrança ativa pra pausar\n\nse quiser assinar: *mensal* (R$29,90) ou *pro* (R$79,90)`);
+        await message.reply(`você tá no plano free, não tem cobrança ativa pra pausar\n\nse quiser assinar: *mensal* (R$29,90)`);
         return;
       }
       // Verifica se já especificou os dias
@@ -3490,7 +3464,7 @@ async function handleIncomingMessage(message) {
       if (/^(ativar mindset|mindset ativar)$/i.test(cmd)) {
         const trialForMindset = await getTrialInfo(phone);
         if (!trialForMindset.isPro) {
-          await message.reply(`Cápsulas de mindset são exclusivas do *Parceiro Pro* 🔥\n\nDigita *pro* pra liberar.`);
+          await message.reply(`Cápsulas de mindset tão fora do ar por enquanto 🔧`);
         } else {
           await activateOptIn(phone);
           await message.reply(MINDSET_ACTIVATED_MESSAGE);
@@ -3517,7 +3491,7 @@ async function handleIncomingMessage(message) {
       if (/^mindset$/i.test(cmd)) {
         const trialForMindset = await getTrialInfo(phone);
         if (!trialForMindset.isPro) {
-          await message.reply(`Cápsulas de mindset são exclusivas do *Parceiro Pro* 🔥\n\nDigita *pro* pra liberar.`);
+          await message.reply(`Cápsulas de mindset tão fora do ar por enquanto 🔧`);
         } else {
           const optIn = await getOptIn(phone);
           if (!optIn || !optIn.enabled) {
@@ -3755,7 +3729,7 @@ async function handleIncomingMessage(message) {
           if (needsPlanCheck && !trial.isPro) {
             const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_self_audit');
             await client.sendMessage(message.from, upsellMessage ||
-              `Olhar seu próprio perfil é do *Parceiro Pro* 🔍\n\nVocê manda print do seu Tinder/Bumble. Eu olho foto por foto, leio sua bio, e te falo na lata o que tá funcionando e o que tira match.\n\nPra liberar: digita *pro*`
+              `Análise do seu perfil tá fora do ar por enquanto 🔧\n\nManda o print da *conversa* com ela que eu te devolvo as 3 mensagens prontas.`
             );
           } else {
             const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
@@ -3782,7 +3756,7 @@ async function handleIncomingMessage(message) {
           if (needsPlanCheck && !trial.isPro) {
             const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_her_analysis');
             await client.sendMessage(message.from, upsellMessage ||
-              `Análise de Perfil é do *Parceiro Pro* 🔍\n\nDigita *pro* pra liberar.`
+              `Análise de perfil tá fora do ar por enquanto 🔧\n\nManda o print da *conversa* com ela que eu te devolvo as 3 mensagens prontas.`
             );
           } else {
             const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
@@ -4060,10 +4034,9 @@ async function handleIncomingMessage(message) {
         await client.sendMessage(message.from,
           `entendo\n\n` +
           `deixa eu te falar como eu penso isso\n\n` +
-          `R$79,90 é menos que um happy hour de quinta com dois chopes\n` +
+          `R$29,90 é menos que um lanche por mês\n` +
           `é menos que metade de uma sessão de psicólogo\n` +
           `e é o que faz a diferença entre você travar no "oi tudo bem" e marcar um encontro\n\n` +
-          `se for o dinheiro mesmo, vai no *mensal* de R$29,90 que já te ajuda muito\n` +
           `se for desconfiança, manda mais um print que eu te mostro de novo o que essa parada faz`
         );
         return;
@@ -4561,7 +4534,7 @@ async function handleIncomingMessage(message) {
             if (needsPlanCheck && !trial.isPro) {
               const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_self_audit');
               await client.sendMessage(message.from, upsellMessage ||
-                `Olhar seu próprio perfil é do *Parceiro Pro* 🔍\n\nVocê manda print do seu Tinder/Bumble. Eu olho foto por foto, leio a bio, e te falo na lata o que tá funcionando e o que tira match.\n\nDigita *pro* 👇`
+                `Análise do seu perfil tá fora do ar por enquanto 🔧\n\nManda o print da *conversa* com ela que eu te devolvo as 3 mensagens prontas.`
               );
               return;
             }
@@ -4613,7 +4586,7 @@ async function handleIncomingMessage(message) {
             if (needsPlanCheck && !trial.isPro) {
               const { upsellMessage } = await canUseFeature(phone, trial.plan || 'free', 'profile_her_analysis');
               await client.sendMessage(message.from, upsellMessage ||
-                `Análise de Perfil é do *Parceiro Pro* 🔍\n\nDigita *pro* pra liberar.`
+                `Análise de perfil tá fora do ar por enquanto 🔧\n\nManda o print da *conversa* com ela que eu te devolvo as 3 mensagens prontas.`
               );
               trackSubscriptionEvent({
                 phone,
