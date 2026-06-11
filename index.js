@@ -238,7 +238,7 @@ const WELCOME_MSG_0 =
 const WELCOME_MSG_1 =
   `exemplo 👇 ela mandou _'bom dia, dormiu bem?'_\n\n` +
   `🎯 *DIRETO*\ndormi, mas o dia só melhorou agora\n\n` +
-  `🌹 *ROMÂNTICO*\nacordar com mensagem sua foi a melhor parte\n\n` +
+  `🌹 *ROMÂNTICO*\ntava bom o sono, mas teu bom dia ganhou\n\n` +
   `😏 *BRINCALHÃO*\nsonhei que você puxava assunto primeiro, olha aí`;
 
 // Mensagem 3 — após 3 segundos: call to action + trial
@@ -269,13 +269,7 @@ const OPCOES_PREMIUM =
 
 const LIMITE_FREE_ESGOTADO =
   `Você usou suas ${FREE_DAILY_LIMIT} análises grátis de hoje 🔒\n\n` +
-  `Acabou de descobrir que tem\n` +
-  `um nível acima das respostas comuns\n\n` +
-  `Por R$29,90/mês:\n` +
-  `- Análises ilimitadas\n` +
-  `- Acesso aos 5 tons\n` +
-  `- Loop de upgrade liberado\n` +
-  `- Suporte prioritário\n\n` +
+  `Por R$29,90/mês destrava tudo: análise ilimitada, todos os tons e suporte na frente\n\n` +
   `Manda *quero assinar* que eu te envio o pix`;
 
 
@@ -305,8 +299,7 @@ const PROFILE_LIMIT_REACHED_PRO =
 // ── Mensagens da feature de Coach de Transição ───────────────────────────────
 
 const TRANSITION_COACH_UPSELL_FREE =
-  `Tem um momento na conversa em que dá pra chamar pra sair. E tem um momento em que ainda não.\n\n` +
-  `Mandar a mensagem certa nessa hora é o que separa conversa boa de encontro marcado.\n\n` +
+  `Saber a hora certa de chamar pra sair é meio jogo de cintura.\n\n` +
   `Eu leio onde a conversa tá e te falo *quando* e *como* chamar.\n\n` +
   `Tá no *Parceiro* (R$29,90/mês) ou no *Anual* (R$299).\n\n` +
   `Pra liberar: digita *mensal* ou *anual*`;

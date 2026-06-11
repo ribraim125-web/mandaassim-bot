@@ -24,7 +24,7 @@ const INTERVIEW_QUESTIONS = [
   `Você já tentou chamar ela pra sair antes, ou seria a primeira vez?`,
   `Há quantos dias vocês estão conversando?`,
   `Vocês já trocaram número de WhatsApp ou ainda tão no app?`,
-  `Que tipo de encontro você imagina — café, drink, jantar ou uma atividade juntos?`,
+  `Que tipo de encontro você imagina? Café, drink, jantar ou uma atividade juntos?`,
   `Você sabe de alguma coisa específica que ela curte? Tipo hobby, lugar, comida — pode pular se não souber.`,
 ];
 

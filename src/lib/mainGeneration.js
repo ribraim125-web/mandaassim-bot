@@ -49,6 +49,7 @@ function openrouter() {
 // Tom → emoji (bate com TONE_EMOJI_RE / splitByToneBlocks do index.js).
 const TONE_EMOJI = {
   'DIRETO': '🎯', 'ROMÂNTICO': '🌹', 'BRINCALHÃO': '😏', 'MISTERIOSO': '💭', 'CONFIANTE': '👑',
+  'AMIGÁVEL': '🤝', 'SAFADO': '🔥',
 };
 
 // Schema do json_schema estrito (OpenRouter/OpenAI) pro modo structured.
@@ -74,7 +75,7 @@ const RESPONSE_SCHEMA = {
         properties: {
           tom: {
             type: 'string',
-            enum: ['DIRETO', 'ROMÂNTICO', 'BRINCALHÃO', 'MISTERIOSO', 'CONFIANTE'],
+            enum: ['DIRETO', 'ROMÂNTICO', 'BRINCALHÃO', 'MISTERIOSO', 'CONFIANTE', 'AMIGÁVEL', 'SAFADO'],
             description: 'O tom desta opção.',
           },
           mensagem: {
