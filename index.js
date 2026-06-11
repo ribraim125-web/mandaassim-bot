@@ -937,6 +937,14 @@ ERRADO (nunca faça — erros reais que você já cometeu):
 "dois dias sem resposta, tá testando se eu virei lenda ou sou persistente demais" ← comentário, não é mensagem pra ela
 "sumiu dois dias. bora marcar domingo, eu deixo ela no modo avião" ← mistura falar DELA no meio
 "manda só um tudo bem, curto e sem drama" ← instrução pra ele, não mensagem pra ela
+"ah, então era colega de faculdade, calma que eu já tava preparando o discurso do cachorro" ← conversa com ELE sobre a correção, não entrega as mensagens
+"conta a melhor história dela rapidinho que eu uso de pretexto" ← pedido pra ele, não mensagem pra ela
+
+CADA MULHER É UMA MULHER (erro grave que você já cometeu):
+- Ele fala com VÁRIAS mulheres. Situação nova pode ser OUTRA mulher — só é a mesma se a mensagem nova claramente continua o MESMO caso.
+- PROIBIDO arrastar detalhe de uma mulher pra mensagem de outra (ex: ele falou de uma surfista com cachorro, depois de uma colega de faculdade → a mensagem pra colega NÃO pode ter praia nem cachorro).
+- Na dúvida se é a mesma, use SÓ o que a mensagem NOVA diz — zero detalhe antigo.
+- Se ele corrigir ("não é ela, é outra"), NÃO comente a correção, NÃO peça desculpa, NÃO faça piada sobre a confusão: entregue DIRETO as 3 mensagens pra mulher certa.
 
 CERTO (mensagens que ELA recebe e responde):
 "oi sumida, já tava achando que tinha te perdido pro modo avião kkk"
@@ -1001,6 +1009,18 @@ surfista e dona de cachorro... já sei quem ganhou na loteria do match hoje
 
 🤝 AMIGÁVEL
 qual foi a melhor onda da tua vida? quero saber se a história é boa
+
+Ele falou de uma surfista antes. Agora: "não é ela não, é uma colega de faculdade que me deu vácuo faz 2 dias"
+(mulher NOVA → zero surf, zero cachorro, zero comentário sobre a confusão — só as 3 mensagens pra colega)
+Você:
+😏 BRINCALHÃO
+sumiu tanto que já ia perguntar na faculdade se você trancou a matrícula kkk
+
+👑 CONFIANTE
+dois dias de vácuo... vou fingir que não notei se você aparecer com uma história boa
+
+🎯 DIRETO
+te vejo no campus amanhã? prometo não cobrar o sumiço
 
 Ele: "ela me deu vácuo faz 2 dias"
 Você:
@@ -1571,7 +1591,7 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   // Contexto da conversa: é o papo ENTRE VOCÊS DOIS (usuário e MandaAssim), NÃO a
   // conversa dele com a menina. Rótulo certo + instrução de continuidade.
   const contextoConversa = dialogo
-    ? `\n\nConversa recente entre você (MandaAssim) e ele — é o papo de vocês dois, NÃO a conversa dele com a menina:\n${dialogo}\n\nSe a mensagem nova dele for continuação desse papo, conecta com o que você já disse. Se ele mudou de assunto, foca no novo.`
+    ? `\n\nConversa recente entre você (MandaAssim) e ele — é o papo de vocês dois, NÃO a conversa dele com a menina:\n${dialogo}\n\nATENÇÃO: esse histórico pode ser sobre OUTRA mulher. Só aproveite detalhes dele se a mensagem nova for claramente sobre o MESMO caso. Se ele citar outra pessoa, situação que não encaixa, ou corrigir você — responda usando SÓ a mensagem nova, sem arrastar nenhum detalhe antigo e sem comentar a troca.`
     : '';
 
   // Último print analisado — dá ao modelo a visão da conversa DELE COM ELA.
