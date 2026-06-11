@@ -26,9 +26,11 @@ const { aplicarFormatoEstruturado } = require('../../prompts/structuredFormat');
 // Timeout por request da geração (rede de segurança): se o MAIN travar, falha
 // rápido e cai no fallback Gemini em vez de pendurar a resposta do usuário.
 const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS) || 30000;
-// Esforço de raciocínio do GPT-5 mini. 'minimal' = baixa latência (default).
-// Tunável sem deploy: subir pra 'low'/'medium' se algum intent perder qualidade.
-const REASONING_EFFORT = process.env.GEN_REASONING_EFFORT || 'minimal';
+// Esforço de raciocínio do GPT-5 mini.
+// 'low' (era 'minimal'): o mini ganha espaço pra PENSAR a piada/gancho antes de
+// escrever — saída visivelmente mais criativa por +2-4s de latência. Ajustável
+// sem deploy via GEN_REASONING_EFFORT no .env.
+const REASONING_EFFORT = process.env.GEN_REASONING_EFFORT || 'low';
 // Verbosity do GPT-5 — controla o tamanho da resposta. 'low' = curto (WhatsApp).
 const VERBOSITY = process.env.GEN_VERBOSITY || 'low';
 
