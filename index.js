@@ -3602,11 +3602,8 @@ async function handleIncomingMessage(message) {
       const currentQP = userContext.get(phone) || {};
       userContext.set(phone, { ...currentQP, pendingPrintContext: null, printQuickContext: quickContext });
 
-      // Persiste no perfil dela — análises futuras já nascem com contexto
-      saveGirlProfile(phone, {
-        girl_context: quickContext,
-        current_situation: text.slice(0, 200),
-      }).catch(() => {});
+      // (não persiste mais em girl_profiles — memória fixa de "uma mulher só"
+      // misturava mulheres; o contexto vive só na sessão desta conversa)
 
       await message.reply('Lendo a conversa... ⏳');
       const stopTypingQP = await startTyping(message);
@@ -4101,63 +4098,16 @@ async function handleIncomingMessage(message) {
       return;
     }
 
-    // Ver perfil dela salvo
-    if (VER_PERFIL.test(text)) {
-      const profile = await getGirlProfile(phone);
-      if (!profile || (!profile.girl_name && !profile.girl_context)) {
-        await message.reply(
-          'Ainda não tem perfil salvo 📋\n\n' +
-          'Manda assim:\n\n' +
-          '*ela se chama [nome]*\n' +
-          '*ela é [descrição]*\n\n' +
-          'Ex: _"ela é agitada, fica no zap o dia todo, já ficamos uma vez"_'
-        );
-      } else {
-        let txt = '📋 *Perfil dela:*\n\n';
-        if (profile.girl_name) txt += `👤 *Nome:* ${profile.girl_name}\n`;
-        if (profile.girl_context) txt += `📝 *Perfil:* ${profile.girl_context}\n`;
-        if (profile.current_situation) txt += `📍 *Situação:* ${profile.current_situation}\n`;
-        if (profile.what_worked) txt += `✅ *O que funcionou:\n*${profile.what_worked}\n`;
-        txt += '\n_Digita "limpar perfil" pra começar do zero_';
-        await message.reply(txt);
-      }
-      return;
-    }
+    // Fluxo de "salvar perfil dela" REMOVIDO (sequestrava mensagens tipo
+    // "ela é uma colega da faculdade" e respondia "Perfil salvo" em vez de gerar
+    // as 3 mensagens — e a memória velha misturava mulheres). Agora "ela é...",
+    // "ela se chama..." e "situação:..." fluem direto pro Tom Certo como contexto.
 
-    // Limpar perfil dela
+    // Reset manual da conversa (continua útil pra começar do zero)
     if (LIMPAR_PERFIL.test(text)) {
       await saveGirlProfile(phone, { girl_name: null, girl_context: null, current_situation: null, what_worked: null });
       userContext.delete(phone);
-      await message.reply('Perfil limpo ✅\n\nNova conversa, do zero. Manda o print ou descreve a situação.');
-      return;
-    }
-
-    // Salvar nome dela
-    const nomeMatch = text.match(DEFINE_GIRL_NAME);
-    if (nomeMatch) {
-      const nome = nomeMatch[2].trim();
-      await saveGirlProfile(phone, { girl_name: nome });
-      await message.reply(`Salvo ✅ Ela se chama *${nome}*.\n\nAgora manda o print ou descreve o que aconteceu — vou usar o contexto dela nas respostas.`);
-      return;
-    }
-
-    // Salvar perfil dela
-    if (DEFINE_GIRL_PROFILE.test(text)) {
-      const desc = text.replace(DEFINE_GIRL_PROFILE, '').trim();
-      if (desc.length < 5) {
-        await message.reply('Descreve mais ela — personalidade, como é, o que rolou entre vocês.\n\nEx: _"ela é tímida mas quando conhece abre, a gente ficou mês passado e tá meio fria agora"_');
-        return;
-      }
-      await saveGirlProfile(phone, { girl_context: desc });
-      await message.reply(`Perfil salvo ✅\n\nAgora toda resposta vai ser personalizada pra ela. Manda o print ou descreve o que aconteceu 🎯`);
-      return;
-    }
-
-    // Salvar situação atual
-    if (DEFINE_SITUATION.test(text)) {
-      const sit = text.replace(DEFINE_SITUATION, '').trim();
-      await saveGirlProfile(phone, { current_situation: sit });
-      await message.reply(`Contexto salvo ✅\n\nManda o print ou o que ela disse por último.`);
+      await message.reply('Feito ✅ Começamos do zero. Manda o print ou descreve a situação.');
       return;
     }
 
