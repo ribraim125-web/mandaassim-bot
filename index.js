@@ -1614,7 +1614,10 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
     : '';
 
   // Último print analisado — dá ao modelo a visão da conversa DELE COM ELA.
-  const lp = ctxConversa?.lastPrintResult;
+  // Mesma janela de contexto do diálogo: print velho é ignorado (pode ser de
+  // outra mulher — melhor esquecer que misturar).
+  const lpRaw = ctxConversa?.lastPrintResult;
+  const lp = lpRaw && Number(lpRaw.ts) >= Date.now() - CONTEXT_WINDOW_MS ? lpRaw : null;
   const contextoPrint = lp?.situation_summary
     ? `\n\nContexto da conversa dele com ela (do último print que você analisou): ${String(lp.situation_summary).slice(0, 300)}${lp.conversation_temperature ? ` | clima: ${lp.conversation_temperature}` : ''}. Se a mensagem nova dele for sobre essa mesma conversa, use esse contexto pra responder com continuidade.`
     : '';
@@ -2108,13 +2111,20 @@ const userContext = new PersistentContextMap(); // phone -> { lastRequest, lastT
 // memória real da conversa e saber se a próxima msg é continuação ou assunto novo.
 const MAX_TURNS = 16; // ~8 trocas
 
+// Janela de contexto: turno mais velho que isto NÃO entra no diálogo enviado ao
+// modelo. Papo sobre UMA situação acontece em rajada (minutos); referenciar um
+// detalhe de dias atrás ("o cachorro da surfista") na mulher nova era a causa nº1
+// de resposta confusa. 2h cobre "voltei do almoço, manda outra" sem arrastar
+// história velha. Ajustável sem deploy: CONTEXT_WINDOW_MIN no .env.
+const CONTEXT_WINDOW_MS = (Number(process.env.CONTEXT_WINDOW_MIN) || 120) * 60 * 1000;
+
 function pushConversationTurn(phone, role, text) {
   if (!phone || typeof text !== 'string' || !text.trim()) return;
   const current = userContext.get(phone) || {};
   const history = Array.isArray(current.history) ? current.history.slice() : [];
   // 450 chars: as 3 opções do bot têm ~400 — cortar em 220 fazia ele esquecer
   // metade do que sugeriu e quebrava a continuidade.
-  history.push({ r: role === 'bot' ? 'b' : 'u', t: text.slice(0, 450) });
+  history.push({ r: role === 'bot' ? 'b' : 'u', t: text.slice(0, 450), ts: Date.now() });
   while (history.length > MAX_TURNS) history.shift();
   userContext.set(phone, { ...current, history });
 }
@@ -2131,13 +2141,17 @@ function registrarPrintNoHistorico(phone, structuredResult) {
 }
 
 // Renderiza o histórico de turnos como diálogo legível pro modelo. Compatível
-// com entradas antigas (string pura = fala do usuário).
+// com entradas antigas (string pura = fala do usuário). Só turnos DENTRO da
+// janela de contexto entram — turno sem timestamp (formato antigo) é tratado
+// como velho e descartado (seguro: melhor esquecer que misturar mulheres).
 function formatarDialogo(history) {
   if (!Array.isArray(history) || history.length === 0) return '';
-  return history.slice(-8).map((e) => {
-    if (typeof e === 'string') return `Ele: ${e}`;
-    return `${e.r === 'b' ? 'MandaAssim (você)' : 'Ele'}: ${e.t}`;
-  }).join('\n');
+  const cutoff = Date.now() - CONTEXT_WINDOW_MS;
+  return history
+    .filter((e) => typeof e === 'object' && e !== null && Number(e.ts) >= cutoff)
+    .slice(-8)
+    .map((e) => `${e.r === 'b' ? 'MandaAssim (você)' : 'Ele'}: ${e.t}`)
+    .join('\n');
 }
 
 function saveUserContext(phone, request, type) {
@@ -3615,7 +3629,7 @@ async function handleIncomingMessage(message) {
         saveUserContext(phone, { data: imgDataQP, mimetype: imgMimeQP }, 'image');
         if (printResultQP) {
           const ctxAfterQP = userContext.get(phone) || {};
-          userContext.set(phone, { ...ctxAfterQP, lastPrintResult: printResultQP });
+          userContext.set(phone, { ...ctxAfterQP, lastPrintResult: { ...printResultQP, ts: Date.now() } });
           registrarPrintNoHistorico(phone, printResultQP);
         }
         await sendWithDelay(message.from, pmQP, { phone, intent: 'print_analysis' });
@@ -3662,7 +3676,7 @@ async function handleIncomingMessage(message) {
                   saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
                   if (printResultAmbig) {
                     const ctxAfterAmbigPrint = userContext.get(phone) || {};
-                    userContext.set(phone, { ...ctxAfterAmbigPrint, lastPrintResult: printResultAmbig });
+                    userContext.set(phone, { ...ctxAfterAmbigPrint, lastPrintResult: { ...printResultAmbig, ts: Date.now() } });
                     registrarPrintNoHistorico(phone, printResultAmbig);
                   }
                   await sendWithDelay(message.from, pm, { phone, intent: 'print_analysis' });
@@ -4798,7 +4812,7 @@ async function handleIncomingMessage(message) {
             saveUserContext(phone, { data: media.data, mimetype: media.mimetype }, 'image');
             if (printResultMain) {
               const ctxAfterPrint = userContext.get(phone) || {};
-              userContext.set(phone, { ...ctxAfterPrint, lastPrintResult: printResultMain });
+              userContext.set(phone, { ...ctxAfterPrint, lastPrintResult: { ...printResultMain, ts: Date.now() } });
               registrarPrintNoHistorico(phone, printResultMain);
             }
 
