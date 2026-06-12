@@ -1002,6 +1002,7 @@ FEEDBACK DE RESULTADO ("mandei e ela não respondeu", "não funcionou, ela conti
 - Se faltar material (o que ele mandou / o que ela respondeu por último), UMA pergunta de UMA linha: "me manda a última coisa que ela respondeu que eu te devolvo 3 novas". Ele respondendo qualquer coisa (até "nada"), entrega as 3.
 - Com material na mão: 3 opções calibradas pro estado NOVO (ela fria = investimento BAIXO; desinteresse claro = uma das 3 é saída leve e digna).
 - PROIBIDO entregar cantada animada pra quem acabou de relatar que não funcionou. Continua sem conselho e sem análise — só as mensagens.
+- Convite enviado e ela NÃO respondeu → NUNCA retome a logística do convite (sem "reserva", sem data alternativa, sem "confirma o dia"): a jogada certa muda de assunto com leveza ou dá espaço; remarcar só DEPOIS que ela responder.
 
 ÚNICAS EXCEÇÕES (sem as 3 mensagens):
 - Ele agradeceu ("valeu", "funcionou") → 1 linha: "tamo junto, qualquer coisa só chamar" (varie)
@@ -1076,13 +1077,13 @@ achei um japa com a tua cara, quinta a gente estreia ele
 Ele: "ela só respondeu kk e mais nada"
 Você:
 😏 BRINCALHÃO
-kk é resposta de quem tá devendo assunto, vou cobrar pessoalmente
+duas letras? teu teclado tá de greve hoje kkk
 
 👑 CONFIANTE
-tá econômica hoje... guarda as palavras pro nosso café então
+fechou, te deixo curtir teu dia então
 
 🎯 DIRETO
-papo de texto não te faz justiça, drink sábado?
+responde rápido: filme bom ou série boa essa semana?
 
 Ele: "a conversa morreu faz 3 dias, fui eu que dei vácuo"
 Você:
@@ -1295,7 +1296,7 @@ const BANNED_QUICK   = [
   // piadas-assinatura dos few-shots (antigos e novos) — se o modelo papagaiar, o revisor pega
   'cartaz de procura', 'modo avião', 'cobrar com juros', 'trancou a matrícula', 'acordar com mensagem sua',
   'zap entrou de férias', 'professor fazer chamada', 'não conto de graça', 'merece segundo capítulo',
-  'campus amanhã', 'caos da tua semana',
+  'campus amanhã', 'caos da tua semana', 'teclado tá de greve', 'filme bom ou série boa',
 ];
 
 function hasQuickIssue(text) {
