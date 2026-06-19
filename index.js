@@ -1288,6 +1288,20 @@ function stripPeriods(text) {
 // Regex para detectar headers de tom no formato emoji (novo) ou ━━━ (legado)
 const TONE_EMOJI_RE = /^(?:🎯|🌹|😏|💭|👑|🤝|🔥) (?:DIRETO|ROMÂNTICO|BRINCALHÃO|MISTERIOSO|CONFIANTE|AMIGÁVEL|SAFADO)/;
 
+// Tom → emoji canônico (espelha mainGeneration.js). O modelo às vezes escreve o
+// emoji errado no header (ex: "🔥 CONFIANTE", quando CONFIANTE é 👑). Aqui forçamos
+// o emoji certo a partir do NOME do tom, de forma determinística.
+const TONE_EMOJI_MAP = {
+  'DIRETO': '🎯', 'ROMÂNTICO': '🌹', 'BRINCALHÃO': '😏', 'MISTERIOSO': '💭',
+  'CONFIANTE': '👑', 'AMIGÁVEL': '🤝', 'SAFADO': '🔥',
+};
+const TONE_HEADER_NAME_RE = /^(?:🎯|🌹|😏|💭|👑|🤝|🔥)\s+(DIRETO|ROMÂNTICO|BRINCALHÃO|MISTERIOSO|CONFIANTE|AMIGÁVEL|SAFADO)\b/;
+function normalizeToneHeader(header) {
+  const m = header.match(TONE_HEADER_NAME_RE);
+  if (!m) return header;
+  return `${TONE_EMOJI_MAP[m[1]]} ${m[1]}`;
+}
+
 // Ganchos de retenção — enviados após as 3 opções (varia a cada turno)
 // Gancho de retorno: mantém o loop (ele volta contar o desfecho = engajamento),
 // mas com voz de amigo confiante — frame de autonomia ("tu já sabe", "manda com
@@ -1313,6 +1327,7 @@ const BANNED_QUICK   = [
   'cartaz de procura', 'modo avião', 'cobrar com juros', 'trancou a matrícula', 'acordar com mensagem sua',
   'zap entrou de férias', 'professor fazer chamada', 'não conto de graça', 'merece segundo capítulo',
   'campus amanhã', 'caos da tua semana', 'teclado tá de greve', 'filme bom ou série boa',
+  'economizando vogal', 'teclado entrou', 'teclado de licença', 'série boa ou filme',
 ];
 
 function hasQuickIssue(text) {
@@ -1416,7 +1431,7 @@ function splitByToneBlocks(text) {
     if (isToneHeader(firstLine)) {
       // Bloco de tom: header e mensagem em bolhas separadas (facilita copy-paste)
       const lines   = trimmed.split('\n');
-      const header  = lines[0].trim();
+      const header  = normalizeToneHeader(lines[0].trim());
       const msgLines = lines.slice(1)
         .map(l => stripPeriods(l.trim()))
         .filter(Boolean);
