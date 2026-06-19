@@ -1218,6 +1218,11 @@ function sanitizeOutput(text) {
     .replace(/\n{3,}/g, '\n\n')                        // limpa triple+ newlines
     .replace(/([^\.\!\?…])\.(\s*)$/gm, '$1$2')        // ponto final no fim de qualquer linha
     .replace(/([^\.\!\?…])\.\s*$/g, '$1')             // ponto final no fim do texto inteiro (fallback)
+    .replace(/;(?=-?[\)\(DdpPbB*])/g, ':')            // emoticon ;) ;D ;P → :) :D :P (mata o ; do wink)
+    .replace(/[ \t]*;[ \t]*(?=\n|$)/g, '')            // ; solto no fim de linha → some
+    .replace(/[ \t]*;[ \t]*/g, ', ')                  // ; entre ideias → vírgula (ninguém manda ; no zap)
+    .replace(/[ \t]+,/g, ',')                          // espaço antes de vírgula → cola
+    .replace(/,[ \t]*,/g, ',')                          // vírgula dupla → uma
     .trim();
 }
 
