@@ -2513,13 +2513,25 @@ function flushMessageBuffer(chatId) {
     console.log(`[Debounce] processando ${buf.parts.length} msgs juntas | ${chatId}`);
   }
   inFlight.add(chatId);
+  // Watchdog anti-travamento: se o handler pendurar (rede que não responde, await
+  // que nunca resolve), o lock NUNCA seria liberado e TODA mensagem seguinte desse
+  // usuário ficaria presa no buffer pra sempre (sintoma: bot "travado", manda "sim"
+  // e não responde). Libera o lock à força após 60s e reprocessa a fila.
+  let released = false;
+  let watchdog = null;
+  const release = (motivo) => {
+    if (released) return;
+    released = true;
+    if (watchdog) clearTimeout(watchdog);
+    inFlight.delete(chatId);
+    if (motivo === 'watchdog') console.error(`[Debounce] WATCHDOG liberou lock travado (handler >60s) | ${chatId}`);
+    // Chegou mensagem nova enquanto processava? processa agora, em ordem.
+    if (messageBuffer.has(chatId)) flushMessageBuffer(chatId);
+  };
+  watchdog = setTimeout(() => release('watchdog'), 60_000);
   handleIncomingMessage(msg)
     .catch((err) => console.error('[Debounce] erro ao processar burst:', err.message))
-    .finally(() => {
-      inFlight.delete(chatId);
-      // Chegou mensagem nova enquanto processava? processa agora, em ordem.
-      if (messageBuffer.has(chatId)) flushMessageBuffer(chatId);
-    });
+    .finally(() => release('done'));
 }
 
 // Esvazia TODO o buffer de uma vez — usado no shutdown pra não descartar em
