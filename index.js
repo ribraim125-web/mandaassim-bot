@@ -1706,6 +1706,41 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
     const confirmouMontar = !!(ultimoBot && OFERECEU_MONTAR_RE.test(ultimoBot.t || '') && ehConfirmacaoCurta(situacao));
 
     pushConversationTurn(phone, 'user', situacao);
+
+    // ── Ele confirmou a oferta de montar as 3 → geração ESTRUTURADA ───────────
+    // Texto livre NÃO é confiável aqui: mesmo com diretriz, o modelo às vezes
+    // devolve leitura/sermão em vez das 3 mensagens. O json_schema estrito FORÇA
+    // o array de 3 opções (o modelo não consegue escolher mandar texto corrido) e
+    // o código monta os blocos de tom. Reusa o caminho comprovado das 3 opções
+    // (prompt 'full' + schema), o mesmo do fluxo de volume.
+    if (confirmouMontar) {
+      const systemPromptMontar = getSystemPrompt('full', girlContext);
+      const dialogoMontar = dialogo ? `Conversa recente entre você (MandaAssim) e ele:\n${dialogo}\n\n` : '';
+      const userContentMontar = `${prefixo}${dialogoMontar}${contextoPrint}\n\nELE acabou de confirmar ("${situacao}") que quer as 3 mensagens prontas que você ofereceu montar, pra situação discutida logo acima. Gere as 3 opções mais certeiras (tons diferentes, ângulos distintos) pra ELE COPIAR E MANDAR PRA ELA agora — baseadas nessa situação. Nada de pergunta, nada de leitura, só as 3 mensagens prontas.`.trim();
+      console.log(`[Unified] CONFIRMOU_MONTAR → geração ESTRUTURADA (schema força as 3) | ${MODELS.MAIN_MODEL}`);
+      try {
+        const rm = await gerarRespostaPrincipal({
+          systemPrompt: systemPromptMontar, userContent: userContentMontar,
+          maxTokens: 900, temperature: 0.9, intent: 'unified_montar', structured: true,
+        });
+        logApiRequest({
+          phone, intent: 'unified_montar',
+          targetModel: MODELS.MAIN_MODEL, modelActuallyUsed: rm.modelUsed,
+          fallbackTriggered: rm.fallbackTriggered, fallbackReason: rm.fallbackTriggered ? 'model_error' : null,
+          inputTokens: rm.usage.inputTokens, outputTokens: rm.usage.outputTokens,
+          cacheReadTokens: rm.usage.cacheReadTokens, cacheWriteTokens: rm.usage.cacheWriteTokens,
+          latencyMs: rm.latencyMs, responseLengthChars: rm.text ? rm.text.length : null,
+          responseText: rm.text || null, userMessageLengthChars: situacao.length,
+          error: rm.error,
+        });
+        pushConversationTurn(phone, 'bot', rm.text);
+        return { text: rm.text, intent: 'volume' };
+      } catch (err) {
+        console.error(`[Unified] montar estruturado falhou (${err.message}) — cai pro texto livre como rede de segurança`);
+        // segue pro fluxo livre abaixo (a diretrizMontar ainda força as 3 lá)
+      }
+    }
+
     const systemPromptUni = montarPromptConversa(girlContext);
     const diretrizMontar = confirmouMontar
       ? `\n\n[ELE CONFIRMOU que quer as 3 mensagens que você ofereceu montar. Entregue AGORA as 3 opções no formato dos tons (cada tom com seu emoji numa linha e a mensagem na linha de baixo), pra situação que vocês estavam discutindo acima. NÃO repita a leitura, NÃO faça pergunta, NÃO escreva separador ⎯⎯⎯ nem "Análise completa".]`
