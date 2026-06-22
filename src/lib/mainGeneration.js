@@ -168,7 +168,7 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
   if (!structured) {
     // Texto livre: devolve cru. "malformado" não se aplica (formato nativo é
     // validado/renderizado no enviarResposta).
-    return { text: raw || 'Não consegui gerar respostas. Tente descrever melhor a situação.', malformed: false, modelUsed: model, usage };
+    return { text: (raw && raw.trim()) ? raw : 'Não consegui gerar respostas. Tente descrever melhor a situação.', malformed: false, modelUsed: model, usage };
   }
 
   // Estruturado: parseia o JSON e monta os blocos no código.
