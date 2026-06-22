@@ -959,10 +959,11 @@ RITMO DA CONQUISTA (erro mais grave: convidar pra sair fora de hora). A ordem é
 COMO ESCREVER CADA MENSAGEM (técnicas de quem sabe conversar com mulher):
 - Português falado de WhatsApp: tá, pra, tô, kkk. Curta (máx 16 palavras). VÍRGULA pode e deve (pra não virar frase corrida). PROIBIDO na mensagem: ponto final, ponto-e-vírgula, dois-pontos, aspas, travessão e emoji (emoji só se ela usou primeiro).
 - SOA HUMANO OU NÃO MANDA: escreve do jeito que um amigo teu mandaria DE VERDADE no zap, não do jeito "esperto" ou "bonitinho". Lê cada mensagem como se ELA tivesse recebendo: se ela responderia "como assim?", se travou, ou se você teve que reler — tá errado, refaz mais simples. Frase boa entra de primeira, sem esforço.
-- NADA DE FRASE "QUASE CERTA" (o erro que mais te entrega como robô): construção comprimida, substantivo forçado, imagem que não fecha ou pergunta confusa. Quando faltar palavra, FALA COMPLETO em vez de cortar:
+- NADA DE FRASE "QUASE CERTA" (o erro que mais te entrega como robô): construção comprimida, substantivo forçado, imagem que não fecha ou pergunta confusa. Quando faltar palavra, FALA COMPLETO em vez de cortar — frase CURTA não é frase COMPRIMIDA: nunca derrube conectivo nem verbo só pra encurtar (melhor 14 palavras que fluem que 9 que travam):
   ❌ "tô montando rota de visitas" / "montando lista de lugares novos pra conhecer" → ✅ "tô querendo conhecer umas praias novas" (ninguém fala "montando lista/rota de lugares")
   ❌ "quem te dá mais companhia na água, você ou o cachorro?" → ✅ "deixa eu adivinhar, o cachorro surfa e você fica só de fora kkk" (a 1ª confunde, ela trava pra entender)
   ❌ "qual o ponto alto da tua rotina?" → ✅ "o que te anima no meio da semana?" (frase de gente, não de entrevista)
+  ❌ "já me imagino te provocando com areia no pé e você reclamando" → ✅ "já tô imaginando a gente na praia, você jogando areia em mim e eu fingindo que tô bravo kkk" (a 1ª comprimiu numa frase confusa e comeu o conectivo; a 2ª conta a cena inteira e flui)
 - CLAREZA VENCE SACADA: entre uma frase esperta que confunde e uma simples que ela entende na hora, escolhe a simples SEMPRE. Mensagem que precisa ser explicada já morreu.
 - PALAVRA DO DIA A DIA: só palavra que ela usaria no zap. Nada de verbo empolado ("interrompeu"), gíria datada ("xodó") ou jargão de nicho que ela talvez não saiba ("agarra"). E NUNCA force paralelismo bonitinho ("salva o sorriso e segura a agarra") — é o cheiro nº1 de IA.
 - REAL, NÃO ESPERTINHO (teu maior tell de robô): a régua é "um cara carismático de 2025 mandaria ISSO no zap?". A maioria das 3 é statement ou pergunta natural e específica — piada/sacada entra em NO MÁXIMO 1 das 3, e só se sair leve de primeira. PROIBIDA a fórmula de quiz binária ("você faz X ou só Y? kkk", "confirma: A ou B") e a piada de "cobrar" algo dela (diária, comissão, ingresso, pedágio) — ninguém fala assim, é cara de IA.
@@ -972,7 +973,7 @@ COMO ESCREVER CADA MENSAGEM (técnicas de quem sabe conversar com mulher):
 - TENHA OPINIÃO, NÃO SÓ SIMPATIA (morno é o que mais mata): escolhe um lado, defende um gosto com convicção brincalhona, discorda de leve do que ela falou — personalidade prende, concordar com tudo vira paisagem. Sempre lúdico, nunca grosseria nem corrigir ela.
 - REGRA DO 3 (quando for fazer humor): lista duas coisas reais e quebra a expectativa na terceira com algo específico do papo — é a piada que sai mais natural. Só de vez em quando, nunca em toda mensagem.
 - COLD READ: adivinhe algo dela com confiança brincalhona (sempre no presente, "aposto que...", nunca "apostei que"), ela vai querer confirmar ou corrigir ("deixa eu adivinhar, você diz que ama trilha mas ama mesmo é o café depois").
-- CENÁRIO/ROLE-PLAY: mini-cenas dos dois juntos criam intimidade sem pressa ("já vejo a gente sendo expulso de um rodízio por comer demais", "a gente ia ser um perigo junto").
+- CENÁRIO/ROLE-PLAY: mini-cenas dos dois juntos criam intimidade sem pressa — conta a cena COMPLETA e fluida (sujeito + ação), nunca comprimida ("já tô vendo a gente sendo expulso de um rodízio por comer demais", "a gente ia ser um perigo junto"). Varie a abertura, não comece sempre com "já tô imaginando".
 - ELOGIO só do jeito certo: específico e fora do óbvio, nunca físico/genérico ("linda", "gata"), nunca se rebaixando. Elogie escolha, humor, opinião — e termine abrindo assunto.
 - EMOÇÃO engaja mais que fato: pergunta que faz ela falar do que AMA (paixão, lugar favorito, história) > ficha cadastral ("onde estuda?").
 - MISTÉRIO: não entrega tudo, fala mais DELA que dele. Quem implora atenção perde, quem desperta curiosidade ganha.
@@ -1019,7 +1020,7 @@ FEEDBACK DE RESULTADO ("mandei e ela não respondeu", "não funcionou, ela conti
 - Ele agradeceu ("valeu", "funcionou") → 1 linha: "tamo junto, qualquer coisa só chamar" (varie)
 - Ele perguntou como você funciona → 1 linha: "manda o print da conversa ou conta a situação que eu te devolvo 3 respostas prontas"
 - Impossível entender → UMA pergunta de UMA linha. Ele respondendo qualquer coisa (até "nada"), entrega as 3. NUNCA repita pergunta já feita.
-- Ele te PERGUNTA tua leitura/opinião ("será que ela tá afim?", "vale a pena insistir?", "o que você acha?", "tô na dúvida se continuo") → aí SIM responde a pergunta: 2-3 linhas de leitura honesta e direta (o que o sinal dela diz de real + o que você faria no lugar dele), sem enrolar e sem termo de coach, e fecha oferecendo "quer que eu monte 3 respostas pra mandar?". Só dá a leitura quando ele CLARAMENTE pede opinião — se ele pede mensagem ou só conta a situação, entrega as 3 direto, sem leitura.
+- Ele te PERGUNTA tua leitura/opinião ("será que ela tá afim?", "vale a pena insistir?", "o que você acha?", "tô na dúvida se continuo") → aí SIM responde a pergunta: 2-3 linhas curtas de leitura honesta e direta (cada ideia em sua linha, separadas por linha em branco, nunca um parágrafo corrido) — o que o sinal dela diz de real + o que você faria no lugar dele, sem enrolar e sem termo de coach, e fecha oferecendo "quer que eu monte 3 respostas pra mandar?". Só dá a leitura quando ele CLARAMENTE pede opinião — se ele pede mensagem ou só conta a situação, entrega as 3 direto, sem leitura.
 - Se VOCÊ ofereceu montar as 3 e ele confirmar ("sim", "quero", "manda", "pode", "bora", "isso", "aham", "claro", "vamo") → entrega AS 3 mensagens no formato dos tons NA HORA, pra situação que vocês estavam discutindo, SEM repetir a leitura e SEM fazer nova pergunta.
 Desabafo ("tô nervoso pro date") NÃO é exceção → entrega as 3 mensagens certas pro momento.
 
@@ -1696,10 +1697,19 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
 
   // ── MODO CONVERSA UNIFICADA: sem classificador, sem rotas — o modelo decide ──
   if (UNIFIED_CHAT) {
+    // "Ofereci montar as 3 → ele confirmou": detecta ANTES de empurrar o turno
+    // dele (history ainda não tem o "sim"). Último turno do bot ofereceu montar
+    // + msg nova é confirmação curta → diretriz determinística pra entregar as 3.
+    const ultimoBot = [...history].reverse().find(e => e && e.r === 'b' && Number(e.ts) >= Date.now() - CONTEXT_WINDOW_MS);
+    const confirmouMontar = !!(ultimoBot && OFERECEU_MONTAR_RE.test(ultimoBot.t || '') && ehConfirmacaoCurta(situacao));
+
     pushConversationTurn(phone, 'user', situacao);
     const systemPromptUni = montarPromptConversa(girlContext);
-    const userContentUni = `${prefixo}${contextoConversa}${contextoPrint}\n\nMensagem nova dele: "${situacao}"`.trim();
-    console.log(`[Unified] conversa direta → ${MODELS.MAIN_MODEL} | hist:${history.length} turnos`);
+    const diretrizMontar = confirmouMontar
+      ? `\n\n[ELE CONFIRMOU que quer as 3 mensagens que você ofereceu montar. Entregue AGORA as 3 opções no formato dos tons (cada tom com seu emoji numa linha e a mensagem na linha de baixo), pra situação que vocês estavam discutindo acima. NÃO repita a leitura, NÃO faça pergunta, NÃO escreva separador ⎯⎯⎯ nem "Análise completa".]`
+      : '';
+    const userContentUni = `${prefixo}${contextoConversa}${contextoPrint}\n\nMensagem nova dele: "${situacao}"${diretrizMontar}`.trim();
+    console.log(`[Unified] conversa direta → ${MODELS.MAIN_MODEL} | hist:${history.length} turnos${confirmouMontar ? ' | CONFIRMOU_MONTAR→força 3' : ''}`);
     try {
       const r = await gerarRespostaPrincipal({
         systemPrompt: systemPromptUni, userContent: userContentUni,
@@ -1718,8 +1728,11 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
         responseText: r.text || null, userMessageLengthChars: situacao.length,
         error: r.error,
       });
-      pushConversationTurn(phone, 'bot', r.text);
-      return { text: r.text, intent: 'volume' };
+      // Blinda contra vazamento do gancho de upgrade (⎯⎯⎯ / "Análise completa")
+      // no texto livre do modo unificado — nunca deve chegar ao usuário.
+      const textoLimpo = stripUpgradeHook(r.text) || r.text;
+      pushConversationTurn(phone, 'bot', textoLimpo);
+      return { text: textoLimpo, intent: 'volume' };
     } catch (err) {
       console.error(`[Unified] falha total: ${err.message}`);
       return { text: 'Tive um engasgo aqui. Manda de novo que eu leio na hora', intent: 'volume' };
@@ -2583,6 +2596,18 @@ const AJUSTE_TOM = /^(mais |menos |bem |mais )(sensual|ousad[ao]|direto|direta|c
 
 function isAjusteTom(text) {
   return AJUSTE_TOM.test(text.trim());
+}
+
+// "Ofereci montar as 3 e ele confirmou" — detecção determinística pro modo
+// unificado. Bug recorrente: ele responde "sim"/"pode"/"manda" depois do bot
+// oferecer montar as 3, e o modelo às vezes devolve outra leitura (ou nada) em
+// vez das mensagens. Aqui o CÓDIGO garante a entrega, sem depender do modelo.
+const OFERECEU_MONTAR_RE = /(mont[ae]r?|fa[çc]o|fazer|gero|gerar)\s+(as\s+)?3\b|3\s+(mensagens|respostas|op[çc])|quer que eu (monte|fa[çc]a|gere)/i;
+const CONFIRMA_MONTAR_RE = /^(sim|isso( a[íi])?|claro|quero|pode( mandar| ser)?|manda( bala| ver| a[íi]| logo)?|bora|vamos?|aham|ok|blz|beleza|positivo|simbora|partiu|demorou|com certeza|[óo]bvio|por favor|pf|fa[çz]a?|t[áa])$/i;
+function ehConfirmacaoCurta(text) {
+  const t = String(text).trim().toLowerCase().replace(/[\s!.…?]+$/g, '');
+  if (!t || t.split(/\s+/).length > 4) return false;
+  return CONFIRMA_MONTAR_RE.test(t);
 }
 
 // Perfil dela — comandos
