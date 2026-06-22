@@ -968,6 +968,8 @@ COMO ESCREVER CADA MENSAGEM (técnicas de quem sabe conversar com mulher):
 - STATEMENT > PERGUNTA: afirmação com personalidade vale mais que pergunta de entrevista ("você tem cara de quem tem opinião forte sobre brigadeiro, tô te julgando" > "qual sua comida favorita?"). Máximo UMA pergunta por mensagem — interrogatório mata o clima.
 - CURIOSIDADE/OPEN LOOP é a arma nº1: gancho que ela PRECISA responder pra fechar ("tive a pior ideia de programa pra sábado, não sei se você tá pronta", "lembrei de você hoje por um motivo bem aleatório, depois conto").
 - PUSH-PULL: provocação leve + calor na mesma frase, 80% calor / 20% desafio ("tô gostando de você, só decidindo se aguento alguém que põe abacaxi na pizza kkk"). O push é sempre lúdico, NUNCA insulto.
+- TENHA OPINIÃO, NÃO SÓ SIMPATIA (morno é o que mais mata): escolhe um lado, defende um gosto com convicção brincalhona, discorda de leve do que ela falou — personalidade prende, concordar com tudo vira paisagem. Sempre lúdico, nunca grosseria nem corrigir ela.
+- REGRA DO 3 (quando for fazer humor): lista duas coisas reais e quebra a expectativa na terceira com algo específico do papo — é a piada que sai mais natural. Só de vez em quando, nunca em toda mensagem.
 - COLD READ: adivinhe algo dela com confiança brincalhona, ela vai querer confirmar ou corrigir ("deixa eu adivinhar: você diz que ama trilha mas ama mesmo é o café depois").
 - CENÁRIO/ROLE-PLAY: mini-cenas dos dois juntos criam intimidade sem pressa ("já vejo a gente sendo expulso de um rodízio por comer demais", "a gente ia ser um perigo junto").
 - ELOGIO só do jeito certo: específico e fora do óbvio, nunca físico/genérico ("linda", "gata"), nunca se rebaixando. Elogie escolha, humor, opinião — e termine abrindo assunto.
@@ -979,8 +981,8 @@ COMO ESCREVER CADA MENSAGEM (técnicas de quem sabe conversar com mulher):
 - Papo morreu há dias → reabre com humor sobre o próprio sumiço ou "lembrei de você" com gancho — nunca "oi sumida, tudo bem?" seco.
 - Ela provocou/zoou ele → NUNCA se defende nem se justifica (nada de "não sou metido"): confirma com confiança e dobra a aposta, com palavras tuas — NÃO repita "eu não me acho, eu tenho certeza", que já tá batido.
 - Pergunta morna dela ("dormiu bem?") → vira flerte: "dormi ótimo, sonho eu não conto de graça"
-- Resgate o que ela já contou (a viagem, a prova, o show) — quem lembra do detalhe sai na frente de todos os outros.
-- Use o detalhe que ele contou (nome, assunto, piada interna, o último papo) — mensagem genérica que serve pra qualquer mulher é errada.
+- Resgate o que ela já contou (a viagem, a prova, o show) — quem lembra do detalhe sai na frente de todos os outros. CALLBACK: retomar uma piada ou gancho que já rolou no papo cria intimidade na hora e mostra que você presta atenção.
+- Use o detalhe MAIS específico que ele contou (nome, assunto, piada interna, o último papo) — sempre o concreto, nunca a categoria genérica (não "você viaja muito" e sim o lugar exato que ela citou). Mensagem que serve pra qualquer mulher é errada.
 AS 3 OPÇÕES SÃO 3 JOGADAS DIFERENTES, nunca a mesma ideia em 3 tons:
 - uma OBSERVA: reage a um detalhe específico do que ela disse/fez, sem puxar encontro
 - uma PROVOCA: tease leve que ela vai querer rebater
@@ -1337,6 +1339,7 @@ const BANNED_QUICK   = [
   // AI-tells datados / tiozão (re-teste): crush, "cobrar X", loteria, etc.
   'crush', 'cobrar comissão', 'cobrar ingresso', 'cobrar diária', 'cobrar pedágio',
   'na loteria', 'loteria do match', 'pose pro feed', 'conversa reta', 'soltar os fogos',
+  'economia de letra', 'economia de texto', 'modo economia de', 'economia de vogal',
 ];
 
 function hasQuickIssue(text) {
