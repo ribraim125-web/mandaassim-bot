@@ -4209,9 +4209,13 @@ async function handleIncomingMessage(message) {
     }
 
     // ── Follow-up de gancho de upgrade ───────────────────────────────────────
+    // NO MODO UNIFICADO este follow-up fica DESLIGADO: "sim"/"quero"/"manda" são
+    // continuação natural da conversa (ex.: confirmar a oferta de montar as 3) e
+    // NÃO podem ser sequestrados pelo upsell — senão o "sim" vira leitura + gancho
+    // de R$29,90 em vez das 3 mensagens (era a causa raiz do bug do "sim").
     {
       const hookCtx = getUserContext(phone);
-      if (HOOK_TRIGGER_PATTERN.test(text.trim()) && hookCtx?.lastHook && (Date.now() - hookCtx.lastHook.sentAt) < 10 * 60 * 1000) {
+      if (!UNIFIED_CHAT && HOOK_TRIGGER_PATTERN.test(text.trim()) && hookCtx?.lastHook && (Date.now() - hookCtx.lastHook.sentAt) < 10 * 60 * 1000) {
         const { situation } = hookCtx.lastHook;
         const updCtx = userContext.get(phone) || {};
         userContext.set(phone, { ...updCtx, lastHook: null });
