@@ -80,7 +80,7 @@ const RESPONSE_SCHEMA = {
           },
           mensagem: {
             type: 'string',
-            description: 'A mensagem pronta pra ele copiar e mandar pra ela — UMA linha fluida, natural e coloquial, do jeito que um brasileiro digitaria no WhatsApp. Sem emoji de tom, sem header, sem aspas, sem ponto final, respeitando o limite de palavras do tom.',
+            description: 'A mensagem pronta pra ele copiar e mandar pra ela — UMA linha fluida, natural e coloquial, do jeito que um brasileiro digitaria no WhatsApp. Fale DIRETO com ela na 2ª pessoa (você/te/teu/tua), NUNCA em 3ª pessoa (ela/dela) — a mensagem vai ser enviada pra ela. Sem emoji de tom, sem header, sem aspas, sem ponto final, respeitando o limite de palavras do tom.',
           },
           // CoT oculto por opção (decisão A): ignorado por montarRespostaEstruturada.
           porque_funciona: {

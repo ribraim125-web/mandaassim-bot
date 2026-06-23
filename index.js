@@ -958,6 +958,7 @@ RITMO DA CONQUISTA (erro mais grave: convidar pra sair fora de hora). A ordem é
 
 COMO ESCREVER CADA MENSAGEM (técnicas de quem sabe conversar com mulher):
 - Português falado de WhatsApp: tá, pra, tô, kkk. Curta (máx 16 palavras). VÍRGULA pode e deve (pra não virar frase corrida). PROIBIDO na mensagem: ponto final, ponto-e-vírgula, dois-pontos, aspas, travessão e emoji (emoji só se ela usou primeiro).
+- FALA DIRETO COM ELA (2ª pessoa): a mensagem VAI SER ENVIADA pra ela, então trata ela por "você/te/teu/tua" — NUNCA fala dela em 3ª pessoa ("ela", "dela", "a ela"), que soa como se você estivesse contando pra um amigo em vez de falando COM ela. ❌ "tô colecionando os melhores textos dela" → ✅ "tô colecionando teus melhores textos kkk".
 - SOA HUMANO OU NÃO MANDA: escreve do jeito que um amigo teu mandaria DE VERDADE no zap, não do jeito "esperto" ou "bonitinho". Lê cada mensagem como se ELA tivesse recebendo: se ela responderia "como assim?", se travou, ou se você teve que reler — tá errado, refaz mais simples. Frase boa entra de primeira, sem esforço.
 - NADA DE FRASE "QUASE CERTA" (o erro que mais te entrega como robô): construção comprimida, substantivo forçado, imagem que não fecha ou pergunta confusa. Quando faltar palavra, FALA COMPLETO em vez de cortar — frase CURTA não é frase COMPRIMIDA: nunca derrube conectivo nem verbo só pra encurtar (melhor 14 palavras que fluem que 9 que travam):
   ❌ "tô montando rota de visitas" / "montando lista de lugares novos pra conhecer" → ✅ "tô querendo conhecer umas praias novas" (ninguém fala "montando lista/rota de lugares")
@@ -1038,6 +1039,7 @@ AUTOCHECAGEM (antes de entregar, conserte o que falhar):
 2. Alguma mensagem parece com frase/piada que está NESTE prompt — seja dos EXEMPLOS, seja das mini-frases das técnicas (tipo "economizando vogal", "eu não me acho", "teclado de greve")? Reescreve do zero, com imagem nova.
 3. Tem check-in carente ("me manda um ok", "tá tudo certo?") ou 🔥/🌹 fora de clima quente/ALTO? Troca antes de entregar.
 4. As 3 são ângulos diferentes (nenhuma pergunta repetida) e encontro aparece em no máximo 1? Se não, refaça.
+5. Alguma mensagem fala DELA em 3ª pessoa ("ela", "dela") quando o certo é falar COM ela? Vira 2ª pessoa ("você", "te", "teu") — a mensagem é enviada direto pra ela.
 
 EXEMPLOS COMPLETOS — ATENÇÃO: eles mostram o NÍVEL e o FORMATO, não o texto. É PROIBIDO reutilizar qualquer frase, piada ou imagem deles ("modo avião", "cobrar com juros", "sorvete sábado", "trancou a matrícula" etc.). Cada resposta sua é CRIADA DO ZERO pro caso específico — se a sua resposta parece com um exemplo, reescreva.
 
@@ -1585,7 +1587,13 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
       .replace(/💡[^\n]*\n*/g, '')         // dica (já enviada acima)
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-    const bolhas = corpo.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+    let bolhas = corpo.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+    // Leitura/opinião: o modelo às vezes separa as ideias com quebra SIMPLES em vez
+    // de linha em branco — sem isso a leitura chega grudada numa bolha só. Se não
+    // separou, quebra por linha simples pra cada ideia (e a oferta) virar uma bolha.
+    if (bolhas.length === 1) {
+      bolhas = corpo.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    }
     if (bolhas.length > 1) {
       await sendWithDelay(message.from, bolhas, { phone, intent });
     } else if (corpo) {
