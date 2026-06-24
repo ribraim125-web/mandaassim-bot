@@ -958,6 +958,7 @@ RITMO DA CONQUISTA (erro mais grave: convidar pra sair fora de hora). A ordem é
 - Papo COMEÇANDO (match novo, primeiro contato, ela mal respondeu) → PROIBIDO convidar pra sair. O trabalho agora é despertar interesse: curiosidade sobre algo ESPECÍFICO que ela mostrou + abrir conversa.
 - Papo RENDENDO (resposta longa, ela pergunta de volta, manda kkk/emoji, puxa assunto) → primeiro SEMEIE o encontro sem marcar ("falando assim já tô vendo a gente discutindo isso num bar") — aí a opção DIRETO pode propor algo concreto (lugar + dia) que ela aceita com um "sim".
 - Papo QUENTE/íntimo → pode provocar, criar tensão, usar 🔥.
+- ELE PEDE PRA AVANÇAR ("como dou um beijo nela", "quero pegar", "quero avançar", "como chamo pra sair") mas o clima ainda tá morno/começando → NÃO jogue beijo/convite na lata (afobado queima tudo): as 3 ESQUENTAM com jeito (tensão leve + flerte + curiosidade) e preparam o terreno. Avanço direto (propor o beijo/encontro) SÓ quando ELA já tá no clima.
 - Sair do app pro WhatsApp → só com papo fluindo e SEMPRE com pretexto leve ("esse chat é uma tragédia pra áudio, me passa teu zap que continuo te zoando lá").
 
 COMO ESCREVER CADA MENSAGEM (técnicas de quem sabe conversar com mulher):
@@ -1349,6 +1350,11 @@ const RETENTION_HOOKS = [
 const PLACEHOLDER_RE = /\[[a-zA-ZÀ-ú ]{2,25}\]/;
 // Palavra duplicada lado a lado ("você você", "tava tava") — typo clássico do modelo
 const DUP_WORD_RE    = /\b([a-zà-úç]{2,}) \1\b/i;
+// 3ª pessoa vazando: a mensagem fala DELA ("ela", "dela", "minha ex") em vez de COM ela.
+// Só vira problema quando NÃO há 2ª pessoa na frase (aí é narração, não mensagem pra ela);
+// se tem "você/te/teu", "ela" provavelmente é referência legítima a um terceiro — não flag.
+const TERCEIRA_PESSOA_RE = /\b(ela|dela|nela|delas|nelas)\b|\b(minha|meu) (ex|namorad[oa]|crush|mina|garota|menina)\b/i;
+const SEGUNDA_PESSOA_RE  = /\b(voc[êe]|vc|te|ti|teu|tua|teus|tuas|contigo)\b/i;
 const BANNED_QUICK   = [
   'mal posso esperar', 'a quanto tempo', 'fico animado com ideia', 'fica animado com',
   // piadas-assinatura dos few-shots (antigos e novos) — se o modelo papagaiar, o revisor pega
@@ -1367,7 +1373,7 @@ const BANNED_QUICK   = [
 function hasQuickIssue(text) {
   if (!text) return false;
   const lower = text.toLowerCase();
-  return PLACEHOLDER_RE.test(text) || DUP_WORD_RE.test(text) || BANNED_QUICK.some(p => lower.includes(p));
+  return PLACEHOLDER_RE.test(text) || DUP_WORD_RE.test(text) || (TERCEIRA_PESSOA_RE.test(text) && !SEGUNDA_PESSOA_RE.test(text)) || BANNED_QUICK.some(p => lower.includes(p));
 }
 
 async function reviewIfNeeded(parts, phone) {
@@ -1396,6 +1402,7 @@ Corrige:
 - Construção formal → falada ("quer retomar?" → "bora continuar?")
 - Palavra duplicada lado a lado ("você você") → remove a duplicata
 - Mensagem contendo qualquer destas expressões: ${BANNED_QUICK.join(', ')} → é cópia de exemplo interno; reescreva SÓ essa mensagem com outra piada de mesma intenção e mesmo tom (as demais ficam intactas)
+- Mensagem que NARRA a situação em 3ª pessoa em vez de falar DIRETO com ela (ex: "meu ex reapareceu, vou treinar minha cara de paisagem" — não tem "você/te", tá contando em vez de falando COM ela) → reescreve em 2ª pessoa (você/te/teu/tua) na voz de um HOMEM falando com uma MULHER, mantendo o mesmo tom e ousadia (ex: "sumiu e voltou do nada né, demorou pra cair a ficha kkk"). MAS se a mensagem já fala com ela em 2ª pessoa e só CITA um terceiro (a ex como comparação, a mãe/amiga/cachorro dela), deixa como está.
 
 NÃO muda tom, ousadia, estrutura, nem o que está correto. Só corrige o que está errado.
 Responde SOMENTE as mensagens corrigidas, uma por linha separada por ---. Mesma quantidade e ordem.`,
@@ -1662,7 +1669,7 @@ Use o formato padrão com 📍 diagnóstico + 🔥 😏 ⚡ opções.`;
       model: IMAGE_ANALYSIS_MODEL,
       max_tokens: IMAGE_MAX_TOKENS,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT_IMAGE + girlContext },
+        { role: 'system', content: SYSTEM_PROMPT_IMAGE + '\n\nQUEM É QUEM (NUNCA erre): quem te enviou é SEMPRE um HOMEM hétero falando com uma MULHER. As 3 são mensagens DELE pra ELA — fala DIRETO com ela (2ª pessoa: você/te/teu/tua), NUNCA em 3ª pessoa ("ela"/"dela") e NUNCA tratando o alvo como homem ("meu ex"). A "ex" dele = ex-namorada (mulher).' + girlContext },
         {
           role: 'user',
           content: [
