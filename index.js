@@ -451,7 +451,7 @@ TRAVA ANTI-REPETIÇÃO (cheque as 3 lado a lado antes de entregar):
   ✗ não têm a mesma ABERTURA (primeira palavra diferente nas 3)
   ✗ não terminam com a mesma sacada
 Se duas opções se parecerem, JOGA UMA FORA e reescreve num ângulo realmente novo.
-Pelo menos uma das três SEMPRE avança a conversa. No máximo 2 perguntas em sequência na mesma mensagem. Cada opção leva um "porque_funciona" (1 linha curta, uso interno).
+Pelo menos uma das três SEMPRE avança a conversa. No máximo 2 perguntas em sequência na mesma mensagem.
 </formato_de_saida>
 
 <leitura>
@@ -766,8 +766,8 @@ NÃO disparar safety_block só porque "ela bloqueou / sumiu / cortou contato / t
 //  - coaching = conversa/conselho (texto livre)
 // Print é tratado fora daqui (pipeline de visão).
 const INTENT_MODEL_CONFIG = {
-  // volume: temperature 0.9 (+variedade entre as 3 opções) e maxTokens 600 (cabe o
-  // CoT "analise" + porque_funciona da decisão A sem truncar a 3ª opção).
+  // volume: temperature 0.9 (+variedade entre as 3 opções). No caminho estruturado
+  // o maxTokens é elevado pra 1500 em chamarModelo (CoT "analise" + reasoning tokens).
   volume:   { maxTokens: 600, temperature: 0.9,  systemType: 'full',  structured: true  },
   coaching: { maxTokens: 300, temperature: 0.75, systemType: 'coach', structured: false },
 };

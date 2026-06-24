@@ -18,11 +18,10 @@
 const OUTPUT_FORMAT_ESTRUTURADO = `<output_format>
 Você devolve a resposta de forma ESTRUTURADA (o sistema cuida do formato visual). Preenche:
 - analise: seu raciocínio interno (vibe, subtexto, interesse, gancho, o que evitar e os 3 ângulos). NÃO vai pro usuário.
-- opcoes: as 3 opções, cada uma com tom (da <tonalidades>), mensagem e porque_funciona.
+- opcoes: as 3 opções, cada uma com tom (da <tonalidades>) e mensagem.
 O campo "mensagem" leva SOMENTE o texto pronto pra ele copiar e mandar — sem emoji de tom, sem
-header, sem "⎯⎯⎯", sem aspas, sem ponto final. O campo "porque_funciona" é 1 linha de uso interno
-(não vai pro usuário). As regras de tom/limite de palavras da <tonalidades> e os 3 ângulos distintos
-da <formato_de_saida> valem integralmente. Normalmente 3 opções com tons diferentes.
+header, sem "⎯⎯⎯", sem aspas, sem ponto final. As regras de tom/limite de palavras da <tonalidades>
+e os 3 ângulos distintos da <formato_de_saida> valem integralmente. Normalmente 3 opções com tons diferentes.
 </output_format>`;
 
 /**

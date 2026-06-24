@@ -33,6 +33,11 @@ const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS) || 30000;
 const REASONING_EFFORT = process.env.GEN_REASONING_EFFORT || 'low';
 // Verbosity do GPT-5 — controla o tamanho da resposta. 'low' = curto (WhatsApp).
 const VERBOSITY = process.env.GEN_VERBOSITY || 'low';
+// Roteamento do OpenRouter: prioriza o provedor de maior throughput (tok/s) pra
+// cortar o pico de latência (ex.: 32s vs 13s em chamadas quase iguais = provedor
+// lento). Ajustável sem deploy via GEN_PROVIDER_SORT no .env
+// ('throughput' | 'latency' | 'price' | '' desliga o pin).
+const PROVIDER_SORT = process.env.GEN_PROVIDER_SORT || 'throughput';
 
 let _openrouter = null;
 function openrouter() {
@@ -82,13 +87,8 @@ const RESPONSE_SCHEMA = {
             type: 'string',
             description: 'A mensagem pronta pra ele copiar e mandar pra ela — UMA linha fluida, natural e coloquial, do jeito que um brasileiro digitaria no WhatsApp. Fale DIRETO com ela na 2ª pessoa (você/te/teu/tua), NUNCA em 3ª pessoa (ela/dela) — a mensagem vai ser enviada pra ela. Sem emoji de tom, sem header, sem aspas, sem ponto final, respeitando o limite de palavras do tom.',
           },
-          // CoT oculto por opção (decisão A): ignorado por montarRespostaEstruturada.
-          porque_funciona: {
-            type: 'string',
-            description: '1 linha curta explicando por que essa opção funciona nessa situação. Uso interno — NÃO vai pro usuário.',
-          },
         },
-        required: ['tom', 'mensagem', 'porque_funciona'],
+        required: ['tom', 'mensagem'],
       },
     },
   },
@@ -145,6 +145,10 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
       { role: 'user', content: userContent },
     ],
   };
+  // Pin de provedor (OpenRouter): mata o pico de latência por roteamento ruim.
+  if (PROVIDER_SORT) {
+    req.provider = { sort: PROVIDER_SORT };
+  }
   if (structured) {
     req.response_format = {
       type: 'json_schema',
@@ -156,6 +160,7 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
   const raw = resp.choices[0]?.message?.content || '';
   const u = resp.usage || {};
   const cached = u.prompt_tokens_details?.cached_tokens || 0;
+  const reasoningTokens = u.completion_tokens_details?.reasoning_tokens || 0;
   const usage = {
     // estimateCost soma input cheio + cacheRead à parte; pra OpenAI o
     // prompt_tokens já inclui o cache, então subtraímos pra não duplicar.
@@ -163,6 +168,7 @@ async function chamarModelo(model, { systemPrompt, userContent, maxTokens, tempe
     outputTokens:     u.completion_tokens || 0,
     cacheReadTokens:  cached,
     cacheWriteTokens: 0,
+    reasoningTokens,
   };
 
   if (!structured) {
@@ -228,7 +234,7 @@ async function gerarRespostaPrincipal({ systemPrompt, userContent, maxTokens = 9
   console.log(
     `[MainGen] model:${r.modelUsed}${fallbackTriggered ? ' (fallback)' : ''} | intent:${intent} [${structured ? 'structured' : 'livre'}] | ` +
     `malformado:${r.malformed ? 'SIM' : 'nao'} (${_malformed}/${_total} = ${pct}%) | ${latencyMs}ms | ` +
-    `in:${r.usage.inputTokens} cache_read:${r.usage.cacheReadTokens} out:${r.usage.outputTokens} | ` +
+    `in:${r.usage.inputTokens} cache_read:${r.usage.cacheReadTokens} out:${r.usage.outputTokens} (reasoning:${r.usage.reasoningTokens || 0}) | ` +
     `$${cost ? cost.usd.toFixed(5) : '?'}`
   );
 
