@@ -3,7 +3,7 @@
  *
  * Fluxo:
  * 1. Mini-entrevista de 6 perguntas (state machine em index.js)
- * 2. Haiku 4.5 analisa respostas com HONESTIDADE BRUTAL
+ * 2. GPT-5 mini analisa respostas com HONESTIDADE BRUTAL
  * 3. Formata em 4 mensagens: avaliação, sinais dela, performance dele, próximo passo
  * 4. Salva sessão no Supabase (fire-and-forget)
  * 5. Outcome alimenta loop de aprendizado da Camada 4 (Pré-Date)
@@ -16,12 +16,12 @@
  * - "Mulher é complicada mesmo"
  */
 
-const visionShim = require('./visionShim');
-const { VISION_MODEL } = visionShim;
+const gptVision = require('./gptVision');
+const { VISION_MODEL } = gptVision;
 const { createClient } = require('@supabase/supabase-js');
 const { logApiRequest } = require('./tracking');
 
-// ── Preços Haiku 4.5 ─────────────────────────────────────────────────────────
+// ── Preços GPT-5 mini ─────────────────────────────────────────────────────────
 const PRICES = { input: 0.25, output: 2.00, cache_write: 0, cache_read: 0.025 }; // GPT-5 mini
 const USD_TO_BRL = 5.75;
 
@@ -113,8 +113,8 @@ Schema:
 }`;
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
-function getAnthropicClient() {
-  return visionShim; // GPT-5 mini via OpenRouter (interface compatível)
+function getVisionClient() {
+  return gptVision; // GPT-5 mini via OpenRouter
 }
 
 let _supabase = null;
@@ -375,14 +375,14 @@ function formatarRespostaDebrief(result) {
 // ── Análise principal ─────────────────────────────────────────────────────────
 
 /**
- * Analisa o debrief do encontro via Haiku 4.5.
+ * Analisa o debrief do encontro via GPT-5 mini.
  *
  * @param {object} answers — { 0: '...', 1: '...', ..., 5: '...' }
  * @param {string} phone
  * @returns {Promise<{ messages, result, metrics, sessionId }>}
  */
-async function analisarDebriefComHaiku(answers, phone = '') {
-  const anthropic = getAnthropicClient();
+async function analisarDebrief(answers, phone = '') {
+  const vision = getVisionClient();
   const t0 = Date.now();
 
   const answerLines = INTERVIEW_QUESTIONS_DEBRIEF.map((q, i) => {
@@ -398,7 +398,7 @@ async function analisarDebriefComHaiku(answers, phone = '') {
   let trackingError = null;
 
   try {
-    response = await anthropic.messages.create({
+    response = await vision.messages.create({
       model:      VISION_MODEL,
       max_tokens: 900,
       system: [{ type: 'text', text: SYSTEM_PROMPT_DEBRIEF, cache_control: { type: 'ephemeral' } }],
@@ -422,7 +422,7 @@ async function analisarDebriefComHaiku(answers, phone = '') {
   const cacheReadTokens  = usage?.cache_read_input_tokens       || 0;
   const custo            = calcularCusto(usage);
 
-  console.log(`[PostdateDebrief] Haiku 4.5 | in:${inputTokens} out:${outputTokens} | ${latencyMs}ms | $${custo.usd}`);
+  console.log(`[PostdateDebrief] GPT-5 mini | in:${inputTokens} out:${outputTokens} | ${latencyMs}ms | $${custo.usd}`);
 
   logApiRequest({
     phone, intent: 'postdate_debrief',
@@ -458,7 +458,7 @@ async function analisarDebriefComHaiku(answers, phone = '') {
 
 module.exports = {
   INTERVIEW_QUESTIONS_DEBRIEF,
-  analisarDebriefComHaiku,
+  analisarDebrief,
   formatarRespostaDebrief,
   salvarDebriefSessao,
   temDebriefPendente,

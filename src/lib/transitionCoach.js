@@ -3,19 +3,19 @@
  *
  * Fluxo:
  * 1. Mini-entrevista de 5 perguntas (gerenciada pelo state machine em index.js)
- * 2. Haiku 4.5 analisa respostas + contexto de print anterior (se houver)
+ * 2. GPT-5 mini analisa respostas + contexto de print anterior (se houver)
  * 3. Retorna JSON com readiness, estratégia e 3 versões de mensagem
  * 4. Formata em 4 mensagens curtas de WhatsApp
  * 5. Salva sessão no Supabase (fire-and-forget)
  */
 
-const visionShim = require('./visionShim');
-const { VISION_MODEL } = visionShim;
+const gptVision = require('./gptVision');
+const { VISION_MODEL } = gptVision;
 const { createClient } = require('@supabase/supabase-js');
 const { logApiRequest } = require('./tracking');
 const MODELS = require('../config/models');
 
-// ── Preços Haiku 4.5 ─────────────────────────────────────────────────────────
+// ── Preços GPT-5 mini ─────────────────────────────────────────────────────────
 const PRICES = { input: 0.25, output: 2.00, cache_write: 0, cache_read: 0.025 }; // GPT-5 mini
 const USD_TO_BRL = 5.75;
 
@@ -86,8 +86,8 @@ Schema:
 }`;
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
-function getAnthropicClient() {
-  return visionShim; // GPT-5 mini via OpenRouter (interface compatível)
+function getVisionClient() {
+  return gptVision; // GPT-5 mini via OpenRouter
 }
 
 let _supabase = null;
@@ -251,7 +251,7 @@ const READINESS_LABEL = {
 };
 
 /**
- * Formata o JSON do Haiku em 4 mensagens de WhatsApp.
+ * Formata o JSON do GPT-5 mini em 4 mensagens de WhatsApp.
  * @returns {string[]}
  */
 function formatarRespostaCoach(result) {
@@ -308,18 +308,18 @@ function formatarRespostaCoach(result) {
   return msgs.filter(Boolean);
 }
 
-// ── Chamada ao Haiku ──────────────────────────────────────────────────────────
+// ── Chamada ao GPT-5 mini ──────────────────────────────────────────────────────────
 
 /**
- * Analisa a situação via Haiku 4.5 e retorna assessment estruturado.
+ * Analisa a situação via GPT-5 mini e retorna assessment estruturado.
  *
  * @param {object} answers — respostas das 5 perguntas { 0: '...', 1: '...', ... }
  * @param {object|null} printContext — structuredResult de uma print analysis recente
  * @param {string} phone
  * @returns {Promise<{ messages: string[], result: object, metrics: object, sessionId: string|null }>}
  */
-async function analisarTransicaoComHaiku(answers, printContext, phone = '') {
-  const anthropic = getAnthropicClient();
+async function analisarTransicao(answers, printContext, phone = '') {
+  const vision = getVisionClient();
   const t0 = Date.now();
 
   // Monta o contexto em texto
@@ -347,7 +347,7 @@ async function analisarTransicaoComHaiku(answers, printContext, phone = '') {
   let trackingError = null;
 
   try {
-    response = await anthropic.messages.create({
+    response = await vision.messages.create({
       model:      VISION_MODEL,
       max_tokens: 900,
       system: [{ type: 'text', text: SYSTEM_PROMPT_TRANSITION, cache_control: { type: 'ephemeral' } }],
@@ -371,7 +371,7 @@ async function analisarTransicaoComHaiku(answers, printContext, phone = '') {
   const cacheReadTokens  = usage?.cache_read_input_tokens       || 0;
   const custo            = calcularCusto(usage);
 
-  console.log(`[TransitionCoach] Haiku 4.5 | in:${inputTokens} out:${outputTokens} | ${latencyMs}ms | $${custo.usd}`);
+  console.log(`[TransitionCoach] GPT-5 mini | in:${inputTokens} out:${outputTokens} | ${latencyMs}ms | $${custo.usd}`);
 
   logApiRequest({
     phone, intent: 'transition_coach',
@@ -437,7 +437,7 @@ async function classificarOutcome(text) {
 
 module.exports = {
   INTERVIEW_QUESTIONS,
-  analisarTransicaoComHaiku,
+  analisarTransicao,
   formatarRespostaCoach,
   salvarSessao,
   registrarOutcome,

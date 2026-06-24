@@ -6,7 +6,7 @@
  *
  * Após enviar a mensagem, o bot aguarda 3 respostas diagnósticas
  * (gerenciadas via diagnosticState em index.js) e então dispara o
- * Ato 2.5 (espelhamento dinâmico via Haiku).
+ * Ato 2.5 (espelhamento dinâmico via GPT-5 mini).
  *
  * EDITAR COPY: edite os campos `message` e `diagnosticQuestions` abaixo.
  */

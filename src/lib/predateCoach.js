@@ -3,20 +3,20 @@
  *
  * Fluxo:
  * 1. Mini-entrevista de 4 perguntas (state machine em index.js)
- * 2. Haiku 4.5 analisa respostas + perfil dela (se houver)
+ * 2. GPT-5 mini analisa respostas + perfil dela (se houver)
  * 3. Formata em 4 mensagens: checklist, conversa, pós-encontro, incentivo
  * 4. Tenta parsear data do encontro → agenda 3 lembretes
  * 5. Salva sessão no Supabase (fire-and-forget)
  */
 
-const visionShim = require('./visionShim');
-const { VISION_MODEL } = visionShim;
+const gptVision = require('./gptVision');
+const { VISION_MODEL } = gptVision;
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 const { logApiRequest } = require('./tracking');
 const MODELS = require('../config/models');
 
-// ── Preços Haiku 4.5 ─────────────────────────────────────────────────────────
+// ── Preços GPT-5 mini ─────────────────────────────────────────────────────────
 const PRICES = { input: 0.25, output: 2.00, cache_write: 0, cache_read: 0.025 }; // GPT-5 mini
 const USD_TO_BRL = 5.75;
 
@@ -77,8 +77,8 @@ Schema:
 }`;
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
-function getAnthropicClient() {
-  return visionShim; // GPT-5 mini via OpenRouter (interface compatível)
+function getVisionClient() {
+  return gptVision; // GPT-5 mini via OpenRouter
 }
 
 let _supabase = null;
@@ -286,15 +286,15 @@ function formatarRespostaPreDate(result) {
 // ── Análise principal ─────────────────────────────────────────────────────────
 
 /**
- * Analisa via Haiku 4.5 e retorna plano de preparação + data parseada.
+ * Analisa via GPT-5 mini e retorna plano de preparação + data parseada.
  *
  * @param {object} answers — { 0: '...', 1: '...', 2: '...', 3: '...' }
  * @param {string} girlContext — contexto da menina (de buildGirlContext)
  * @param {string} phone
  * @returns {Promise<{ messages, result, metrics, sessionId, dateParsed }>}
  */
-async function analisarPreDateComHaiku(answers, girlContext = '', phone = '') {
-  const anthropic = getAnthropicClient();
+async function analisarPreDate(answers, girlContext = '', phone = '') {
+  const vision = getVisionClient();
   const t0 = Date.now();
 
   const answerLines = INTERVIEW_QUESTIONS_PREDATE.map((q, i) => {
@@ -314,7 +314,7 @@ async function analisarPreDateComHaiku(answers, girlContext = '', phone = '') {
   let trackingError = null;
 
   try {
-    response = await anthropic.messages.create({
+    response = await vision.messages.create({
       model:      VISION_MODEL,
       max_tokens: 900,
       system: [{ type: 'text', text: SYSTEM_PROMPT_PREDATE, cache_control: { type: 'ephemeral' } }],
@@ -338,7 +338,7 @@ async function analisarPreDateComHaiku(answers, girlContext = '', phone = '') {
   const cacheReadTokens  = usage?.cache_read_input_tokens       || 0;
   const custo            = calcularCusto(usage);
 
-  console.log(`[PreDateCoach] Haiku 4.5 | in:${inputTokens} out:${outputTokens} | ${latencyMs}ms | $${custo.usd}`);
+  console.log(`[PreDateCoach] GPT-5 mini | in:${inputTokens} out:${outputTokens} | ${latencyMs}ms | $${custo.usd}`);
 
   logApiRequest({
     phone, intent: 'predate_coach',
@@ -389,7 +389,7 @@ async function analisarPreDateComHaiku(answers, girlContext = '', phone = '') {
 
 module.exports = {
   INTERVIEW_QUESTIONS_PREDATE,
-  analisarPreDateComHaiku,
+  analisarPreDate,
   formatarRespostaPreDate,
   parsearDataEncontro,
   salvarPreDateSessao,

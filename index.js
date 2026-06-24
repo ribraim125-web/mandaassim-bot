@@ -22,7 +22,7 @@ const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
 const OpenAI = require('openai');
-// Anthropic removido — visão e revisão agora rodam em GPT-5 mini via visionShim (OpenRouter)
+// Visão e revisão rodam em GPT-5 mini via gptVision (OpenRouter)
 const { criarCobrancaPix, determinarPlano, PRECO_PRO } = require('./src/mercadopago');
 const { trackSubscriptionEvent } = require('./src/lib/subscriptionTracking');
 const {
@@ -52,9 +52,9 @@ const { canUseFeature, incrementFeatureUsage, getDailyUsage } = require('./src/c
 const MODELS = require('./src/config/models');
 const { gerarRespostaPrincipal } = require('./src/lib/mainGeneration');
 const { parseAcquisitionSlug, saveAttribution } = require('./src/lib/acquisition');
-const { analisarPrintConversaComHaiku } = require('./src/lib/printAnalysis');
+const { analisarPrintConversa } = require('./src/lib/printAnalysis');
 const { checkPrintLimit, incrementPrintCount, setPrintLastTime } = require('./src/lib/printLimits');
-const { analisarPerfilComHaiku } = require('./src/lib/profileAnalysis');
+const { analisarPerfil } = require('./src/lib/profileAnalysis');
 const { auditarPerfilProprio } = require('./src/lib/profileSelfAudit');
 const { checkProfileLimit, incrementProfileCount, setProfileLastTime } = require('./src/lib/profileLimits');
 const { classificarTipoImagem, classificarPerfilSelfVsOther } = require('./src/lib/imageClassifier');
@@ -86,7 +86,7 @@ const { getActById, parseUserChoice }       = require('./src/narrative/acts');
 const { checkMilestones }                   = require('./src/narrative/journeyEvents');
 const {
   INTERVIEW_QUESTIONS,
-  analisarTransicaoComHaiku,
+  analisarTransicao,
   temOutcomePendente,
   registrarOutcome,
   classificarOutcome,
@@ -95,13 +95,13 @@ const {
 } = require('./src/lib/transitionCoach');
 const {
   INTERVIEW_QUESTIONS_PREDATE,
-  analisarPreDateComHaiku,
+  analisarPreDate,
   getMonthlyPreDateCount,
   atualizarDebriefEnviado,
 } = require('./src/lib/predateCoach');
 const {
   INTERVIEW_QUESTIONS_DEBRIEF,
-  analisarDebriefComHaiku,
+  analisarDebrief,
   temDebriefPendente,
   getMonthlyDebriefCount,
   getLastDebriefInsight,
@@ -168,12 +168,12 @@ async function ensureReferralCode(phone) {
   return code;
 }
 
-// Feature flag: análise de prints de conversa via Haiku 4.5 vision (Camada 1)
+// Feature flag: análise de prints de conversa via GPT-5 mini vision (Camada 1)
 // Valor: 'false' | 'test' | 'beta' (10% premium) | 'all'
 const PRINT_ANALYSIS_MODE = (process.env.ENABLE_PRINT_ANALYSIS || 'false').toLowerCase();
 const PRINT_ANALYSIS_TEST_PHONE = process.env.PRINT_ANALYSIS_TEST_PHONE || '';
 
-// Feature flag: análise de perfis via Haiku 4.5 vision (Camada 2 — Wingman Pro)
+// Feature flag: análise de perfis via GPT-5 mini vision (Camada 2 — Wingman Pro)
 // Valor: 'false' | 'test' | 'beta' (10% pro) | 'all'
 const PROFILE_ANALYSIS_MODE = (process.env.ENABLE_PROFILE_ANALYSIS || 'false').toLowerCase();
 const PROFILE_ANALYSIS_TEST_PHONE = process.env.PROFILE_ANALYSIS_TEST_PHONE || '';
@@ -352,10 +352,9 @@ const openrouter = new OpenAI({
   defaultHeaders: { 'HTTP-Referer': 'https://mandaassim.com', 'X-Title': 'MandaAssim' },
 });
 
-// "anthropic" agora é o visionShim: mesma interface messages.create(), mas roda
-// GPT-5 mini via OpenRouter — ZERO Anthropic no projeto.
-const anthropic = require('./src/lib/visionShim');
-const VISION_MODEL = anthropic.VISION_MODEL;
+// gptVision: cliente de visão/revisão rodando GPT-5 mini via OpenRouter.
+const gptVision = require('./src/lib/gptVision');
+const VISION_MODEL = gptVision.VISION_MODEL;
 
 // Modelo para análise de imagens via visão nativa (OpenRouter)
 const IMAGE_ANALYSIS_MODEL = MODELS.VISION_LEGACY_MODEL;
@@ -1250,21 +1249,30 @@ function sanitizeOutput(text) {
     .trim();
 }
 
-// ── Envio sequencial com delay por tempo de leitura ──────────────────────────
-/**
- * Calcula delay baseado no tempo de leitura da mensagem anterior.
- * ~250 palavras/min (leitura rápida no WhatsApp) = ~240ms/palavra.
- * Mínimo 1.2s, máximo 3.5s.
- */
+// ── Envio sequencial das mensagens (bolhas separadas) ────────────────────────
+// Pausa entre bolhas: as mensagens vão chegando aos poucos (tempo de leitura), pra
+// não despejar tudo de uma vez e o cara conseguir ler. Default = proporcional ao
+// tamanho da bolha anterior (0,4s–1,2s). Override fixo sem deploy via
+// SEND_BUBBLE_DELAY_MS no .env (ex.: 0 desliga a pausa, 900 = fixo de 0,9s).
+const BUBBLE_DELAY_OVERRIDE = process.env.SEND_BUBBLE_DELAY_MS != null ? Number(process.env.SEND_BUBBLE_DELAY_MS) : null;
+
+// Delay proporcional ao tempo de leitura da bolha anterior (~leitura rápida no zap).
 function readingDelay(text) {
-  // Curto e rápido: só o suficiente pra não chegar tudo num flash — velocidade > teatro
+  if (BUBBLE_DELAY_OVERRIDE != null) return BUBBLE_DELAY_OVERRIDE;
   const words = (text || '').trim().split(/\s+/).length;
   return Math.max(400, Math.min(1200, words * 80));
 }
 
+// Espera entre bolhas. Recebe o texto da bolha anterior pra dimensionar a pausa.
+async function pace(prevText) {
+  const ms = readingDelay(prevText);
+  if (ms > 0) await new Promise(r => setTimeout(r, ms));
+}
+
 /**
- * Envia array de mensagens com delay proporcional ao tempo de leitura de cada uma.
- * Cria ritmo de conversa — cada mensagem chega quando o usuário terminou de ler a anterior.
+ * Envia array de mensagens em sequência (bolhas separadas), com pausa entre elas
+ * (tempo de leitura) pra chegarem aos poucos. A ordem é garantida porque cada
+ * envio é aguardado. SEND_BUBBLE_DELAY_MS no .env ajusta/desliga a pausa.
  */
 async function sendWithDelay(chatId, messages, { phone, intent } = {}) {
   // Valida formato das mensagens (fire-and-forget — nunca bloqueia)
@@ -1276,7 +1284,7 @@ async function sendWithDelay(chatId, messages, { phone, intent } = {}) {
   }
 
   for (let i = 0; i < messages.length; i++) {
-    if (i > 0) await new Promise(r => setTimeout(r, readingDelay(messages[i - 1])));
+    if (i > 0) await pace(messages[i - 1]);
     await client.sendMessage(chatId, sanitizeOutput(messages[i]));
   }
 }
@@ -1344,7 +1352,7 @@ const RETENTION_HOOKS = [
 
 // ---------------------------------------------------------------------------
 // Camada de revisão pós-geração (Opção C — híbrida)
-// Valida mensagens antes de enviar; roda Haiku só se detectar problema
+// Valida mensagens antes de enviar; roda GPT-5 mini só se detectar problema
 // ---------------------------------------------------------------------------
 
 const PLACEHOLDER_RE = /\[[a-zA-ZÀ-ú ]{2,25}\]/;
@@ -1386,9 +1394,9 @@ async function reviewIfNeeded(parts, phone) {
 
   if (!msgs.some(hasQuickIssue)) return parts; // Tudo limpo — sem custo extra
 
-  console.log(`[Revisão] Problema detectado — rodando revisão Haiku | phone:${phone}`);
+  console.log(`[Revisão] Problema detectado — rodando revisão GPT-5 mini | phone:${phone}`);
   try {
-    const resp = await anthropic.messages.create({
+    const resp = await gptVision.messages.create({
       model:      VISION_MODEL,
       max_tokens: 300,
       system: `Você é revisor de mensagens de WhatsApp do MandaAssim. Recebe mensagens curtas em português brasileiro e corrige APENAS os erros detectados, mantendo exatamente o mesmo tom e ousadia.
@@ -1428,7 +1436,7 @@ Responde SOMENTE as mensagens corrigidas, uma por linha separada por ---. Mesma 
     msgIndices.forEach((idx, ci) => { result[idx] = corrected[ci]; });
     return result;
   } catch (err) {
-    console.error('[Revisão] Erro no Haiku review:', err.message);
+    console.error('[Revisão] Erro na revisão GPT-5 mini:', err.message);
     return parts; // Fail-safe — usa original
   }
 }
@@ -1512,7 +1520,7 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
 
       if (diagnostico) {
         await client.sendMessage(message.from, `📍 _${diagnostico}_`);
-        await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+        await pace();
       }
 
       if (opcoes.length >= 2) {
@@ -1523,14 +1531,14 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
           .replace(/⚡\s*"[^"]+"\n?/g, '')
           .trim();
         if (semOpcoes) await client.sendMessage(message.from, semOpcoes);
-        await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+        await pace();
 
         // Envia label + mensagem em blocos separados (zero aspas, zero paredão)
         await client.sendMessage(message.from, 'Quando chegar a hora 👇');
         for (const { emoji, msg } of opcoes) {
-          await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 800)));
+          await pace();
           await client.sendMessage(message.from, emoji);
-          await new Promise(r => setTimeout(r, 700 + Math.floor(Math.random() * 500)));
+          await pace();
           await client.sendMessage(message.from, msg);
         }
       } else {
@@ -1574,19 +1582,19 @@ async function enviarResposta(message, sugestoes, intent = '', phone = '') {
 
   if (diagnostico) {
     await client.sendMessage(message.from, `📍 _${diagnostico}_`);
-    await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+    await pace();
   }
 
   if (dica) {
     await client.sendMessage(message.from, `💡 ${dica}`);
-    await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 1300)));
+    await pace();
   }
 
   if (opcoes.length >= 2) {
     for (let i = 0; i < opcoes.length; i++) {
-      await new Promise(r => setTimeout(r, 1200 + Math.floor(Math.random() * 800)));
+      await pace();
       await client.sendMessage(message.from, opcoes[i].emoji);
-      await new Promise(r => setTimeout(r, 700 + Math.floor(Math.random() * 500)));
+      await pace();
       await client.sendMessage(message.from, opcoes[i].msg);
     }
   } else {
@@ -1836,7 +1844,7 @@ async function analisarTextoComClaude(situacao, contextoExtra = '', girlContext 
   const userContent = `${prefixo}${contextoConversa}${contextoPrint}\n\nMensagem nova dele: "${situacao}"\n\nAnalise o contexto específico — o que aconteceu, qual é o estado atual dela, o que ele precisa fazer AGORA. Gere as 3 opções mais certeiras para essa situação exata. Não seja genérico, responda ao que realmente aconteceu.`.trim();
 
   // Geração de texto — TODOS os intents via adapter: GPT-5 mini (MAIN_MODEL) com
-  // fallback automático Gemini 2.5 Flash-Lite. Zero Anthropic/Haiku aqui.
+  // fallback automático Gemini 2.5 Flash-Lite. Sem modelos legados aqui.
   // `structured` = schema de 3 opções (volume/premium); demais = texto livre,
   // preservando o formato nativo de cada systemType (renderizado no enviarResposta).
   try {
@@ -2542,14 +2550,15 @@ async function transcreverAudio(base64Data, mimetype) {
 }
 
 // ---------------------------------------------------------------------------
-// Debounce de mensagens — junta o "tiro rápido" do usuário numa resposta só.
-// No WhatsApp as pessoas digitam em pedaços ("oi" / "preciso de ajuda" / "com
-// uma mina") em poucos segundos. Em vez de descartar as mensagens rápidas (o
-// que deixava o bot mudo), a gente espera o usuário terminar (~3s sem mandar
-// nada), junta tudo num texto só e processa UMA vez. Nada é descartado.
+// Debounce de mensagens — opcional. Com MSG_DEBOUNCE_MS=0 (DEFAULT) o bot responde
+// CADA mensagem na hora, uma por vez (estilo ChatGPT): não espera uma 2ª mensagem.
+// A serialização por conversa (lock inFlight, abaixo) garante 1 resposta por vez,
+// em ordem — se uma 2ª mensagem chega enquanto processa a 1ª, ela é respondida em
+// seguida, não em paralelo. Pra reativar o batching de mensagens picadas (juntar
+// "oi"/"preciso de ajuda" numa resposta só), setar MSG_DEBOUNCE_MS=800 no .env.
 // ---------------------------------------------------------------------------
 
-const MSG_DEBOUNCE_MS = 1200; // espera 1.2s de silêncio antes de processar o burst
+const MSG_DEBOUNCE_MS = process.env.MSG_DEBOUNCE_MS != null ? Number(process.env.MSG_DEBOUNCE_MS) : 0;
 const messageBuffer = new Map(); // phone -> { parts: [], timer, lastMessage }
 
 // chatIds com um handleIncomingMessage rodando AGORA — trava por conversa.
@@ -2882,11 +2891,11 @@ function storeUpgradeHookContext(phone, situation) {
 }
 
 /**
- * Entrega insight de nível superior via Haiku quando usuário responde ao gancho de upgrade.
+ * Entrega insight de nível superior via GPT-5 mini quando usuário responde ao gancho de upgrade.
  */
 async function deliverHookFollowUp(message, phone, situation) {
   try {
-    const msg = await retryWithBackoff(() => anthropic.messages.create({
+    const msg = await retryWithBackoff(() => gptVision.messages.create({
       model: VISION_MODEL,
       max_tokens: 280,
       system: `Você é o MandaAssim. O usuário respondeu ao seu gancho — ele quer saber mais sobre a situação específica dele.
@@ -3782,7 +3791,7 @@ async function handleIncomingMessage(message) {
       await message.reply('Lendo a conversa... ⏳');
       const stopTypingQP = await startTyping(message);
       try {
-        const { messages: pmQP, structuredResult: printResultQP } = await analisarPrintConversaComHaiku(imgDataQP, imgMimeQP, phone, quickContext);
+        const { messages: pmQP, structuredResult: printResultQP } = await analisarPrintConversa(imgDataQP, imgMimeQP, phone, quickContext);
         stopTypingQP();
         incrementPrintCount(phone);
         setPrintLastTime(phone);
@@ -3831,7 +3840,7 @@ async function handleIncomingMessage(message) {
                 await message.reply('Lendo a conversa... ⏳');
                 try {
                   const girlCtxAmbig = buildGirlContext(await getGirlProfile(phone)) || (userContext.get(phone) || {}).printQuickContext || '';
-                  const { messages: pm, structuredResult: printResultAmbig } = await analisarPrintConversaComHaiku(imgData, imgMime, phone, girlCtxAmbig);
+                  const { messages: pm, structuredResult: printResultAmbig } = await analisarPrintConversa(imgData, imgMime, phone, girlCtxAmbig);
                   incrementPrintCount(phone); setPrintLastTime(phone);
                   saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
                   if (printResultAmbig) {
@@ -3871,7 +3880,7 @@ async function handleIncomingMessage(message) {
               } else {
                 await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
                 try {
-                  const { messages: pm } = await analisarPerfilComHaiku(imgData, imgMime, phone);
+                  const { messages: pm } = await analisarPerfil(imgData, imgMime, phone);
                   incrementProfileCount(phone); setProfileLastTime(phone);
                   saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
                   await sendWithDelay(message.from, pm, { phone, intent: 'profile_analysis' });
@@ -3953,7 +3962,7 @@ async function handleIncomingMessage(message) {
             } else {
               await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
               try {
-                const { messages: pm } = await analisarPerfilComHaiku(imgData, imgMime, phone);
+                const { messages: pm } = await analisarPerfil(imgData, imgMime, phone);
                 incrementProfileCount(phone); setProfileLastTime(phone);
                 await incrementFeatureUsage(phone, 'profile_her_analysis');
                 saveUserContext(phone, { data: imgData, mimetype: imgMime }, 'image');
@@ -4036,7 +4045,7 @@ async function handleIncomingMessage(message) {
         await message.reply('Analisando sua situação... ⏳');
         const stopTypingTC = await startTyping(message);
         try {
-          const { messages: tcMsgs } = await analisarTransicaoComHaiku(updatedAnswers, printContext, phone);
+          const { messages: tcMsgs } = await analisarTransicao(updatedAnswers, printContext, phone);
           stopTypingTC();
           await sendWithDelay(message.from, tcMsgs, { phone, intent: 'transition_coach' });
           scheduleTransitionCoachOutcome(phone).catch(() => {});
@@ -4117,7 +4126,7 @@ async function handleIncomingMessage(message) {
         await message.reply('Preparando seu plano... ⏳');
         const stopTypingPD = await startTyping(message);
         try {
-          const { messages: pdMsgs, dateParsed } = await analisarPreDateComHaiku(updatedAnswers, girlContextWithDebrief, phone);
+          const { messages: pdMsgs, dateParsed } = await analisarPreDate(updatedAnswers, girlContextWithDebrief, phone);
           stopTypingPD();
           await sendWithDelay(message.from, pdMsgs, { phone, intent: 'predate_coach' });
           if (dateParsed) {
@@ -4157,7 +4166,7 @@ async function handleIncomingMessage(message) {
         await message.reply('Analisando o encontro... ⏳');
         const stopTypingDB = await startTyping(message);
         try {
-          const { messages: dbMsgs } = await analisarDebriefComHaiku(updatedAnswers, phone);
+          const { messages: dbMsgs } = await analisarDebrief(updatedAnswers, phone);
           stopTypingDB();
           await sendWithDelay(message.from, dbMsgs, { phone, intent: 'postdate_debrief' });
         } catch (_) {
@@ -4804,7 +4813,7 @@ async function handleIncomingMessage(message) {
             await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
             const stopTypingProfile = await startTyping(message);
             try {
-              const { messages: profileMsgs } = await analisarPerfilComHaiku(media.data, media.mimetype, phone);
+              const { messages: profileMsgs } = await analisarPerfil(media.data, media.mimetype, phone);
               stopTypingProfile();
 
               incrementProfileCount(phone);
@@ -4830,7 +4839,7 @@ async function handleIncomingMessage(message) {
           }
 
         } else if (isProfileAnalysisEnabled(phone)) {
-          // ── Pipeline legado: Haiku 4.5 vision sem self/other routing ───
+          // ── Pipeline legado: GPT-5 mini vision sem self/other routing ───
           const needsPlanCheck = PROFILE_ANALYSIS_MODE !== 'test';
           if (needsPlanCheck && !trial.isPro) {
             await client.sendMessage(message.from, PROFILE_UPSELL_MESSAGE);
@@ -4867,7 +4876,7 @@ async function handleIncomingMessage(message) {
           await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
           const stopTypingProfile = await startTyping(message);
           try {
-            const { messages: profileMsgs } = await analisarPerfilComHaiku(media.data, media.mimetype, phone);
+            const { messages: profileMsgs } = await analisarPerfil(media.data, media.mimetype, phone);
             stopTypingProfile();
 
             incrementProfileCount(phone);
@@ -4920,7 +4929,7 @@ async function handleIncomingMessage(message) {
         console.log(`[Imagem] ${phone} enviou um print de conversa.`);
 
         if (isPrintAnalysisEnabled(phone)) {
-          // Novo pipeline: Haiku 4.5 vision, Wingman Premium/Trial
+          // Novo pipeline: GPT-5 mini vision, Wingman Premium/Trial
           if (!trial.isPremium && !trial.inTrial) {
             await client.sendMessage(message.from, PRINT_UPSELL_MESSAGE);
             return;
@@ -4966,7 +4975,7 @@ async function handleIncomingMessage(message) {
           if (!isFirstPrintV2) await message.reply('Lendo a conversa... ⏳');
           const stopTypingPrint = await startTyping(message);
           try {
-            const { messages: printMsgs, structuredResult: printResultMain } = await analisarPrintConversaComHaiku(media.data, media.mimetype, phone, situacaoPrint);
+            const { messages: printMsgs, structuredResult: printResultMain } = await analisarPrintConversa(media.data, media.mimetype, phone, situacaoPrint);
             stopTypingPrint();
 
             incrementPrintCount(phone);

@@ -1,19 +1,19 @@
 /**
  * act_2_5_mirroring.js — Espelhamento dinâmico (Ato 2.5)
  *
- * Gera mensagem de espelhamento personalizada via Haiku 4.5
+ * Gera mensagem de espelhamento personalizada via GPT-5 mini
  * com base nas 3 respostas do diagnóstico do Ato 2.
  *
  * NÃO tem copy fixa — é gerado dinamicamente.
  * Retorna array de strings (cada item = uma mensagem WhatsApp).
  */
 
-const visionShim = require('../lib/visionShim');
-const { VISION_MODEL } = visionShim;
+const gptVision = require('../lib/gptVision');
+const { VISION_MODEL } = gptVision;
 const { logApiRequest } = require('../lib/tracking');
 
-function getAnthropicClient() {
-  return visionShim; // GPT-5 mini via OpenRouter (interface compatível)
+function getVisionClient() {
+  return gptVision; // GPT-5 mini via OpenRouter
 }
 
 const PERSONA_LABELS = {
@@ -92,7 +92,7 @@ EXEMPLO DE RESPOSTA RUIM (a evitar):
  * @returns {Promise<string[]>} — array de mensagens (cada item = 1 msg WhatsApp)
  */
 async function generateMirroringAct25(phone, persona, answers) {
-  const anthropic = getAnthropicClient();
+  const vision = getVisionClient();
   const t0 = Date.now();
 
   const personaLabel = PERSONA_LABELS[persona] || persona;
@@ -105,7 +105,7 @@ async function generateMirroringAct25(phone, persona, answers) {
 
   let response;
   try {
-    response = await anthropic.messages.create({
+    response = await vision.messages.create({
       model:      VISION_MODEL,
       max_tokens: 500,
       system: [{ type: 'text', text: SYSTEM_PROMPT_MIRRORING, cache_control: { type: 'ephemeral' } }],
@@ -163,7 +163,7 @@ async function generateMirroringAct25(phone, persona, answers) {
  * @returns {Promise<string|null>} — 1 frase ou null se falhar
  */
 async function generateFirstMirroringV2(phone, userMessage) {
-  const anthropic = getAnthropicClient();
+  const vision = getVisionClient();
   const t0 = Date.now();
 
   const systemPrompt = `Você é o MandaAssim. Gere UMA ÚNICA FRASE de reconhecimento empático sobre a situação do usuário.
@@ -184,7 +184,7 @@ TOM: Brasileiro coloquial maduro, sem bajular.
 RESPOSTA: APENAS a frase, sem mais nada.`;
 
   try {
-    const response = await anthropic.messages.create({
+    const response = await vision.messages.create({
       model:      VISION_MODEL,
       max_tokens: 80,
       system:     systemPrompt,

@@ -1,21 +1,20 @@
 /**
- * printAnalysis.js — análise de prints de conversa via Haiku 4.5 vision
+ * printAnalysis.js — análise de prints de conversa via GPT-5 mini vision
  *
  * Fluxo:
  * 1. Recebe base64 da imagem + mimeType
- * 2. Chama Haiku 4.5 com system prompt estruturado (JSON output)
+ * 2. Chama GPT-5 mini com system prompt estruturado (JSON output)
  * 3. Parseia o JSON, formata 2-3 mensagens humanas em PT-BR
  * 4. Salva resultado na tabela print_analyses (fire-and-forget, sem a imagem)
  * 5. Retorna { messages: string[], structuredResult: object, metrics: object }
  */
 
-const visionShim = require('./visionShim');
-const { VISION_MODEL } = visionShim;
+const gptVision = require('./gptVision');
+const { VISION_MODEL } = gptVision;
 const { createClient } = require('@supabase/supabase-js');
 const { logApiRequest } = require('./tracking');
 
-// ── Preços Haiku 4.5 ──────────────────────────────────────────────────────────
-// Preços GPT-5 mini (OpenRouter)
+// ── Preços GPT-5 mini (OpenRouter) ───────────────────────────────────────────
 const PRICES = {
   input:        0.25,   // USD/1M tokens
   output:       2.00,   // USD/1M tokens
@@ -249,20 +248,20 @@ function formatarRespostaPrint(result) {
  *   metrics: { latencyMs, costUsd, costBrl, inputTokens, outputTokens }
  * }>}
  */
-async function analisarPrintConversaComHaiku(base64Data, mimeType, phone = '', girlContext = '') {
+async function analisarPrintConversa(base64Data, mimeType, phone = '', girlContext = '') {
   // Valida tamanho — base64 tem overhead de ~33%
   const estimatedBytes = base64Data.length * 0.75;
   if (estimatedBytes > MAX_IMAGE_BYTES) {
     throw new Error(`Imagem muito grande (${Math.round(estimatedBytes / 1024 / 1024)}MB). Máximo 5MB.`);
   }
 
-  const anthropic = visionShim; // GPT-5 mini via OpenRouter (interface compatível)
+  const vision = gptVision; // GPT-5 mini via OpenRouter
   const t0 = Date.now();
   let response;
   let trackingError = null;
 
   try {
-    response = await anthropic.messages.create({
+    response = await vision.messages.create({
       model:      VISION_MODEL,
       max_tokens: 1024,
       system: [
@@ -316,7 +315,7 @@ async function analisarPrintConversaComHaiku(base64Data, mimeType, phone = '', g
   const cacheReadTokens  = usage?.cache_read_input_tokens      || 0;
   const custo           = calcularCusto(usage);
 
-  console.log(`[PrintAnalysis] Haiku 4.5 | in:${inputTokens} out:${outputTokens} cache_write:${cacheWriteTokens} cache_read:${cacheReadTokens} | ${latencyMs}ms | $${custo.usd}`);
+  console.log(`[PrintAnalysis] GPT-5 mini | in:${inputTokens} out:${outputTokens} cache_write:${cacheWriteTokens} cache_read:${cacheReadTokens} | ${latencyMs}ms | $${custo.usd}`);
 
   // Parse do JSON
   const rawText = response.content[0]?.text || '';
@@ -385,7 +384,7 @@ async function analisarPrintConversaComHaiku(base64Data, mimeType, phone = '', g
 }
 
 module.exports = {
-  analisarPrintConversaComHaiku,
+  analisarPrintConversa,
   formatarRespostaPrint,
   SYSTEM_PROMPT_PRINT,
   MAX_IMAGE_BYTES,

@@ -1,22 +1,21 @@
 /**
- * profileAnalysis.js — análise de perfis de apps de relacionamento via Haiku 4.5 vision
+ * profileAnalysis.js — análise de perfis de apps de relacionamento via GPT-5 mini vision
  *
  * Fluxo:
  * 1. Recebe base64 do print de perfil
- * 2. Chama Haiku 4.5 vision com prompt focado em gerar primeira mensagem personalizada
+ * 2. Chama GPT-5 mini vision com prompt focado em gerar primeira mensagem personalizada
  * 3. Parseia JSON estruturado
  * 4. Formata 2-3 mensagens WhatsApp
  * 5. Salva em profile_analyses (sem a imagem)
  * 6. Tracking em api_requests
  */
 
-const visionShim = require('./visionShim');
-const { VISION_MODEL } = visionShim;
+const gptVision = require('./gptVision');
+const { VISION_MODEL } = gptVision;
 const { createClient } = require('@supabase/supabase-js');
 const { logApiRequest } = require('./tracking');
 
-// ── Preços Haiku 4.5 ─────────────────────────────────────────────────────────
-// Preços GPT-5 mini (OpenRouter)
+// ── Preços GPT-5 mini (OpenRouter) ────────────────────────────────────
 const PRICES = {
   input:       0.25,
   output:      2.00,
@@ -87,8 +86,8 @@ Schema:
 }`;
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
-function getAnthropicClient() {
-  return visionShim; // GPT-5 mini via OpenRouter (interface compatível)
+function getVisionClient() {
+  return gptVision; // GPT-5 mini via OpenRouter
 }
 
 let _supabase = null;
@@ -225,7 +224,7 @@ function formatarRespostaPerfil(result) {
 }
 
 /**
- * Analisa um print de perfil via Haiku 4.5 vision.
+ * Analisa um print de perfil via GPT-5 mini vision.
  *
  * @param {string} base64Data
  * @param {string} mimeType
@@ -236,19 +235,19 @@ function formatarRespostaPerfil(result) {
  *   metrics: object
  * }>}
  */
-async function analisarPerfilComHaiku(base64Data, mimeType, phone = '') {
+async function analisarPerfil(base64Data, mimeType, phone = '') {
   const estimatedBytes = base64Data.length * 0.75;
   if (estimatedBytes > MAX_IMAGE_BYTES) {
     throw new Error(`Imagem muito grande (${Math.round(estimatedBytes / 1024 / 1024)}MB). Máximo 5MB.`);
   }
 
-  const anthropic = getAnthropicClient();
+  const vision = getVisionClient();
   const t0 = Date.now();
   let response;
   let trackingError = null;
 
   try {
-    response = await anthropic.messages.create({
+    response = await vision.messages.create({
       model:      VISION_MODEL,
       max_tokens: 1024,
       system: [
@@ -296,7 +295,7 @@ async function analisarPerfilComHaiku(base64Data, mimeType, phone = '') {
   const cacheReadTokens  = usage?.cache_read_input_tokens       || 0;
   const custo            = calcularCusto(usage);
 
-  console.log(`[ProfileAnalysis] Haiku 4.5 | in:${inputTokens} out:${outputTokens} cw:${cacheWriteTokens} cr:${cacheReadTokens} | ${latencyMs}ms | $${custo.usd}`);
+  console.log(`[ProfileAnalysis] GPT-5 mini | in:${inputTokens} out:${outputTokens} cw:${cacheWriteTokens} cr:${cacheReadTokens} | ${latencyMs}ms | $${custo.usd}`);
 
   // Parse JSON
   const rawText = response.content[0]?.text || '';
@@ -363,7 +362,7 @@ async function analisarPerfilComHaiku(base64Data, mimeType, phone = '') {
 }
 
 module.exports = {
-  analisarPerfilComHaiku,
+  analisarPerfil,
   formatarRespostaPerfil,
   SYSTEM_PROMPT_PROFILE,
 };
