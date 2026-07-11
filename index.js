@@ -1905,11 +1905,18 @@ function getSupabase() {
 
 async function upsertUser(phone, name, chatId) {
   const supabase = getSupabase();
-  const { data: existing } = await supabase
+  const { data: existing, error: selectError } = await supabase
     .from('users')
     .select('id, wa_chat_id')
     .eq('phone', phone)
     .maybeSingle();
+
+  // Se o SELECT falhou (ex: Supabase pausado/inacessível), NÃO assume usuário novo —
+  // isso dispararia onboarding pra todo mundo, inclusive quem já é cadastrado.
+  if (selectError) {
+    console.error('[Supabase] Erro ao buscar usuário (não vou tratar como novo):', selectError.message);
+    return false;
+  }
 
   if (existing) {
     // Atualiza wa_chat_id se ainda não tiver salvo
@@ -1923,7 +1930,12 @@ async function upsertUser(phone, name, chatId) {
     .from('users')
     .insert({ phone, name: name || null, wa_chat_id: chatId || null });
 
-  if (error) console.error('[Supabase] Erro ao salvar usuário:', error.message);
+  // Só afirma "usuário novo" (→ onboarding) se o insert realmente gravou.
+  // Se falhou, o usuário não foi salvo; mandar onboarding agora repetiria na próxima msg.
+  if (error) {
+    console.error('[Supabase] Erro ao salvar usuário (não vou mandar onboarding):', error.message);
+    return false;
+  }
   return true;
 }
 
