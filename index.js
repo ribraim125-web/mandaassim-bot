@@ -3153,17 +3153,67 @@ async function processInlineNotifications(phone, chatId) {
  * catch geral do handler ("travei aqui"). Aqui a gente tenta de novo 1x e, se
  * falhar mesmo, retorna null pra o chamador tratar com mensagem amigável.
  */
+// Reconstrói a string serializada do ID da mensagem a partir dos componentes.
+// Necessário por causa do break de jul/2026: o WhatsApp Web (build 2.3000.1043xxx)
+// renomeou `id._serialized` para `$1`, deixando o campo padrão undefined e
+// quebrando o downloadMedia da wwebjs. Ref: wwebjs issues #201830 / #201844.
+function reconstructSerializedId(id) {
+  if (!id) return null;
+  const remote = typeof id.remote === 'string' ? id.remote : (id.remote && id.remote._serialized) || null;
+  if (id.fromMe === undefined || !remote || !id.id) return null;
+  let sid = `${id.fromMe}_${remote}_${id.id}`;
+  const part = id.participant;
+  if (part) {
+    const p = typeof part === 'string' ? part : (part && part._serialized) || null;
+    if (p) sid += `_${p}`;
+  }
+  return sid;
+}
+
+// Fallback de download que passa um ID válido (renomeado `$1` ou reconstruído)
+// direto pra função interna resolveMediaBlob do WhatsApp Web, contornando o
+// this.id._serialized quebrado. Replica o que a wwebjs faz em Message.downloadMedia.
+async function downloadMediaViaReconstructedId(message) {
+  if (!message.hasMedia) return null;
+  const id = message.id || {};
+  const sid = (typeof id._serialized === 'string' && id._serialized)
+    || id['$1']
+    || reconstructSerializedId(id);
+  if (!sid) return null;
+  const pupPage = client && client.pupPage;
+  if (!pupPage) return null;
+  const result = await pupPage.evaluate(async (msgId) => {
+    if (!window.WWebJS || !window.WWebJS.resolveMediaBlob) return null;
+    const resolved = await window.WWebJS.resolveMediaBlob(msgId);
+    if (!resolved) return null;
+    const data = await window.WWebJS.arrayBufferToBase64Async(await resolved.blob.arrayBuffer());
+    return { data, mimetype: resolved.mimetype, filename: resolved.filename, filesize: resolved.filesize };
+  }, sid);
+  if (!result) return null;
+  return new MessageMedia(result.mimetype, result.data, result.filename, result.filesize);
+}
+
 async function downloadMediaSafe(message, { retries = 1, delayMs = 1500 } = {}) {
   for (let attempt = 0; attempt <= retries; attempt++) {
+    // 1) Caminho normal da lib.
     try {
       const media = await message.downloadMedia();
       if (media) return media;
       console.warn(`[downloadMedia] Retornou vazio (tentativa ${attempt + 1}/${retries + 1}) — mimetype=${message.type}`);
     } catch (err) {
-      console.warn(`[downloadMedia] Falha (tentativa ${attempt + 1}/${retries + 1}): ${err.name || 'Error'}: ${err.message}`);
-      // No último fracasso, despeja o stack completo pra diagnóstico do ponto exato da falha.
+      console.warn(`[downloadMedia] Falha lib (tentativa ${attempt + 1}/${retries + 1}): ${err.name || 'Error'}: ${err.message}`);
+    }
+    // 2) Fallback: contorna o bug do `_serialized`→`$1` reconstruindo o ID.
+    try {
+      const media = await downloadMediaViaReconstructedId(message);
+      if (media) {
+        console.log('[downloadMedia] ✅ Recuperado via ID reconstruído (workaround $1)');
+        return media;
+      }
+    } catch (err2) {
+      console.warn(`[downloadMedia] Fallback reconstruído falhou (tentativa ${attempt + 1}/${retries + 1}): ${err2.name || 'Error'}: ${err2.message}`);
       if (attempt === retries) {
-        console.error('[downloadMedia] STACK COMPLETO:', err.stack || '(sem stack)');
+        console.error('[downloadMedia] STACK fallback:', err2.stack || '(sem stack)');
       }
     }
     if (attempt < retries) await new Promise(r => setTimeout(r, delayMs));
