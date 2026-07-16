@@ -3158,9 +3158,13 @@ async function downloadMediaSafe(message, { retries = 1, delayMs = 1500 } = {}) 
     try {
       const media = await message.downloadMedia();
       if (media) return media;
-      // media null: pode ser transitório — tenta de novo se ainda houver tentativa
+      console.warn(`[downloadMedia] Retornou vazio (tentativa ${attempt + 1}/${retries + 1}) — mimetype=${message.type}`);
     } catch (err) {
-      console.warn(`[downloadMedia] Falha (tentativa ${attempt + 1}/${retries + 1}): ${err.message}`);
+      console.warn(`[downloadMedia] Falha (tentativa ${attempt + 1}/${retries + 1}): ${err.name || 'Error'}: ${err.message}`);
+      // No último fracasso, despeja o stack completo pra diagnóstico do ponto exato da falha.
+      if (attempt === retries) {
+        console.error('[downloadMedia] STACK COMPLETO:', err.stack || '(sem stack)');
+      }
     }
     if (attempt < retries) await new Promise(r => setTimeout(r, delayMs));
   }
