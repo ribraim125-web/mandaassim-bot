@@ -3150,10 +3150,11 @@ function reconstructSerializedId(id) {
 }
 
 // Fallback de download que passa um ID válido (renomeado `$1` ou reconstruído)
-// pra mesma lógica de página que a wwebjs usa em Message.downloadMedia
-// (Store.Msg + Store.DownloadManager), contornando o this.id._serialized quebrado.
-// Se o lookup por ID serializado também estiver quebrado no build novo, varre a
-// coleção de mensagens pelo componente raw do ID.
+// pra mesma lógica de página que a wwebjs 1.34.7 usa em resolveMediaBlob.
+// ATENÇÃO: na 1.34.7 NÃO existe `window.Store` — a lib usa
+// `window.require('WAWebCollections')` direto. Aqui a gente localiza o modelo
+// da mensagem (com varredura por raw id se o lookup por ID serializado também
+// estiver quebrado) e baixa o blob do próprio modelo, sem segundo lookup.
 async function downloadMediaViaReconstructedId(message) {
   if (!message.hasMedia) return null;
   const id = message.id || {};
@@ -3166,44 +3167,45 @@ async function downloadMediaViaReconstructedId(message) {
   const pupPage = client && client.pupPage;
   if (!pupPage) return null;
   const result = await pupPage.evaluate(async (msgId, rawMsgId) => {
-    let msg = window.Store.Msg.get(msgId);
+    if (typeof window.require !== 'function' || !window.WWebJS) {
+      return { diag: `require=${typeof window.require} wwebjs=${typeof window.WWebJS}` };
+    }
+    const { Msg } = window.require('WAWebCollections');
+    let msg = Msg.get(msgId);
     if (!msg) {
       try {
-        msg = (await window.Store.Msg.getMessagesById([msgId]))?.messages?.[0];
+        msg = (await Msg.getMessagesById([msgId]))?.messages?.[0];
       } catch (_) { /* lookup por ID pode estar quebrado no build novo */ }
     }
     if (!msg && rawMsgId) {
-      msg = window.Store.Msg.getModelsArray().find(m => {
-        const mid = m && m.id;
-        if (!mid) return false;
-        const mSid = mid._serialized || mid['$1'];
-        return mid.id === rawMsgId || mSid === msgId;
-      });
+      msg = Msg.getModelsArray().find(m => m && m.id && m.id.id === rawMsgId);
     }
     if (!msg) return { notFound: true };
     if (!msg.mediaData || msg.mediaData.mediaStage === 'REUPLOADING') return null;
-    if (msg.mediaData.mediaStage !== 'RESOLVED') {
-      await msg.downloadMedia({ downloadEvenIfExpensive: true, rmrReason: 1 });
-    }
-    if (msg.mediaData.mediaStage.includes('ERROR') || msg.mediaData.mediaStage === 'FETCHING') return null;
-    const mockQpl = {
-      addAnnotations: function () { return this; },
-      addPoint: function () { return this; }
-    };
-    const decryptedMedia = await window.Store.DownloadManager.downloadAndMaybeDecrypt({
-      directPath: msg.directPath,
-      encFilehash: msg.encFilehash,
-      filehash: msg.filehash,
-      mediaKey: msg.mediaKey,
-      mediaKeyTimestamp: msg.mediaKeyTimestamp,
-      type: msg.type,
-      signal: (new AbortController).signal,
-      downloadQpl: mockQpl
+    await msg.downloadMedia({
+      downloadEvenIfExpensive: true,
+      rmrReason: 1,
+      isUserInitiated: true,
     });
-    const data = await window.WWebJS.arrayBufferToBase64Async(decryptedMedia);
+    if (msg.mediaData.mediaStage.includes('ERROR') || msg.mediaData.mediaStage === 'FETCHING') return null;
+    const cached = window
+      .require('WAWebMediaInMemoryBlobCache')
+      .InMemoryMediaBlobCache.get(msg.mediaObject?.filehash);
+    let blob = null;
+    if (cached) {
+      blob = cached;
+    } else if (msg.mediaObject?.mediaBlob) {
+      blob = msg.mediaObject.mediaBlob.forceToBlob();
+    }
+    if (!blob) return null;
+    const data = await window.WWebJS.arrayBufferToBase64Async(await blob.arrayBuffer());
     return { data, mimetype: msg.mimetype, filename: msg.filename, filesize: msg.size };
   }, sid, rawId);
   if (!result) return null;
+  if (result.diag) {
+    console.warn(`[downloadMedia] Fallback: página sem injeção da lib (${result.diag})`);
+    return null;
+  }
   if (result.notFound) {
     console.warn(`[downloadMedia] Fallback: mensagem não encontrada na página (sid=${sid})`);
     return null;
