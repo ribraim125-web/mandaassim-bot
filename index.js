@@ -3127,6 +3127,29 @@ async function processInlineNotifications(phone, chatId) {
 // Processamento de mensagens
 // ---------------------------------------------------------------------------
 
+/**
+ * Baixa a mídia de uma mensagem com resiliência.
+ *
+ * O whatsapp-web.js às vezes LANÇA exceção (erro interno do puppeteer, tipo
+ * "r r: r") em vez de retornar null — comum em status/stories, mídia grande ou
+ * hiccup do WhatsApp Web. Sem try/catch, isso derrubava a mensagem inteira no
+ * catch geral do handler ("travei aqui"). Aqui a gente tenta de novo 1x e, se
+ * falhar mesmo, retorna null pra o chamador tratar com mensagem amigável.
+ */
+async function downloadMediaSafe(message, { retries = 1, delayMs = 1500 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const media = await message.downloadMedia();
+      if (media) return media;
+      // media null: pode ser transitório — tenta de novo se ainda houver tentativa
+    } catch (err) {
+      console.warn(`[downloadMedia] Falha (tentativa ${attempt + 1}/${retries + 1}): ${err.message}`);
+    }
+    if (attempt < retries) await new Promise(r => setTimeout(r, delayMs));
+  }
+  return null;
+}
+
 async function handleIncomingMessage(message) {
   if (message.isGroupMsg) return;
   if (message.from === 'status@broadcast') return;
@@ -4662,9 +4685,9 @@ async function handleIncomingMessage(message) {
 
   } else if (message.type === 'image') {
     stopEarlyTyping();
-    const media = await message.downloadMedia();
+    const media = await downloadMediaSafe(message);
     if (!media) {
-      await message.reply('Não consegui baixar a imagem, manda de novo');
+      await message.reply('Não consegui baixar essa imagem 😕 Tira um *print* novo (screenshot) e manda de novo — às vezes o WhatsApp trava a foto original.');
       return;
     }
 
@@ -5091,7 +5114,7 @@ async function handleIncomingMessage(message) {
     console.log(`[Áudio] ${phone} enviou ${message.type}.`);
     stopEarlyTyping();
 
-    const media = await message.downloadMedia();
+    const media = await downloadMediaSafe(message);
     if (!media) {
       await message.reply('Não consegui baixar o áudio, manda de novo');
       return;
