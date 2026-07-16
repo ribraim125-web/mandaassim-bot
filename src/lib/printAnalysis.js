@@ -263,7 +263,9 @@ async function analisarPrintConversa(base64Data, mimeType, phone = '', girlConte
   try {
     response = await vision.messages.create({
       model:      VISION_MODEL,
-      max_tokens: 1024,
+      // Folga: reasoning tokens do GPT-5 contam DENTRO do max_tokens — com 1024
+      // o JSON das 3 opções saía truncado (out cravado em 1024) e o parse falhava.
+      max_tokens: 3000,
       system: [
         {
           type: 'text',
