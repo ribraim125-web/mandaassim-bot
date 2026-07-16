@@ -2842,8 +2842,25 @@ function isMindsetCapsulesEnabled(phone) {
 // WhatsApp Client
 // ---------------------------------------------------------------------------
 
+// Pin opcional da versão do WhatsApp Web. Quando o WhatsApp lança um build novo
+// que quebra o download de mídia (downloadMedia estoura "r r: r" no puppeteer,
+// mesmo na última wwebjs), fixar uma versão anterior conhecida resolve.
+// Setar WA_WEB_VERSION no .env (ex: 2.3000.1039661369). Vazio = comportamento
+// padrão (pega a versão que o WhatsApp servir). Versões disponíveis:
+// https://github.com/wppconnect-team/wa-version/tree/main/html
+const WA_WEB_VERSION = (process.env.WA_WEB_VERSION || '').trim();
+if (WA_WEB_VERSION) {
+  console.log(`[Bot] WhatsApp Web pinado na versão ${WA_WEB_VERSION}`);
+}
+
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: 'mandaassim-bot' }),
+  ...(WA_WEB_VERSION ? {
+    webVersionCache: {
+      type: 'remote',
+      remotePath: `https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/${WA_WEB_VERSION}.html`,
+    },
+  } : {}),
   puppeteer: {
     headless: true,
     args: [
