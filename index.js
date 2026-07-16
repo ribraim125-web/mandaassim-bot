@@ -2858,10 +2858,15 @@ if (WA_WEB_VERSION) {
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: 'mandaassim-bot' }),
+  // ATENÇÃO: os arquivos do wa-version levam sufixo -alpha no nome
+  // (ex.: 2.3000.1042991638-alpha.html) — WA_WEB_VERSION deve incluir o sufixo.
+  // `strict: true` faz o boot FALHAR se o HTML não existir (antes o 404 era
+  // silencioso e o bot rodava a versão viva achando que estava pinado).
   ...(WA_WEB_VERSION ? {
     webVersionCache: {
       type: 'remote',
       remotePath: `https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/${WA_WEB_VERSION}.html`,
+      strict: true,
     },
   } : {}),
   puppeteer: {
