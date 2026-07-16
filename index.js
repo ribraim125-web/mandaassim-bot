@@ -23,13 +23,11 @@ const qrcode = require('qrcode-terminal');
 const { createClient } = require('@supabase/supabase-js');
 const OpenAI = require('openai');
 // Visão e revisão rodam em GPT-5 mini via gptVision (OpenRouter)
-const { criarCobrancaPix, determinarPlano, PRECO_PRO } = require('./src/mercadopago');
+const { criarCobrancaPix, determinarPlano, PRECO_24H, PRECO_MENSAL } = require('./src/mercadopago');
 const { trackSubscriptionEvent } = require('./src/lib/subscriptionTracking');
 const {
   createWebhookApp,
   CONFIRMACAO_PARCEIRO,
-  CONFIRMACAO_PRO,
-  CONFIRMACAO_UPGRADE_PRO,
   CONFIRMACAO_24H,
 } = require('./src/webhook');
 const { startWorker } = require('./src/followup/followupWorker');
@@ -119,18 +117,12 @@ const {
 
 const TRIAL_DAYS = 3;          // dias de acesso ilimitado após cadastro
 const FREE_DAILY_LIMIT = 5;    // mensagens/dia no plano free (pós-trial sem upgrade)
-const TESTING_PHONES = ['5561986115458']; // bypass total de limite + não conta no analytics
+const TESTING_PHONES = []; // bypass total de limite + não conta no analytics
 const ONBOARDING_V2 = process.env.ONBOARDING_V2 === 'true'; // onboarding direto: 1 bubble + mirroring na 1ª análise
 
 // Timers do nudge de onboarding (90s após MSG 3 se usuário não responder)
 const onboardingNudgeTimers = new Map();
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const PRECO_24H = 4.99;
-const PRECO_MENSAL = 29.90;
-const PRECO_ANUAL = 299.00;
-const PRECO_ANUAL_PRO = 799.00;   // Plano anual Pro (oferta D+60)
-const PRECO_WINBACK = 19.90;
-const PRECO_PRO_LANCAMENTO = 55.93; // 30% off — só pra base atual no lançamento
 
 // Sinais de crise — disparam protocolo CVV em vez de análise
 const CRISIS_PATTERN = /\b(quero (me matar|desaparecer|sumir para sempre)|n[aã]o aguento mais|pensando em me machucar|[eé] melhor morrer|n[aã]o tenho mais saída|tô no limite)\b/i;
@@ -262,10 +254,9 @@ const WELCOME_MESSAGES = [
 const HOOK_TRIGGER_PATTERN = /^(quero|sim|manda|conta|qual|pode|bora|claro|vai|manda aí|pode sim|ok|quero saber)$/i;
 
 const OPCOES_PREMIUM =
-  `Tem três caminhos:\n\n` +
+  `Tem dois caminhos:\n\n` +
   `⚡ *24h* por R$4,99 → digita *24h*\n` +
-  `📅 *Mensal* a R$29,90/mês → digita *mensal*\n` +
-  `📆 *Anual* a R$299/ano (economiza R$60) → digita *anual*`;
+  `📅 *Mensal* a R$29,90/mês → digita *mensal*`;
 
 const LIMITE_FREE_ESGOTADO =
   `Você usou suas ${FREE_DAILY_LIMIT} análises grátis de hoje 🔒\n\n` +
@@ -280,14 +271,13 @@ const PRINT_UPSELL_MESSAGE =
   `Você manda o print da conversa, eu leio o que tá rolando ali: interesse dela, temperatura, o que faz sentido responder agora.\n\n` +
   `Pra liberar:\n` +
   `⚡ *24h* por R$4,99 → *24h*\n` +
-  `📅 *Mensal* R$29,90 → *mensal*\n` +
-  `📆 *Anual* R$299 → *anual*`;
+  `📅 *Mensal* R$29,90 → *mensal*`;
 
 const PRINT_LIMIT_REACHED_PREMIUM =
   `Deu 15 análises de print hoje, o limite do plano.\n\nAmanhã cedo renova. Enquanto isso, descreve em texto o que ela mandou, funciona igual.`;
 
 const PRINT_LIMIT_REACHED_TRIAL =
-  `Deu 3 análises de print por hoje, limite do trial.\n\nQuer mais? *mensal* (R$29,90) ou *anual* (R$299).`;
+  `Deu 3 análises de print por hoje, limite do trial.\n\nQuer mais? *mensal* (R$29,90).`;
 
 const PROFILE_UPSELL_MESSAGE =
   `Análise de perfil tá fora do ar por enquanto 🔧\n\n` +
@@ -301,8 +291,8 @@ const PROFILE_LIMIT_REACHED_PRO =
 const TRANSITION_COACH_UPSELL_FREE =
   `Saber a hora certa de chamar pra sair é meio jogo de cintura.\n\n` +
   `Eu leio onde a conversa tá e te falo *quando* e *como* chamar.\n\n` +
-  `Tá no *Parceiro* (R$29,90/mês) ou no *Anual* (R$299).\n\n` +
-  `Pra liberar: digita *mensal* ou *anual*`;
+  `Tá no *Parceiro* (R$29,90/mês).\n\n` +
+  `Pra liberar: digita *mensal*`;
 
 const TRANSITION_COACH_UPSELL_PREMIUM_LIMIT =
   `Você já usou as 2 sessões de transição do mês. Renova mês que vem.\n\n` +
@@ -1943,8 +1933,8 @@ async function upsertUser(phone, name, chatId) {
  * Retorna o status completo do usuário: premium, trial ativo, dias restantes.
  * Fonte única de verdade — usar no lugar de isUserPremium() isolado.
  *
- * Planos novos: 'trial' | 'free' | 'parceiro' | 'parceiro_pro'
- * Planos legados aceitos: 'wingman'/'premium' (→ parceiro), 'wingman_pro'/'pro' (→ parceiro_pro)
+ * Planos novos: 'trial' | 'free' | 'parceiro'
+ * Planos legados aceitos: 'wingman'/'premium'/'pro'/'wingman_pro'/'parceiro_pro' (→ parceiro)
  */
 async function getTrialInfo(phone) {
   const supabase = getSupabase();
@@ -1954,38 +1944,24 @@ async function getTrialInfo(phone) {
     .eq('phone', phone)
     .maybeSingle();
 
-  if (!data) return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, planKey: 'free' };
+  if (!data) return { isPremium: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, planKey: 'free' };
 
   const rawPlan = data.plan;
 
   const GRACE_PERIOD_DAYS = 3;
 
-  // Parceiro Pro (novo) ou aliases legados wingman_pro/pro
-  if (rawPlan === 'parceiro_pro' || rawPlan === 'wingman_pro' || rawPlan === 'pro') {
+  // Parceiro (novo) ou aliases legados wingman/premium. Pro/anual descontinuados → tratado como Parceiro.
+  if (['parceiro', 'parceiro_pro', 'wingman', 'wingman_pro', 'premium', 'pro'].includes(rawPlan)) {
     if (!data.plan_expires_at || new Date(data.plan_expires_at) > new Date()) {
-      return { isPremium: true, isPro: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro_pro' };
+      return { isPremium: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro' };
     }
     // Grace period: mantém acesso por 3 dias após expirar antes de regredir
     const graceCutoff = new Date(data.plan_expires_at);
     graceCutoff.setDate(graceCutoff.getDate() + GRACE_PERIOD_DAYS);
     if (new Date() <= graceCutoff) {
-      return { isPremium: true, isPro: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro_pro', inGrace: true };
+      return { isPremium: true, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro', inGrace: true };
     }
-    return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at, planKey: 'free' };
-  }
-
-  // Parceiro (novo) ou aliases legados wingman/premium
-  if (rawPlan === 'parceiro' || rawPlan === 'wingman' || rawPlan === 'premium') {
-    if (!data.plan_expires_at || new Date(data.plan_expires_at) > new Date()) {
-      return { isPremium: true, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro' };
-    }
-    // Grace period: mantém acesso por 3 dias após expirar antes de regredir
-    const graceCutoff = new Date(data.plan_expires_at);
-    graceCutoff.setDate(graceCutoff.getDate() + GRACE_PERIOD_DAYS);
-    if (new Date() <= graceCutoff) {
-      return { isPremium: true, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiresAt: data.plan_expires_at, planKey: 'parceiro', inGrace: true };
-    }
-    return { isPremium: false, isPro: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at, planKey: 'free' };
+    return { isPremium: false, inTrial: false, trialDaysLeft: 0, isLastDay: false, expiredAt: data.plan_expires_at, planKey: 'free' };
   }
 
   // Trial explícito no banco (novo) ou calculado por created_at (legado sem plan)
@@ -2013,7 +1989,7 @@ async function getTrialInfo(phone) {
     }).eq('phone', phone).then(() => {}).catch(() => {});
   }
 
-  return { isPremium: false, isPro: false, inTrial, trialDaysLeft, trialHoursLeft, isLastDay, lastHours, planKey, createdAt: data.created_at };
+  return { isPremium: false, inTrial, trialDaysLeft, trialHoursLeft, isLastDay, lastHours, planKey, createdAt: data.created_at };
 }
 
 /**
@@ -2093,6 +2069,33 @@ async function tryReactiveNarrative(phone, chatId) {
     await fireActForUser(user, act);
   } catch (err) {
     console.error('[ReactiveNarrative] Erro:', err.message);
+  }
+}
+
+// Set para evitar oferta de upgrade por alto volume repetida no mesmo dia
+const highUsageOfferSent = new Set();
+
+/**
+ * Oferta de upgrade reativa quando free/trial manda muitas mensagens no dia.
+ * Gatilho: 10 mensagens no dia. Envia uma vez por dia.
+ */
+async function offerUpgradeAfterHighUsage(phone, chatId, todayCount) {
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `${phone}:${today}`;
+  if (highUsageOfferSent.has(key)) return;
+  highUsageOfferSent.add(key);
+
+  await new Promise(r => setTimeout(r, 2_000));
+  try {
+    await client.sendMessage(chatId,
+      `Você já mandou *${todayCount} mensagens* hoje. ` +
+      `Se tá usando pra valer, o *Parceiro* mensal (R$29,90) deixa tudo ilimitado.\n\n` +
+      `Quer assinar? Manda *mensal* 👇`
+    );
+    logJourneyEvent(phone, 'upgrade_offered_high_usage', { today_count: todayCount }).catch(() => {});
+    console.log(`[Upsell] Oferta por alto volume enviada para ${phone} (${todayCount} msgs)`);
+  } catch (err) {
+    console.error('[Upsell] Erro ao enviar oferta por alto volume:', err.message);
   }
 }
 
@@ -3014,7 +3017,7 @@ async function upsellPicoPremium(message, trial, todayCount) {
   // Free (pós-trial): última análise do dia
   if (!trial.inTrial && todayCount === FREE_DAILY_LIMIT) {
     await client.sendMessage(message.from,
-      `Essa foi a última de hoje. Se não dá pra esperar amanhã:\n\n*mensal* — R$29,90\n*anual* — R$299`
+      `Essa foi a última de hoje. Se não dá pra esperar amanhã:\n\n*mensal* — R$29,90`
     );
   }
 }
@@ -3030,34 +3033,6 @@ async function upsellSonnetFree(message, sonnetInfo, trial) {
 // ---------------------------------------------------------------------------
 // Pagamento Pix
 // ---------------------------------------------------------------------------
-
-async function enviarCobrancaPixPro(message, phone) {
-  try {
-    const { qrCodeBase64, qrCodeText } = await criarCobrancaPix(phone, PRECO_PRO);
-
-    await message.reply(
-      `*Parceiro Pro — R$79,90/mês*\n\n` +
-      `O que entra:\n\n` +
-      `Mensagens ilimitadas\n` +
-      `Análise de conversa (sem limite)\n` +
-      `Analisar o perfil dela (30/dia)\n` +
-      `Olhar e revisar seu perfil (30/dia)\n\n` +
-      `O Pix aparece no nome *Rafael Cabral Ibraim* — é o responsável pelo MandaAssim. Pode pagar tranquilo ✅`
-    );
-
-    const media = new MessageMedia('image/png', qrCodeBase64, 'pix-pro.png');
-    await client.sendMessage(message.from, media);
-    await client.sendMessage(message.from, qrCodeText);
-    await client.sendMessage(message.from,
-      `_Confirmação chega em menos de 1 minuto. Se demorar: digita *paguei*_`
-    );
-
-    console.log(`[Pix Pro] QR Code enviado para ${phone}`);
-  } catch (err) {
-    console.error('[Pix Pro] Erro:', err.message);
-    await message.reply('Deu um problema na hora de gerar o Pix 😕 Tenta de novo daqui a pouco.');
-  }
-}
 
 async function enviarCobrancaPix(message, phone, amount = undefined) {
   try {
@@ -3157,39 +3132,82 @@ async function processInlineNotifications(phone, chatId) {
 // Necessário por causa do break de jul/2026: o WhatsApp Web (build 2.3000.1043xxx)
 // renomeou `id._serialized` para `$1`, deixando o campo padrão undefined e
 // quebrando o downloadMedia da wwebjs. Ref: wwebjs issues #201830 / #201844.
+function serializedWid(wid) {
+  if (!wid) return null;
+  if (typeof wid === 'string') return wid;
+  // O rename `_serialized`→`$1` do build 1043xxx pode afetar qualquer Wid.
+  return wid._serialized || wid['$1'] || (wid.user && wid.server ? `${wid.user}@${wid.server}` : null);
+}
+
 function reconstructSerializedId(id) {
   if (!id) return null;
-  const remote = typeof id.remote === 'string' ? id.remote : (id.remote && id.remote._serialized) || null;
+  const remote = serializedWid(id.remote);
   if (id.fromMe === undefined || !remote || !id.id) return null;
   let sid = `${id.fromMe}_${remote}_${id.id}`;
-  const part = id.participant;
-  if (part) {
-    const p = typeof part === 'string' ? part : (part && part._serialized) || null;
-    if (p) sid += `_${p}`;
-  }
+  const p = serializedWid(id.participant);
+  if (p) sid += `_${p}`;
   return sid;
 }
 
 // Fallback de download que passa um ID válido (renomeado `$1` ou reconstruído)
-// direto pra função interna resolveMediaBlob do WhatsApp Web, contornando o
-// this.id._serialized quebrado. Replica o que a wwebjs faz em Message.downloadMedia.
+// pra mesma lógica de página que a wwebjs usa em Message.downloadMedia
+// (Store.Msg + Store.DownloadManager), contornando o this.id._serialized quebrado.
+// Se o lookup por ID serializado também estiver quebrado no build novo, varre a
+// coleção de mensagens pelo componente raw do ID.
 async function downloadMediaViaReconstructedId(message) {
   if (!message.hasMedia) return null;
   const id = message.id || {};
   const sid = (typeof id._serialized === 'string' && id._serialized)
-    || id['$1']
+    || (typeof id['$1'] === 'string' && id['$1'])
     || reconstructSerializedId(id);
   if (!sid) return null;
+  // Componente raw (hash) do ID: 3º campo do serializado `fromMe_remote_raw[_participant]`.
+  const rawId = (typeof id.id === 'string' && id.id) || sid.split('_')[2] || null;
   const pupPage = client && client.pupPage;
   if (!pupPage) return null;
-  const result = await pupPage.evaluate(async (msgId) => {
-    if (!window.WWebJS || !window.WWebJS.resolveMediaBlob) return null;
-    const resolved = await window.WWebJS.resolveMediaBlob(msgId);
-    if (!resolved) return null;
-    const data = await window.WWebJS.arrayBufferToBase64Async(await resolved.blob.arrayBuffer());
-    return { data, mimetype: resolved.mimetype, filename: resolved.filename, filesize: resolved.filesize };
-  }, sid);
+  const result = await pupPage.evaluate(async (msgId, rawMsgId) => {
+    let msg = window.Store.Msg.get(msgId);
+    if (!msg) {
+      try {
+        msg = (await window.Store.Msg.getMessagesById([msgId]))?.messages?.[0];
+      } catch (_) { /* lookup por ID pode estar quebrado no build novo */ }
+    }
+    if (!msg && rawMsgId) {
+      msg = window.Store.Msg.getModelsArray().find(m => {
+        const mid = m && m.id;
+        if (!mid) return false;
+        const mSid = mid._serialized || mid['$1'];
+        return mid.id === rawMsgId || mSid === msgId;
+      });
+    }
+    if (!msg) return { notFound: true };
+    if (!msg.mediaData || msg.mediaData.mediaStage === 'REUPLOADING') return null;
+    if (msg.mediaData.mediaStage !== 'RESOLVED') {
+      await msg.downloadMedia({ downloadEvenIfExpensive: true, rmrReason: 1 });
+    }
+    if (msg.mediaData.mediaStage.includes('ERROR') || msg.mediaData.mediaStage === 'FETCHING') return null;
+    const mockQpl = {
+      addAnnotations: function () { return this; },
+      addPoint: function () { return this; }
+    };
+    const decryptedMedia = await window.Store.DownloadManager.downloadAndMaybeDecrypt({
+      directPath: msg.directPath,
+      encFilehash: msg.encFilehash,
+      filehash: msg.filehash,
+      mediaKey: msg.mediaKey,
+      mediaKeyTimestamp: msg.mediaKeyTimestamp,
+      type: msg.type,
+      signal: (new AbortController).signal,
+      downloadQpl: mockQpl
+    });
+    const data = await window.WWebJS.arrayBufferToBase64Async(decryptedMedia);
+    return { data, mimetype: msg.mimetype, filename: msg.filename, filesize: msg.size };
+  }, sid, rawId);
   if (!result) return null;
+  if (result.notFound) {
+    console.warn(`[downloadMedia] Fallback: mensagem não encontrada na página (sid=${sid})`);
+    return null;
+  }
   return new MessageMedia(result.mimetype, result.data, result.filename, result.filesize);
 }
 
@@ -3214,6 +3232,10 @@ async function downloadMediaSafe(message, { retries = 1, delayMs = 1500 } = {}) 
       console.warn(`[downloadMedia] Fallback reconstruído falhou (tentativa ${attempt + 1}/${retries + 1}): ${err2.name || 'Error'}: ${err2.message}`);
       if (attempt === retries) {
         console.error('[downloadMedia] STACK fallback:', err2.stack || '(sem stack)');
+        // Formato real do ID que chegou — pra diagnosticar renomes do build do WA Web.
+        try {
+          console.error('[downloadMedia] message.id:', JSON.stringify(message.id));
+        } catch (_) { /* id não serializável, segue o jogo */ }
       }
     }
     if (attempt < retries) await new Promise(r => setTimeout(r, delayMs));
@@ -3396,13 +3418,9 @@ async function handleIncomingMessage(message) {
       const used = await getDailyUsage(phone, 'messages');
 
       let statusText;
-      if (trial.isPro) {
+      if (trial.isPremium) {
         const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
         const graceNote = trial.inGrace ? `\n_⚠️ Venceu — renova pra não perder acesso. Digita *mensal*._` : (validade ? `\n_Válido até ${validade}_` : '');
-        statusText = `🔥 *Parceiro Pro* — mensagens ilimitadas${graceNote}`;
-      } else if (trial.isPremium) {
-        const validade = trial.expiresAt ? new Date(trial.expiresAt).toLocaleDateString('pt-BR') : null;
-        const graceNote = trial.inGrace ? `\n_⚠️ Venceu — renova pra não perder acesso. Digita *mensal* ou *anual*._` : (validade ? `\n_Válido até ${validade}_` : '');
         statusText = `🌟 *Parceiro* — mensagens ilimitadas${graceNote}`;
       } else if (trial.inTrial) {
         const horasLabel = trial.lastHours
@@ -3433,16 +3451,11 @@ async function handleIncomingMessage(message) {
       return;
     }
 
-    if (cmd === 'anual') {
-      await enviarCobrancaPix(message, phone, PRECO_ANUAL);
-      return;
-    }
-
-    // Plano Pro DESCONTINUADO — produto agora é um só (Parceiro R$29,90).
-    // Quem digita "pro"/"anual pro"/"upgrade" é redirecionado pro mensal.
-    if (cmd === 'pro' || cmd === 'parceiro pro' || cmd === 'wingman pro' || cmd === 'upgrade' || cmd === 'anual pro' || cmd === '/anual pro') {
+    // Plano anual/Pro DESCONTINUADO — produto agora é um só (Parceiro R$29,90).
+    // Quem digita "pro"/"anual"/"upgrade" é redirecionado pro mensal.
+    if (cmd === 'pro' || cmd === 'parceiro pro' || cmd === 'wingman pro' || cmd === 'upgrade' || cmd === 'anual pro' || cmd === '/anual pro' || cmd === 'anual' || cmd === '/anual') {
       const trial = await getTrialInfo(phone);
-      if (trial.isPremium || trial.isPro) {
+      if (trial.isPremium) {
         await message.reply('Você já é *Parceiro* — mensagens ilimitadas, pode mandar à vontade.');
         return;
       }
@@ -3457,14 +3470,15 @@ async function handleIncomingMessage(message) {
     }
 
     if (cmd === 'voltar') {
-      await enviarCobrancaPix(message, phone, PRECO_WINBACK);
+      await message.reply(`Oferta de volta ativa: *Parceiro* mensal a R$29,90 🌟\n\nGerando teu Pix 👇`);
+      await enviarCobrancaPix(message, phone, PRECO_MENSAL);
       return;
     }
 
     if (cmd === 'paguei') {
       const supabase = getSupabase();
       const { data: user } = await supabase.from('users').select('plan, plan_expires_at').eq('phone', phone).maybeSingle();
-      const isPaidActive = ['parceiro','parceiro_pro','wingman','wingman_pro'].includes(user?.plan) && (!user.plan_expires_at || new Date(user.plan_expires_at) > new Date());
+      const isPaidActive = ['parceiro','wingman','premium'].includes(user?.plan) && (!user.plan_expires_at || new Date(user.plan_expires_at) > new Date());
       if (isPaidActive) {
         await message.reply('✅ *Parceiro ativo*. Pode mandar à vontade.');
         return;
@@ -3521,11 +3535,7 @@ async function handleIncomingMessage(message) {
             ]);
             console.log(`[Paguei] ✅ ${newPlan} ativado via consulta MP para ${phone} (${days}d)`);
             const planAnterior = user?.plan || 'free';
-            const welcomeSeq =
-              days === 1 ? CONFIRMACAO_24H :
-              newPlan === 'parceiro_pro' && planAnterior === 'parceiro' ? CONFIRMACAO_UPGRADE_PRO :
-              newPlan === 'parceiro_pro' ? CONFIRMACAO_PRO :
-              CONFIRMACAO_PARCEIRO;
+            const welcomeSeq = days === 1 ? CONFIRMACAO_24H : CONFIRMACAO_PARCEIRO;
             await sendWithDelay(message.from, welcomeSeq, { phone, intent: 'upgrade_welcome' });
           } else {
             await message.reply(
@@ -3548,7 +3558,7 @@ async function handleIncomingMessage(message) {
     if (cmd === 'cancelar' || cmd === '/cancelar') {
       const trialForCancel = await getTrialInfo(phone);
       if (!trialForCancel.isPremium) {
-        await message.reply(`Você tá no plano *free* — não há assinatura ativa pra cancelar.\n\nSe quiser assinar:\n\n*mensal* — R$29,90\n*anual* — R$299`);
+        await message.reply(`Você tá no plano *free* — não há assinatura ativa pra cancelar.\n\nSe quiser assinar:\n\n*mensal* — R$29,90`);
         return;
       }
 
@@ -3591,7 +3601,7 @@ async function handleIncomingMessage(message) {
 
       await message.reply(
         `Cancelamento registrado ✅${expiresMsg}\n\n` +
-        `Se mudar de ideia: *mensal*, *anual* ou *pro*. Tô por aqui`
+        `Se mudar de ideia: *mensal*. Tô por aqui`
       );
       // Agenda mensagem de reativação D+1
       scheduleReactivationD1(phone).catch(() => {});
@@ -3775,7 +3785,7 @@ async function handleIncomingMessage(message) {
     if (isMindsetCapsulesEnabled(phone)) {
       if (/^(ativar mindset|mindset ativar)$/i.test(cmd)) {
         const trialForMindset = await getTrialInfo(phone);
-        if (!trialForMindset.isPro) {
+        if (!trialForMindset.isPremium) {
           await message.reply(`Cápsulas de mindset tão fora do ar por enquanto 🔧`);
         } else {
           await activateOptIn(phone);
@@ -3802,7 +3812,7 @@ async function handleIncomingMessage(message) {
 
       if (/^mindset$/i.test(cmd)) {
         const trialForMindset = await getTrialInfo(phone);
-        if (!trialForMindset.isPro) {
+        if (!trialForMindset.isPremium) {
           await message.reply(`Cápsulas de mindset tão fora do ar por enquanto 🔧`);
         } else {
           const optIn = await getOptIn(phone);
@@ -3844,10 +3854,10 @@ async function handleIncomingMessage(message) {
       if (trial.expiredAt && await verificarWinback(phone, trial.expiredAt)) {
         await client.sendMessage(message.from,
           `Deu ${FREE_DAILY_LIMIT} por hoje. Como você já assinou antes, tem uma oferta de volta:\n\n` +
-          `*voltar* — R$19,90 no primeiro mês`
+          `*voltar* — R$29,90 no primeiro mês`
         );
       } else if (conversaQuente) {
-        await client.sendMessage(message.from, `Bateu o limite de hoje — e logo agora que a conversa tá rolando.\n\nSe não dá pra esperar amanhã:\n\n*mensal* — R$29,90\n*anual* — R$299`);
+        await client.sendMessage(message.from, `Bateu o limite de hoje — e logo agora que a conversa tá rolando.\n\nSe não dá pra esperar amanhã:\n\n*mensal* — R$29,90`);
       } else {
         await client.sendMessage(message.from, limitCheck.upsellMessage || LIMITE_FREE_ESGOTADO);
       }
@@ -3860,6 +3870,11 @@ async function handleIncomingMessage(message) {
   const todayCount = isTesting ? 0 : await incrementFeatureUsage(phone, 'messages');
   if (!isTesting) incrementDailyCount(phone).catch(() => {});
 
+  // Oferta de upgrade por alto volume de uso (free/trial que mandou 10 mensagens no dia)
+  if (!isTesting && (trial.inTrial || !trial.isPremium) && todayCount === 10) {
+    offerUpgradeAfterHighUsage(phone, message.from, todayCount).catch(() => {});
+  }
+
   // Trial countdown desativado — sem mensagens proativas não solicitadas
 
   // scheduleLimitDrop3 desativado — sem msg proativa
@@ -3869,7 +3884,7 @@ async function handleIncomingMessage(message) {
   // ---------------------------------------------------------------------------
 
   // ── Convite de mindset: envia uma vez após 14 dias Pro (fire-and-forget) ───
-  if (trial.isPro && isMindsetCapsulesEnabled(phone) && !mindsetInviteChecked.has(phone)) {
+  if (trial.isPremium && isMindsetCapsulesEnabled(phone) && !mindsetInviteChecked.has(phone)) {
     mindsetInviteChecked.add(phone);
     shouldSendInvite(phone).then(async (yes) => {
       if (!yes) return;
