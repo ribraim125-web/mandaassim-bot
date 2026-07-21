@@ -219,36 +219,21 @@ const MENSAGEM_RENOVACAO =
   `Se quiser renovar antes: *mensal* ou *anual*.`;
 
 
-// Mensagem 1 — imediata
+// Mensagem única de abertura — pede a coisa mais fácil (colar texto, sem
+// print, sem sair do WhatsApp) e não menciona oferta ainda. A oferta só
+// entra depois que a pessoa reagir à primeira entrega (ver fireRetentionHook
+// e upsellPicoPremium, disparados de forma reativa após o uso).
 const WELCOME_MSG_0 =
   `e aí 👊 sou o *MandaAssim*\n\n` +
-  `📸 manda o *print da conversa*\n` +
-  `💬 ou *conta a situação*\n\n` +
-  `e eu te devolvo *3 respostas prontas* pra copiar e colar ⚡`;
+  `Me conta rapidinho: qual foi a última mensagem que ela te mandou? Pode colar o texto aqui mesmo, não precisa nem de print.`;
 
-// Mensagem 2 — após 2 segundos: demo curta de COMO funciona
-const WELCOME_MSG_1 =
-  `exemplo 👇 ela mandou _'bom dia, dormiu bem?'_\n\n` +
-  `🎯 *DIRETO*\ndormi, mas o dia só melhorou agora\n\n` +
-  `🌹 *ROMÂNTICO*\ntava bom o sono, mas teu bom dia ganhou\n\n` +
-  `😏 *BRINCALHÃO*\nsonhei que você puxava assunto primeiro, olha aí`;
-
-// Mensagem 3 — após 3 segundos: call to action + trial
-const WELCOME_MSG_2 =
-  `🎁 *3 dias grátis e ILIMITADO* — sem cartão\n\n` +
-  `bora? manda o print ou a situação 👇`;
-
-// Nudge 90s — disparado se usuário não responder nada após MSG 3
+// Nudge 90s — disparado se usuário não responder nada após a abertura
 const WELCOME_MSG_NUDGE =
-  `ué, ainda aí?\n\n` +
-  `manda só uma frase do que tá rolando — tipo _'match novo travou'_ ou _'ex voltou a falar comigo'_\n\n` +
-  `eu resolvo o resto`;
+  `Ainda por aqui? Sem pressa — quando quiser manda a situação que eu já te devolvo os 3 tons`;
 
-const WELCOME_MESSAGES = [
-  WELCOME_MSG_0,
-  WELCOME_MSG_1,
-  WELCOME_MSG_2,
-];
+// Mantido como array por compatibilidade com o fluxo V1 (legado) — só o
+// índice 0 é enviado (mensagem única, sem paredão de texto).
+const WELCOME_MESSAGES = [WELCOME_MSG_0];
 
 // ── Gatilho de follow-up do gancho de upgrade ────────────────────────────────
 const HOOK_TRIGGER_PATTERN = /^(quero|sim|manda|conta|qual|pode|bora|claro|vai|manda aí|pode sim|ok|quero saber)$/i;
@@ -3360,22 +3345,14 @@ async function handleIncomingMessage(message) {
     stopEarlyTyping();
 
     if (ONBOARDING_V2) {
-      // V2: onboarding em 3 mensagens — mostra o produto funcionando antes de pedir qualquer coisa
+      // V2: onboarding em mensagem única — pede a coisa mais fácil (colar texto)
+      // e entrega os 3 tons na primeira resposta, sem falar de oferta ainda.
       await client.sendMessage(message.from, WELCOME_MSG_0);
-      let welcomeChat = null;
-      try { welcomeChat = await message.getChat(); } catch (_) {}
-      if (welcomeChat) { try { await welcomeChat.sendStateTyping(); } catch (_) {} }
-      await new Promise(r => setTimeout(r, 2000));
-      await client.sendMessage(message.from, WELCOME_MSG_1);
-      if (welcomeChat) { try { await welcomeChat.sendStateTyping(); } catch (_) {} }
-      await new Promise(r => setTimeout(r, 2000));
-      await client.sendMessage(message.from, WELCOME_MSG_2);
-      if (welcomeChat) { try { await welcomeChat.clearState(); } catch (_) {} }
       ensureFDS(phone).catch(() => {});
       logJourneyEvent(phone, 'onboarding_v2_started', {}).catch(() => {});
       console.log(`[Boas-vindas] Enviada para: ${phone} (V2)`);
 
-      // Nudge 90s: dispara se usuário não mandar nada após MSG 3
+      // Nudge 90s: dispara se usuário não mandar nada após a mensagem de abertura
       const nudgeTimer = setTimeout(async () => {
         onboardingNudgeTimers.delete(phone);
         try {
@@ -3388,12 +3365,9 @@ async function handleIncomingMessage(message) {
       }, 90_000);
       onboardingNudgeTimers.set(phone, nudgeTimer);
     } else {
-      // V1: 3 mensagens com delays
+      // V1 (legado): mesma mensagem única — evita reintroduzir a parede de
+      // texto de 3-4 blocos que derrubava conversas antes de qualquer resposta.
       await client.sendMessage(message.from, WELCOME_MESSAGES[0]);
-      await new Promise(r => setTimeout(r, 2000));
-      await client.sendMessage(message.from, WELCOME_MESSAGES[1]);
-      await new Promise(r => setTimeout(r, 3000));
-      await client.sendMessage(message.from, WELCOME_MESSAGES[2]);
       console.log(`[Boas-vindas] Enviada para: ${phone}`);
     }
 
@@ -3972,7 +3946,7 @@ async function handleIncomingMessage(message) {
               const lc = checkPrintLimit(phone, trial.isPremium, trial.inTrial);
               if (!lc.allowed) {
                 const msg = lc.reason === 'cooldown'
-                  ? `Aguarda ${lc.remaining}s antes de mandar outro print.`
+                  ? `Só um segundo que eu ainda tô lendo o de cima 👀`
                   : (trial.isPremium ? PRINT_LIMIT_REACHED_PREMIUM : PRINT_LIMIT_REACHED_TRIAL);
                 await client.sendMessage(message.from, msg);
               } else {
@@ -4013,7 +3987,7 @@ async function handleIncomingMessage(message) {
               const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
               if (!pl.allowed) {
                 const msg = pl.reason === 'cooldown'
-                  ? `Aguarda ${pl.remaining}s antes de mandar outro perfil.`
+                  ? `Só um segundo que eu ainda tô lendo o de cima 👀`
                   : PROFILE_LIMIT_REACHED_PRO;
                 await client.sendMessage(message.from, msg);
               } else {
@@ -4069,7 +4043,7 @@ async function handleIncomingMessage(message) {
             const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
             if (!pl.allowed) {
               await client.sendMessage(message.from,
-                pl.reason === 'cooldown' ? `Aguarda ${pl.remaining}s antes de mandar outro perfil.` : PROFILE_LIMIT_REACHED_PRO
+                pl.reason === 'cooldown' ? `Só um segundo que eu ainda tô lendo o de cima 👀` : PROFILE_LIMIT_REACHED_PRO
               );
             } else {
               await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
@@ -4096,7 +4070,7 @@ async function handleIncomingMessage(message) {
             const pl = checkProfileLimit(phone, trial.isPro || !needsPlanCheck);
             if (!pl.allowed) {
               await client.sendMessage(message.from,
-                pl.reason === 'cooldown' ? `Aguarda ${pl.remaining}s antes de mandar outro perfil.` : PROFILE_LIMIT_REACHED_PRO
+                pl.reason === 'cooldown' ? `Só um segundo que eu ainda tô lendo o de cima 👀` : PROFILE_LIMIT_REACHED_PRO
               );
             } else {
               await message.reply(MENSAGENS_ESPERA_PERFIL[Math.floor(Math.random() * MENSAGENS_ESPERA_PERFIL.length)]);
@@ -4754,6 +4728,15 @@ async function handleIncomingMessage(message) {
       }
 
       await enviarResposta(message, result.text, result.intent, phone);
+
+      // 1ª entrega V2: fecha convidando a reagir — SEM falar de oferta ainda.
+      // A oferta só entra depois que a pessoa reagir (escolhe um tom, elogia,
+      // manda 2ª situação) — ver fireRetentionHook/upsellPicoPremium abaixo.
+      if (isFirstAnalysisV2) {
+        await new Promise(r => setTimeout(r, 800));
+        await client.sendMessage(message.from, 'Qual combina mais com você? Manda outra situação quando quiser, eu tô aqui.');
+      }
+
       storeUpgradeHookContext(phone, text);
       await upsellSonnetFree(message, result.sonnetInfo, trial);
       await contadorRestante(message, trial, todayCount);
@@ -4780,7 +4763,7 @@ async function handleIncomingMessage(message) {
     stopEarlyTyping();
     const media = await downloadMediaSafe(message);
     if (!media) {
-      await message.reply('Não consegui baixar essa imagem 😕 Tira um *print* novo (screenshot) e manda de novo — às vezes o WhatsApp trava a foto original.');
+      await message.reply('Essa imagem não abriu aqui do meu lado 😅 consegue mandar de novo ou só colar o texto?');
       return;
     }
 
@@ -5078,7 +5061,7 @@ async function handleIncomingMessage(message) {
           if (!limitCheck.allowed) {
             if (limitCheck.reason === 'cooldown') {
               await client.sendMessage(message.from,
-                `Aguarda ${limitCheck.remaining}s antes de mandar outro print.`
+                `Só um segundo que eu ainda tô lendo o de cima 👀`
               );
             } else if (limitCheck.reason === 'limit_reached') {
               const msg = trial.isPremium ? PRINT_LIMIT_REACHED_PREMIUM : PRINT_LIMIT_REACHED_TRIAL;
@@ -5137,6 +5120,12 @@ async function handleIncomingMessage(message) {
 
             for (const msg of printMsgs) {
               await client.sendMessage(message.from, msg);
+            }
+
+            // 1ª entrega V2 (via print): mesmo convite a reagir, sem falar de oferta.
+            if (isFirstPrintV2) {
+              await new Promise(r => setTimeout(r, 800));
+              await client.sendMessage(message.from, 'Qual combina mais com você? Manda outra situação quando quiser, eu tô aqui.');
             }
 
             // Journey events: first_print_analyzed, third_print_analyzed, milestones
@@ -5209,7 +5198,7 @@ async function handleIncomingMessage(message) {
 
     const media = await downloadMediaSafe(message);
     if (!media) {
-      await message.reply('Não consegui baixar o áudio, manda de novo');
+      await message.reply('Esse áudio não abriu aqui do meu lado 😅 consegue mandar de novo ou só escrever o que ela disse?');
       return;
     }
 
